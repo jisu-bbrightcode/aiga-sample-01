@@ -5,6 +5,8 @@ import { injectAuthOrganizationInvitationSender } from "@repo/core/auth/organiza
 import { injectAuthPasswordChangedSender } from "@repo/core/auth/password-changed-sender";
 import { injectAuthPasswordResetSender } from "@repo/core/auth/password-reset-sender";
 import { EmailController } from "./controller/email.controller";
+import { ResendWebhookController } from "./controller/resend-webhook.controller";
+import { DomainVerificationService } from "./service/domain-verification.service";
 import { EmailService } from "./service/email.service";
 import { EmailProviderService } from "./service/email-provider.service";
 import { EmailTemplateService } from "./service/email-template.service";
@@ -16,9 +18,9 @@ import { injectEmailService } from "./service-registry";
  * 이메일 발송 및 로그 관리 기능을 제공
  */
 @Module({
-  controllers: [EmailController],
-  providers: [EmailService, EmailProviderService, EmailTemplateService],
-  exports: [EmailService, EmailTemplateService],
+  controllers: [EmailController, ResendWebhookController],
+  providers: [EmailService, EmailProviderService, EmailTemplateService, DomainVerificationService],
+  exports: [EmailService, EmailTemplateService, DomainVerificationService],
 })
 export class EmailModule implements OnModuleInit {
   constructor(private readonly emailService: EmailService) {}

@@ -6,6 +6,7 @@ export const serverEnvSchema = z.object({
   APP_URL: z.string().url().default("http://localhost:3000"),
   EMAIL_PROVIDER: z.enum(["resend", "ses", "smtp"]).default("resend"),
   RESEND_API_KEY: z.string().optional(),
+  RESEND_WEBHOOK_SECRET: z.string().optional(),
   EMAIL_FROM: z.string().default("Product Builder <noreply@example.com>"),
   OPENAI_API_KEY: z.string().min(1).optional(),
   OPENAI_IMAGE_MODEL: z.string().min(1).optional(),
