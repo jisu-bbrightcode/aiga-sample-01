@@ -1,11 +1,18 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
-import { serviceSearchDocuments, serviceSearchQueries } from "@repo/drizzle/schema";
+import {
+  type ServiceSearchDocument,
+  serviceSearchDocuments,
+  serviceSearchQueries,
+} from "@repo/drizzle/schema";
 import { and, desc, eq, gt, type SQL, sql } from "drizzle-orm";
 import type { AdminSearchQueryDto, SearchQueryDto } from "../dto";
+import { SEARCH_ENTITY_TYPES } from "../dto";
 import { type AdminSearchHit, type PublicSearchHit, toAdminSearchHit } from "../mappers";
 import { normalizeQuery, resolveSortMode, type SearchSortMode } from "../normalize";
+
+type SearchEntityType = ServiceSearchDocument["entityType"];
 
 const doc = serviceSearchDocuments;
 const queries = serviceSearchQueries;
@@ -114,6 +121,64 @@ export class ServiceSearchService {
       page,
       limit,
     };
+  }
+
+  // =========================================================================
+  // Unified detail (FR-003 / BBR-532)
+  //
+  // A detail lookup keyed by the unique (entityType, entityId) of the search
+  // projection — the id every list hit already carries. Two tiers:
+  //
+  // - public (`getPublicDetail`):  forces is_published = true and selects only
+  //   public columns. A missing OR unpublished document is indistinguishable —
+  //   both raise 404, so a 비공개(unpublished) resource never leaks its
+  //   existence through the public surface (no 403 here by design).
+  // - admin (`getAdminDetail`):    no publish filter, full row incl. internals.
+  //   Reachable only behind BetterAuthGuard + BetterAuthAdminGuard, so the
+  //   401/403 contract for 권한 없는 접근 is enforced by the guards, and an
+  //   admin may inspect unpublished documents.
+  // =========================================================================
+
+  /** Public detail: published-only, public columns. 404 if missing/unpublished. */
+  async getPublicDetail(entityType: string, entityId: string): Promise<PublicSearchHit> {
+    const type = this.assertEntityType(entityType);
+    const rows = await this.db
+      .select(PUBLIC_COLUMNS)
+      .from(doc)
+      .where(and(eq(doc.entityType, type), eq(doc.entityId, entityId), eq(doc.isPublished, true)))
+      .limit(1);
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundException("검색 결과를 찾을 수 없습니다.");
+    }
+    return { ...row };
+  }
+
+  /** Admin detail: full row incl. internals, published OR not. 404 if missing. */
+  async getAdminDetail(entityType: string, entityId: string): Promise<AdminSearchHit> {
+    const type = this.assertEntityType(entityType);
+    const rows = await this.db
+      .select()
+      .from(doc)
+      .where(and(eq(doc.entityType, type), eq(doc.entityId, entityId)))
+      .limit(1);
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundException("검색 문서를 찾을 수 없습니다.");
+    }
+    return toAdminSearchHit(row);
+  }
+
+  /**
+   * Narrow an untrusted path segment to a known entity type. An unknown type
+   * names no real resource, so it is treated as 404 (not a 400) to keep the
+   * detail contract single-coded: "no such resource".
+   */
+  private assertEntityType(value: string): SearchEntityType {
+    if ((SEARCH_ENTITY_TYPES as readonly string[]).includes(value)) {
+      return value as SearchEntityType;
+    }
+    throw new NotFoundException("검색 결과를 찾을 수 없습니다.");
   }
 
   // =========================================================================

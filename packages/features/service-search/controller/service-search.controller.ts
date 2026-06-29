@@ -1,15 +1,17 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import type { User } from "@repo/core/nestjs/auth";
 import { BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import {
   PopularQueryDto,
   PopularTermDto,
+  PublicSearchDetailDto,
   RecentQueryDto,
   RecentSearchDto,
   SearchQueryDto,
   SearchResultDto,
 } from "../dto";
+import { publicViewerState } from "../mappers";
 import { OptionalUser } from "../optional-user.decorator";
 import { ServiceSearchService } from "../service";
 
@@ -54,5 +56,29 @@ export class ServiceSearchController {
   @ApiResponse({ status: 401, description: "인증 필요" })
   recent(@CurrentUser() user: User, @Query() query: RecentQueryDto) {
     return this.service.recentTerms(user.id, query);
+  }
+
+  // NOTE: declared LAST so the parametric two-segment route never shadows the
+  // single-segment literals above (`popular`/`recent`). entityId is validated
+  // as a UUID (malformed → 400); an unknown entityType → 404 (no such resource).
+  @Get(":entityType/:entityId")
+  @ApiOperation({
+    summary: "통합 상세 조회 (공개) — 게시된 검색 리소스 + viewer state",
+    description:
+      "통합검색 결과 1건을 (entityType, entityId)로 조회한다. 공개 surface는 published 문서만 " +
+      "노출하므로 없는 리소스와 비공개(미게시) 리소스는 모두 404로 동일하게 응답한다 " +
+      "(존재 여부 비노출). viewer 블록은 로그인 여부 등 요청자 상태를 담는다.",
+  })
+  @ApiParam({ name: "entityType", enum: ["doctor", "hospital", "specialty", "region"] })
+  @ApiParam({ name: "entityId", format: "uuid" })
+  @ApiResponse({ status: 200, type: PublicSearchDetailDto })
+  @ApiResponse({ status: 404, description: "없는 리소스 또는 비공개 리소스" })
+  async detail(
+    @Param("entityType") entityType: string,
+    @Param("entityId", ParseUUIDPipe) entityId: string,
+    @OptionalUser() user?: User,
+  ): Promise<PublicSearchDetailDto> {
+    const hit = await this.service.getPublicDetail(entityType, entityId);
+    return { ...hit, viewer: publicViewerState(Boolean(user)) };
   }
 }

@@ -1,5 +1,10 @@
 import type { ServiceSearchDocument } from "@repo/drizzle/schema";
-import { toAdminSearchHit, toPublicSearchHit } from "./mappers";
+import {
+  ADMIN_VIEWER_STATE,
+  publicViewerState,
+  toAdminSearchHit,
+  toPublicSearchHit,
+} from "./mappers";
 
 function makeDocRow(overrides: Partial<ServiceSearchDocument> = {}): ServiceSearchDocument {
   return {
@@ -68,5 +73,29 @@ describe("toAdminSearchHit", () => {
     expect(hit.createdAt).toBe("2026-01-02T00:00:00.000Z");
     // the raw tsvector is never surfaced even to admins
     expect(hit).not.toHaveProperty("searchVector");
+  });
+});
+
+describe("viewer state (FR-003 detail / BBR-532)", () => {
+  it("publicViewerState is fail-closed — never admin / never unpublished", () => {
+    expect(publicViewerState(false)).toEqual({
+      authenticated: false,
+      isAdmin: false,
+      canViewUnpublished: false,
+    });
+    // even an authenticated public viewer is not privileged on this surface
+    expect(publicViewerState(true)).toEqual({
+      authenticated: true,
+      isAdmin: false,
+      canViewUnpublished: false,
+    });
+  });
+
+  it("ADMIN_VIEWER_STATE grants the privileged view", () => {
+    expect(ADMIN_VIEWER_STATE).toEqual({
+      authenticated: true,
+      isAdmin: true,
+      canViewUnpublished: true,
+    });
   });
 });
