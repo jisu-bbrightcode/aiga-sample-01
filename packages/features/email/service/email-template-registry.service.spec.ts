@@ -29,6 +29,9 @@ class MockChain {
   limit() {
     return this;
   }
+  groupBy() {
+    return this;
+  }
   // biome-ignore lint/suspicious/noThenProperty: intentional thenable so `await chain` resolves the mocked query result
   then<T>(onFulfilled: (value: unknown) => T) {
     return Promise.resolve(this.value).then(onFulfilled);
@@ -96,10 +99,25 @@ describe("EmailTemplateRegistryService", () => {
   describe("getTemplate", () => {
     it("returns versions and distinguishes draft vs published (AC#3)", async () => {
       const db = new MockDb().queue_(
-        [template()], // findTemplateByKey
+        [template({ updatedAt: new Date("2026-01-02T03:04:05Z") })], // findTemplateByKey
         [
           publishedVersion({ id: "v1", version: 1 }),
           publishedVersion({ id: "v2", version: 2, status: "draft" }),
+        ],
+        // getSendSummaries grouped rows
+        [
+          {
+            templateKey: "transactional.notification",
+            status: "sent",
+            count: 3,
+            lastAt: new Date("2026-02-01T00:00:00Z"),
+          },
+          {
+            templateKey: "transactional.notification",
+            status: "bounced",
+            count: 1,
+            lastAt: new Date("2026-02-05T00:00:00Z"),
+          },
         ],
       );
       const { service } = makeService(db);
@@ -113,6 +131,13 @@ describe("EmailTemplateRegistryService", () => {
       expect(detail.versions.map((v) => v.status).sort()).toEqual(["draft", "published"]);
       const current = detail.versions.find((v) => v.isCurrent);
       expect(current?.version).toBe(1);
+      // BBR-657 delta: updatedAt + last-send summary on the detail view
+      expect(detail.updatedAt).toEqual(new Date("2026-01-02T03:04:05Z"));
+      expect(detail.lastSend.totalCount).toBe(4);
+      expect(detail.lastSend.statusCounts).toEqual({ sent: 3, bounced: 1 });
+      // bounced log is the most recent → drives lastStatus/lastSentAt
+      expect(detail.lastSend.lastStatus).toBe("bounced");
+      expect(detail.lastSend.lastSentAt).toEqual(new Date("2026-02-05T00:00:00Z"));
     });
 
     it("throws NotFound for an unknown key", async () => {
@@ -218,6 +243,7 @@ describe("EmailTemplateRegistryService", () => {
           description: null,
           category: "transactional",
           isActive: true,
+          updatedAt: new Date("2026-01-01T00:00:00Z"),
           currentVersion: 1,
           currentStatus: "published",
         },
@@ -227,6 +253,7 @@ describe("EmailTemplateRegistryService", () => {
           description: null,
           category: "marketing",
           isActive: true,
+          updatedAt: new Date("2026-01-03T00:00:00Z"),
           currentVersion: null,
           currentStatus: null,
         },
@@ -238,6 +265,66 @@ describe("EmailTemplateRegistryService", () => {
       expect(list[0]?.currentStatus).toBe("published");
       expect(list[1]?.renderer).toBeNull();
       expect(list[1]?.currentVersion).toBeNull();
+    });
+
+    it("includes updatedAt + last-send summary per template (AC: 목록은 updatedAt + 마지막 발송 상태 요약)", async () => {
+      const db = new MockDb().queue_(
+        [
+          {
+            key: "auth.welcome",
+            name: "환영",
+            description: null,
+            category: "auth",
+            isActive: true,
+            updatedAt: new Date("2026-03-10T00:00:00Z"),
+            currentVersion: 2,
+            currentStatus: "published",
+          },
+          {
+            key: "marketing.custom-blast",
+            name: "커스텀",
+            description: null,
+            category: "marketing",
+            isActive: true,
+            updatedAt: new Date("2026-03-11T00:00:00Z"),
+            currentVersion: null,
+            currentStatus: null,
+          },
+        ],
+        // getSendSummaries grouped rows — only auth.welcome has sends
+        [
+          {
+            templateKey: "auth.welcome",
+            status: "delivered",
+            count: 5,
+            lastAt: new Date("2026-03-20T00:00:00Z"),
+          },
+          {
+            templateKey: "auth.welcome",
+            status: "failed",
+            count: 2,
+            lastAt: new Date("2026-03-21T00:00:00Z"),
+          },
+        ],
+      );
+      const { service } = makeService(db);
+
+      const list = await service.listTemplates();
+
+      expect(list[0]?.updatedAt).toEqual(new Date("2026-03-10T00:00:00Z"));
+      expect(list[0]?.lastSend).toEqual({
+        totalCount: 7,
+        statusCounts: { delivered: 5, failed: 2 },
+        lastStatus: "failed", // 2026-03-21 is the most recent
+        lastSentAt: new Date("2026-03-21T00:00:00Z"),
+      });
+      // never-sent template gets a zero-state summary, not null
+      expect(list[1]?.lastSend).toEqual({
+        totalCount: 0,
+        statusCounts: {},
+        lastStatus: null,
+        lastSentAt: null,
+      });
     });
   });
 });

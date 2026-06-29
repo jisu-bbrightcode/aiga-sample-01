@@ -17,10 +17,24 @@ function makeController() {
       currentStatus: null,
       versions: [{ version: 1, status: "draft" }],
     }),
+    listTemplates: jest.fn().mockResolvedValue([]),
+    getTemplate: jest.fn().mockResolvedValue({ key: "auth.welcome" }),
   } as unknown as jest.Mocked<EmailTemplateRegistryService>;
   const controller = new EmailController(emailService, templateService, templateRegistry);
   return { controller, templateRegistry };
 }
+
+describe("EmailController — admin-only guards", () => {
+  // AC (BBR-657 & BBR-658): template management/read is admin-only. The
+  // class-level guards enforce authentication (BetterAuthGuard) then admin role
+  // (BetterAuthAdminGuard) before any handler runs.
+  it("guards the controller with BetterAuthGuard + BetterAuthAdminGuard", () => {
+    const guards = Reflect.getMetadata(GUARDS_METADATA, EmailController);
+    expect(Array.isArray(guards)).toBe(true);
+    expect(guards).toContain(BetterAuthGuard);
+    expect(guards).toContain(BetterAuthAdminGuard);
+  });
+});
 
 describe("EmailController.createTemplate (BBR-658)", () => {
   it("forwards the authenticated admin id and body to the registry service", async () => {
@@ -37,12 +51,18 @@ describe("EmailController.createTemplate (BBR-658)", () => {
     expect(templateRegistry.createTemplate).toHaveBeenCalledWith("admin-1", dto);
     expect(result).toMatchObject({ versions: [{ version: 1, status: "draft" }] });
   });
+});
 
-  // AC: template management is admin-only. The class-level guards enforce
-  // authentication (BetterAuthGuard) then admin role (BetterAuthAdminGuard).
-  it("guards the controller with BetterAuthGuard + BetterAuthAdminGuard", () => {
-    const guards = Reflect.getMetadata(GUARDS_METADATA, EmailController);
-    expect(guards).toContain(BetterAuthGuard);
-    expect(guards).toContain(BetterAuthAdminGuard);
+describe("EmailController — template read endpoints (BBR-657 / PB-NOTI-EMAIL-API-LIST-001)", () => {
+  it("GET templates delegates to the registry list", async () => {
+    const { controller, templateRegistry } = makeController();
+    await controller.listTemplates();
+    expect(templateRegistry.listTemplates).toHaveBeenCalledTimes(1);
+  });
+
+  it("GET templates/:key delegates to the registry detail lookup", async () => {
+    const { controller, templateRegistry } = makeController();
+    await controller.getTemplate("auth.welcome");
+    expect(templateRegistry.getTemplate).toHaveBeenCalledWith("auth.welcome");
   });
 });

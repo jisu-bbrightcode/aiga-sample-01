@@ -19,6 +19,23 @@ const rendererEnum = z.enum([
   "password-changed",
   "notification",
 ]);
+const emailStatusEnum = z.enum([
+  "pending",
+  "sending",
+  "sent",
+  "delivered",
+  "failed",
+  "bounced",
+  "opened",
+]);
+
+/** Last-send status summary derived from email_logs (AC: 마지막 발송 상태 요약). */
+const sendSummarySchema = z.object({
+  totalCount: z.number(),
+  statusCounts: z.record(emailStatusEnum, z.number()),
+  lastStatus: emailStatusEnum.nullable(),
+  lastSentAt: z.string().nullable(),
+});
 
 /** Request body for preview/validate: a flat map of template variables. */
 export const templateVariablesBodySchema = z.record(z.string(), z.unknown());
@@ -76,6 +93,8 @@ const templateSummarySchema = z.object({
   renderer: rendererEnum.nullable(),
   currentVersion: z.number().nullable(),
   currentStatus: versionStatusEnum.nullable(),
+  updatedAt: z.string(),
+  lastSend: sendSummarySchema,
 });
 export class EmailTemplateSummaryDto extends createZodDto(templateSummarySchema) {}
 

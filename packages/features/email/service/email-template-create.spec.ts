@@ -29,6 +29,9 @@ class WriteChain {
   limit() {
     return this;
   }
+  groupBy() {
+    return this;
+  }
   insert() {
     return this;
   }

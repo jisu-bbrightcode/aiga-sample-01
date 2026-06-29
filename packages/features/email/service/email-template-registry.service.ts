@@ -6,9 +6,14 @@ import {
 } from "@nestjs/common";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
-import type { EmailTemplate, EmailTemplateType, EmailTemplateVersion } from "@repo/drizzle/schema";
-import { emailTemplates, emailTemplateVersions } from "@repo/drizzle/schema";
-import { and, desc, eq } from "drizzle-orm";
+import type {
+  EmailStatus,
+  EmailTemplate,
+  EmailTemplateType,
+  EmailTemplateVersion,
+} from "@repo/drizzle/schema";
+import { emailLogs, emailTemplates, emailTemplateVersions } from "@repo/drizzle/schema";
+import { and, count, desc, eq, inArray, max } from "drizzle-orm";
 import {
   normalizeVariableSchema,
   parseVariableSchemaInput,
@@ -33,6 +38,17 @@ export interface TemplateVersionView {
   isCurrent: boolean;
 }
 
+export interface EmailSendSummary {
+  /** Total send-log rows attributed to this template key. */
+  totalCount: number;
+  /** Count per email status (only statuses that occurred are present). */
+  statusCounts: Partial<Record<EmailStatus, number>>;
+  /** Status of the most recently created send log, or null when never sent. */
+  lastStatus: EmailStatus | null;
+  /** Timestamp of the most recent send log (createdAt), or null when never sent. */
+  lastSentAt: Date | null;
+}
+
 export interface TemplateSummaryView {
   key: string;
   name: string;
@@ -43,10 +59,19 @@ export interface TemplateSummaryView {
   renderer: EmailTemplateType | null;
   currentVersion: number | null;
   currentStatus: EmailTemplateVersion["status"] | null;
+  /** Template row's last-modified timestamp (AC: 목록은 updatedAt 제공). */
+  updatedAt: Date;
+  /** Last-send status summary derived from email_logs (AC: 마지막 발송 상태 요약). */
+  lastSend: EmailSendSummary;
 }
 
 export interface TemplateDetailView extends TemplateSummaryView {
   versions: TemplateVersionView[];
+}
+
+/** Zero-state send summary for templates that have never been sent. */
+function emptySendSummary(): EmailSendSummary {
+  return { totalCount: 0, statusCounts: {}, lastStatus: null, lastSentAt: null };
 }
 
 export interface ResolvedTemplateVersion {
@@ -128,6 +153,7 @@ export class EmailTemplateRegistryService {
         description: emailTemplates.description,
         category: emailTemplates.category,
         isActive: emailTemplates.isActive,
+        updatedAt: emailTemplates.updatedAt,
         currentVersion: emailTemplateVersions.version,
         currentStatus: emailTemplateVersions.status,
       })
@@ -138,6 +164,8 @@ export class EmailTemplateRegistryService {
       )
       .orderBy(emailTemplates.key);
 
+    const summaries = await this.getSendSummaries(rows.map((row) => row.key));
+
     return rows.map((row) => ({
       key: row.key,
       name: row.name,
@@ -147,6 +175,8 @@ export class EmailTemplateRegistryService {
       renderer: resolveRenderer(row.key),
       currentVersion: row.currentVersion ?? null,
       currentStatus: row.currentStatus ?? null,
+      updatedAt: row.updatedAt,
+      lastSend: summaries.get(row.key) ?? emptySendSummary(),
     }));
   }
 
@@ -238,11 +268,12 @@ export class EmailTemplateRegistryService {
   }
 
   /** Map a template row + its version rows into the admin detail view. */
-  private toDetailView(
+  private async toDetailView(
     template: EmailTemplate,
     versions: EmailTemplateVersion[],
-  ): TemplateDetailView {
+  ): Promise<TemplateDetailView> {
     const current = versions.find((v) => v.id === template.currentVersionId) ?? null;
+    const summaries = await this.getSendSummaries([template.key]);
 
     return {
       key: template.key,
@@ -253,6 +284,8 @@ export class EmailTemplateRegistryService {
       renderer: resolveRenderer(template.key),
       currentVersion: current?.version ?? null,
       currentStatus: current?.status ?? null,
+      updatedAt: template.updatedAt,
+      lastSend: summaries.get(template.key) ?? emptySendSummary(),
       versions: versions.map((v) => ({
         id: v.id,
         version: v.version,
@@ -384,6 +417,46 @@ export class EmailTemplateRegistryService {
     throw new NotFoundException(
       `템플릿 "${resolved.template.key}"의 본문 렌더러를 찾을 수 없습니다.`,
     );
+  }
+
+  /**
+   * Build a per-key send-status summary from `email_logs` in a single grouped
+   * query (one round-trip for the whole list — no N+1). Logs are attributed to a
+   * template via `templateKey`; the most recently created log determines
+   * `lastStatus` / `lastSentAt`.
+   */
+  private async getSendSummaries(keys: string[]): Promise<Map<string, EmailSendSummary>> {
+    const summaries = new Map<string, EmailSendSummary>();
+    if (keys.length === 0) {
+      return summaries;
+    }
+
+    const rows = await this.db
+      .select({
+        templateKey: emailLogs.templateKey,
+        status: emailLogs.status,
+        count: count(),
+        lastAt: max(emailLogs.createdAt),
+      })
+      .from(emailLogs)
+      .where(inArray(emailLogs.templateKey, keys))
+      .groupBy(emailLogs.templateKey, emailLogs.status);
+
+    for (const row of rows) {
+      if (!row.templateKey) {
+        continue;
+      }
+      const summary = summaries.get(row.templateKey) ?? emptySendSummary();
+      summary.totalCount += row.count;
+      summary.statusCounts[row.status] = (summary.statusCounts[row.status] ?? 0) + row.count;
+      if (row.lastAt && (!summary.lastSentAt || row.lastAt > summary.lastSentAt)) {
+        summary.lastSentAt = row.lastAt;
+        summary.lastStatus = row.status;
+      }
+      summaries.set(row.templateKey, summary);
+    }
+
+    return summaries;
   }
 
   private async findTemplateByKey(key: string): Promise<EmailTemplate> {
