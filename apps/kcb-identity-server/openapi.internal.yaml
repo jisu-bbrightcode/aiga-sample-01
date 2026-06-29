@@ -1,0 +1,232 @@
+openapi: 3.1.0
+info:
+  title: KCB Identity Adapter — Internal Contract
+  version: "1.0.0"
+  description: >
+    Internal HTTP contract between the Vercel/Node API (KcbAdapterClient) and the
+    Railway-hosted JVM adapter (apps/kcb-identity-server, Spring KcbController).
+    This boundary exists because the official KCB OkCert3 JAR cannot run inside a
+    Node/Vercel function. All `/internal/**` operations require the shared bearer
+    token (`KCB_INTERNAL_AUTH_TOKEN`). Schemas mirror the typed DTOs in
+    packages/features/identity-verification/kcb/contracts.ts.
+servers:
+  - url: "{adapterBaseUrl}"
+    description: Railway public HTTPS URL (KCB_ADAPTER_BASE_URL)
+    variables:
+      adapterBaseUrl:
+        default: https://kcb-identity-server.up.railway.app
+security:
+  - internalBearer: []
+paths:
+  /health:
+    get:
+      operationId: health
+      summary: Liveness + KCB configuration readiness (unauthenticated)
+      security: []
+      responses:
+        "200":
+          description: Service is up; body reports readiness blockers (if any).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KcbHealth" }
+  /internal/kcb/standard/request:
+    post:
+      operationId: createStandardRequest
+      summary: Start a standard phone-popup verification (OkCert3 IDS_HS_POPUP_START)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/KcbAdapterStandardRequest" }
+      responses:
+        "200":
+          description: Redirect/form payload to POST to the KCB popup gateway.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KcbAdapterStandardResponse" }
+        "412": { $ref: "#/components/responses/PreconditionBlocker" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502": { $ref: "#/components/responses/GatewayError" }
+  /internal/kcb/standard/verify:
+    post:
+      operationId: verifyStandard
+      summary: Decode/verify the completed popup result (OkCert3 IDS_HS_POPUP_RESULT)
+      description: Single-use popup token — callers MUST NOT auto-retry on timeout.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProviderPayload" }
+      responses:
+        "200":
+          description: Normalized verification result.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KcbAdapterVerifyResponse" }
+        "412": { $ref: "#/components/responses/PreconditionBlocker" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502": { $ref: "#/components/responses/GatewayError" }
+  /internal/kcb/decrypt-result:
+    post:
+      operationId: decryptResult
+      summary: Alias of standard/verify for raw popup-return decoding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProviderPayload" }
+      responses:
+        "200":
+          description: Normalized verification result.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KcbAdapterVerifyResponse" }
+        "412": { $ref: "#/components/responses/PreconditionBlocker" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502": { $ref: "#/components/responses/GatewayError" }
+  /internal/kcb/custom/request:
+    post:
+      operationId: customRequest
+      summary: Custom-mode start (blocked until official custom contract)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProviderPayload" }
+      responses:
+        "501": { $ref: "#/components/responses/NotImplementedCustom" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /internal/kcb/custom/verify:
+    post:
+      operationId: customVerify
+      summary: Custom-mode verify (blocked until official custom contract)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProviderPayload" }
+      responses:
+        "501": { $ref: "#/components/responses/NotImplementedCustom" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+components:
+  securitySchemes:
+    internalBearer:
+      type: http
+      scheme: bearer
+      description: Shared secret KCB_INTERNAL_AUTH_TOKEN (same value on Vercel + Railway).
+  responses:
+    Unauthorized:
+      description: Missing/invalid internal bearer token.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/BlockerError" }
+          example: { code: configuration_required }
+    PreconditionBlocker:
+      description: Adapter not ready (config/JAR/license/site/url blocker).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/BlockerError" }
+          example: { code: license_required }
+    GatewayError:
+      description: KCB gateway rejected or was unreachable.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/BlockerError" }
+          example: { code: provider_rejected }
+    NotImplementedCustom:
+      description: Custom mode disabled until official documents are supplied.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/BlockerError" }
+          example: { code: official_documents_required }
+  schemas:
+    BlockerCode:
+      type: string
+      enum:
+        - configuration_required
+        - official_documents_required
+        - jar_required
+        - license_required
+        - native_library_required
+        - site_code_required
+        - return_url_required
+        - popup_url_required
+        - custom_mode_not_enabled
+        - provider_rejected
+        - replay_detected
+        - session_not_found
+        - session_expired
+    BlockerError:
+      type: object
+      required: [code]
+      properties:
+        code: { $ref: "#/components/schemas/BlockerCode" }
+    ProviderPayload:
+      type: object
+      description: Opaque KCB popup-return fields decoded by the official module.
+      additionalProperties: true
+    FileState:
+      type: object
+      required: [configured, readable]
+      properties:
+        configured: { type: boolean }
+        readable: { type: boolean }
+        checksum:
+          type: [string, "null"]
+          description: "sha256:<hex> for the JAR; null otherwise."
+    KcbHealth:
+      type: object
+      required:
+        [ok, mode, adapterConfigured, officialSourceMapped, jar, license, nativeLibrary, customModeEnabled, blockers]
+      properties:
+        ok: { type: boolean }
+        mode: { type: string, enum: [test, production, unset] }
+        adapterConfigured: { type: boolean }
+        officialSourceMapped: { type: boolean }
+        jar: { $ref: "#/components/schemas/FileState" }
+        license: { $ref: "#/components/schemas/FileState" }
+        nativeLibrary: { $ref: "#/components/schemas/FileState" }
+        nativeLibraryRequired: { type: boolean, default: false }
+        officialModuleWired: { type: boolean, default: false }
+        customModeEnabled: { type: boolean }
+        blockers:
+          type: array
+          items: { $ref: "#/components/schemas/BlockerCode" }
+    KcbAdapterStandardRequest:
+      type: object
+      required: [requestId, sessionId, state, nonce, targetAction]
+      properties:
+        requestId: { type: string, minLength: 1 }
+        sessionId: { type: string, format: uuid }
+        state: { type: string, minLength: 16 }
+        nonce: { type: string, minLength: 16 }
+        returnUrl: { type: string, format: uri }
+        callbackUrl: { type: string, format: uri }
+        targetAction: { type: string, minLength: 1 }
+    KcbAdapterStandardResponse:
+      type: object
+      required: [redirectUrl]
+      properties:
+        providerTransactionId: { type: string, minLength: 1 }
+        redirectUrl: { type: string, format: uri }
+        redirectMethod: { type: string, enum: [GET, POST], default: POST }
+        redirectForm:
+          type: object
+          additionalProperties: { type: string }
+    KcbAdapterVerifyResponse:
+      type: object
+      required: [resultCode, resultMessage, verified]
+      description: >
+        Absent fields are explicit JSON null (not omitted); masked fields only,
+        never RRN or raw payload.
+      properties:
+        providerTransactionId: { type: [string, "null"] }
+        resultCode: { type: string, minLength: 1 }
+        resultMessage: { type: string, minLength: 1 }
+        verified: { type: boolean }
+        ciHash: { type: [string, "null"] }
+        diHash: { type: [string, "null"] }
+        nameMasked: { type: [string, "null"] }
+        birthYear: { type: [string, "null"] }
+        birthDateMasked: { type: [string, "null"] }
+        phoneMasked: { type: [string, "null"] }
