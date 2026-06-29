@@ -67,6 +67,8 @@ export default defineConfig({
     "community_saved_posts",
     "community_user_karma",
     "email_logs",
+    "email_templates",
+    "email_template_versions",
     "message_sending_requests",
     "message_sending_messages",
     "message_sending_provider_events",
