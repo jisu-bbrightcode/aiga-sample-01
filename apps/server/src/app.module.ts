@@ -22,6 +22,7 @@ import { ReactionModule } from "@repo/features/reaction";
 import { ScheduledJobModule } from "@repo/features/scheduled-job";
 import { ServiceDomainModule } from "@repo/features/service-domain";
 import { StoryModule } from "@repo/features/story";
+import { UserDirectoryModule } from "@repo/features/user-directory";
 import { VideoLectureModule } from "@repo/features/video-lecture";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
@@ -84,6 +85,7 @@ const paymentFeature = getPaymentFeatureWiring();
     ReactionModule,
     ScheduledJobModule,
     ServiceDomainModule,
+    UserDirectoryModule,
     OperatorChatModule,
     LocalizationModule,
     StoryModule,
