@@ -196,7 +196,7 @@ None of these block core deploy: each is feature-gated (absence disables only it
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| Neon project id, db branch, Vercel project id in issue | ⏳ blocked on creds | §1 table ready to fill; needs §7 |
+| Neon project id, db branch, Vercel project id in issue | ⏳ deferred (operator: dummy state) | §1 table ready to fill; real provisioning parked in follow-up — see §8 |
 | 필수 env가 Prod/Preview/Dev별 정의 | ✅ spec done | §2a matrix; values set during §3 |
 | Vercel Preview/Production env key 누락 없이 매핑 | ✅ spec done | §2a + §2b boot contract |
 | Neon/Vercel 외 환경은 별도 porting workflow로 분리 | ✅ done | §4 |
@@ -220,3 +220,30 @@ only — **no Neon API key, no Vercel token, no Neon/Vercel CLI** (verified: `wh
      + health checks and closes the ACs.
 
 On either path, the durable spec/matrix/checklist above makes the remaining work mechanical.
+
+---
+
+## 8. Dummy-state development (operator decision — 2026-06-29)
+
+The §7 credential blocker was raised to the operator via `ask_user_questions` interaction
+`fde8ba68`. **Operator answer:** *"준비가 되지 않은 관계로 더미 상태에서 개발을 진행합니다"*
+— credentials are not ready, **proceed development in a dummy/placeholder state**.
+
+Accordingly, real provisioning (creating the Neon project + Vercel projects, filling §1, the
+§3 checklist, and the production health checks) is **deferred** and tracked in a follow-up
+issue. It is **not** a hard blocker on downstream development.
+
+**Dummy-state enablement (this delivers):**
+- `.env.dummy.reference` (repo root) — copy-paste-ready placeholder env for local development:
+  `cp .env.dummy.reference .env.local`. Frontend SPAs (`apps/app`, `apps/admin`) run fully on
+  these dummy values; the NestJS server (`apps/server`) additionally needs a Postgres reachable
+  at the dummy `DATABASE_URL` (local Postgres or a real Neon dev branch when convenient).
+- All third-party providers are left blank — each is feature-gated, so the server still boots
+  (see §2b boot contract). No real secret is committed.
+
+**What still requires real credentials (parked in follow-up):**
+- AC#1 real ids/URLs · §3 A/B provisioning · deploy gate (§3 B step 10–11) · §3 C prod health
+  checks · *real-deploy* acceptance ("실제 납품 완료는 Vercel 배포 URL에서 검증").
+
+When credentials arrive (secure runner creds or operator dashboard provisioning per §7), resume
+from §3 and fill §1.
