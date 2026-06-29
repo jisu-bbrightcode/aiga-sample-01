@@ -330,6 +330,13 @@
       "when": 1781311300000,
       "tag": "0046_service_domain",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1781311400000,
+      "tag": "0047_user_grade",
+      "breakpoints": true
     }
   ]
 }
