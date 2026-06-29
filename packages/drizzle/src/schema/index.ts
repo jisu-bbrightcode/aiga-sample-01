@@ -48,6 +48,7 @@ export * from "./features/message-sending";
 export * from "./features/notification";
 export * from "./features/onboarding";
 export * from "./features/payment";
+export * from "./features/personalization";
 export * from "./features/project";
 export * from "./features/reaction";
 export * from "./features/scheduled-job";
