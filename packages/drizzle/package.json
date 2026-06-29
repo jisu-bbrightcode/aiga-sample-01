@@ -21,6 +21,7 @@
     "db:reset": "npx tsx src/scripts/db-reset.ts && drizzle-kit push --force && npx tsx src/scripts/db-seed-profiles.ts",
     "db:seed:profiles": "npx tsx src/scripts/db-seed-profiles.ts",
     "db:seed:payment": "npx tsx src/seed/payment-catalog.ts",
+    "db:seed:service-domain": "npx tsx src/seed/service-domain.ts",
     "db:seed:lore-a4": "tsx scripts/seed-lore-a4.ts"
   },
   "dependencies": {

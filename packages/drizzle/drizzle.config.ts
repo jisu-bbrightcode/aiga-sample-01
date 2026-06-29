@@ -117,6 +117,13 @@ export default defineConfig({
     "character_chat_threads",
     "character_chat_messages",
     "character_chat_list_preferences",
+    // features/service-domain (PB-DATA-001)
+    "service_specialties",
+    "service_regions",
+    "service_hospitals",
+    "service_doctors",
+    "service_doctor_specialties",
+    "service_doctor_hospitals",
     // [/ATLAS:TABLES]
   ],
   verbose: true,
