@@ -26,9 +26,27 @@ export interface CommunityModuleConfig {
   enabled: boolean;
 }
 
+/**
+ * SEO / brand metadata for the public site. Drives canonical URLs, Open Graph,
+ * Twitter cards and JSON-LD structured data across every public page.
+ */
+export interface SiteSeoConfig {
+  /** Canonical production origin, no trailing slash (canonical + OG URLs). */
+  url: string;
+  /** Short brand tagline appended to the default document title. */
+  tagline: string;
+  /** Default meta description / OG description. */
+  description: string;
+  /** Default keywords for the home document. */
+  keywords?: string[];
+  /** Alt text for the default Open Graph image. */
+  ogImageAlt?: string;
+}
+
 export interface SiteConfig {
   name: string;
   locale: string;
+  seo: SiteSeoConfig;
   modules: {
     auth?: AuthModuleConfig;
     community?: CommunityModuleConfig;
