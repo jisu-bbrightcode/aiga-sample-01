@@ -7,4 +7,5 @@
 
 export * from "./renderer-resolver";
 export * from "./string-renderer";
+export * from "./system-templates";
 export * from "./variable-schema";

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -15,6 +16,7 @@ import type {
 import { emailLogs, emailTemplates, emailTemplateVersions } from "@repo/drizzle/schema";
 import { and, count, desc, eq, inArray, max } from "drizzle-orm";
 import {
+  isSystemTemplateKey,
   normalizeVariableSchema,
   parseVariableSchemaInput,
   renderTemplateString,
@@ -55,6 +57,11 @@ export interface TemplateSummaryView {
   description: string | null;
   category: EmailTemplate["category"];
   isActive: boolean;
+  /**
+   * True when the template is a protected system template (auth/transactional
+   * code-bound seed). System templates cannot be archived/deleted (BBR-660).
+   */
+  isSystem: boolean;
   /** Renderer the key maps to, or null for body-source-only templates. */
   renderer: EmailTemplateType | null;
   currentVersion: number | null;
@@ -172,6 +179,7 @@ export class EmailTemplateRegistryService {
       description: row.description,
       category: row.category,
       isActive: row.isActive,
+      isSystem: isSystemTemplateKey(row.key),
       renderer: resolveRenderer(row.key),
       currentVersion: row.currentVersion ?? null,
       currentStatus: row.currentStatus ?? null,
@@ -267,6 +275,54 @@ export class EmailTemplateRegistryService {
     }
   }
 
+  /**
+   * Archive (soft-delete) a template (PB-NOTI-EMAIL-API-DELETE-001 / BBR-660).
+   *
+   * Sets `isActive=false`. Archived templates are excluded from new sends (see the
+   * `renderByKey` send-path guard) but remain fully visible in list/detail so
+   * history stays queryable (AC: "archive된 템플릿은 ... 이력 조회는 가능하다").
+   *
+   * - System templates are protected: archiving one throws 403
+   *   (AC: "필수 시스템 템플릿은 삭제되지 않고 보호된다").
+   * - Idempotent: archiving an already-archived template is a no-op and returns
+   *   its current state.
+   */
+  async archiveTemplate(key: string): Promise<TemplateDetailView> {
+    const template = await this.findTemplateByKey(key);
+
+    if (isSystemTemplateKey(template.key)) {
+      throw new ForbiddenException(`시스템 필수 템플릿은 보관(삭제)할 수 없습니다: ${key}`);
+    }
+
+    if (template.isActive) {
+      await this.db
+        .update(emailTemplates)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(emailTemplates.id, template.id));
+    }
+
+    return this.getTemplate(key);
+  }
+
+  /**
+   * Restore an archived template (복구 정책, PB-NOTI-EMAIL-API-DELETE-001 / BBR-660).
+   *
+   * Sets `isActive=true` so the template is eligible for new sends again.
+   * Idempotent: restoring an already-active template is a no-op.
+   */
+  async restoreTemplate(key: string): Promise<TemplateDetailView> {
+    const template = await this.findTemplateByKey(key);
+
+    if (!template.isActive) {
+      await this.db
+        .update(emailTemplates)
+        .set({ isActive: true, updatedAt: new Date() })
+        .where(eq(emailTemplates.id, template.id));
+    }
+
+    return this.getTemplate(key);
+  }
+
   /** Map a template row + its version rows into the admin detail view. */
   private async toDetailView(
     template: EmailTemplate,
@@ -281,6 +337,7 @@ export class EmailTemplateRegistryService {
       description: template.description,
       category: template.category,
       isActive: template.isActive,
+      isSystem: isSystemTemplateKey(template.key),
       renderer: resolveRenderer(template.key),
       currentVersion: current?.version ?? null,
       currentStatus: current?.status ?? null,
@@ -374,6 +431,16 @@ export class EmailTemplateRegistryService {
     options: { requireValid: boolean },
   ): Promise<RenderedTemplate> {
     const resolved = await this.resolvePublishedVersion(key);
+
+    // Archived (보관) templates are excluded from new sends (BBR-660 AC). Only the
+    // send path (requireValid) is blocked; preview/validate still work so history
+    // and inspection stay available.
+    if (options.requireValid && !resolved.template.isActive) {
+      throw new BadRequestException(
+        `보관(archived)된 템플릿은 새 발송에 사용할 수 없습니다: ${key}`,
+      );
+    }
+
     const validation = validateTemplateVariables(resolved.schema, variables);
 
     if (options.requireValid && !validation.valid) {
