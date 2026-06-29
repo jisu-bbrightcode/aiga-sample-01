@@ -22,6 +22,7 @@ import { ProjectModule } from "@repo/features/project";
 import { ReactionModule } from "@repo/features/reaction";
 import { ScheduledJobModule } from "@repo/features/scheduled-job";
 import { ServiceDomainModule } from "@repo/features/service-domain";
+import { ServiceSearchModule } from "@repo/features/service-search";
 import { StoryModule } from "@repo/features/story";
 import { UserDirectoryModule } from "@repo/features/user-directory";
 import { VideoLectureModule } from "@repo/features/video-lecture";
@@ -88,6 +89,7 @@ const paymentFeature = getPaymentFeatureWiring();
     ScheduledJobModule,
     ServiceDomainModule,
     UserDirectoryModule,
+    ServiceSearchModule,
     OperatorChatModule,
     LocalizationModule,
     StoryModule,

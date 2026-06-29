@@ -35,6 +35,7 @@ module.exports = {
     // Strip .js extensions so NodeNext-style relative imports resolve to .ts
     "^(\\.{1,2}/.*)\\.js$": "$1",
     "^@repo/drizzle$": "<rootDir>/../drizzle/src/index.ts",
+    "^@repo/drizzle/schema$": "<rootDir>/../drizzle/src/schema/index.ts",
     "^@repo/core/auth/email-verification-sender$":
       "<rootDir>/../core/auth/email-verification-sender.ts",
     "^@repo/core/auth/magic-link-sender$": "<rootDir>/../core/auth/magic-link-sender.ts",
