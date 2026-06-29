@@ -1,0 +1,165 @@
+# PB-FILE-DATA-001 (BBR-547) — file-upload data model: OpenAPI component schemas.
+#
+# OpenAPI 3.1 component fragment for the `file_assets` table. This is the data
+# contract for the downstream file-upload REST issues (PB-FILE-API-CREATE/
+# COMPLETE/LIST/READ/UPDATE/DELETE = BBR-548..553), which merge these schemas
+# into the central spec and add the paths.
+#
+# Mirrors packages/drizzle/src/schema/features/file-upload/. Trust boundary:
+# `contentType`/`size`/`checksum` are SERVER-VERIFIED (authoritative);
+# `declaredContentType`/`declaredSize` are CLIENT-DECLARED (untrusted).
+openapi: 3.1.0
+info:
+  title: AIGA file-upload data model (PB-FILE-DATA-001)
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    FileSource:
+      type: string
+      description: Who created the asset (user upload vs admin/system file).
+      enum: [user, admin, system]
+    FileVisibility:
+      type: string
+      description: Access policy. Default private; public requires whitelist.
+      enum: [public, private]
+    FileStatus:
+      type: string
+      description: Upload lifecycle.
+      enum: [pending, ready, failed, deleted]
+    FileScanStatus:
+      type: string
+      description: Malware/safety scan state.
+      enum: [pending, clean, infected, error, skipped]
+    FileReviewStatus:
+      type: string
+      description: Content moderation / editorial review state (UGC safety).
+      enum: [not_required, pending, approved, rejected]
+
+    FileAsset:
+      type: object
+      description: >-
+        File metadata + permission record. Public surfaces must only expose a
+        `ready` asset and must read the server-verified fields, never the
+        client-declared ones.
+      required:
+        - id
+        - source
+        - blobUrl
+        - pathname
+        - originalName
+        - visibility
+        - status
+        - scanStatus
+        - reviewStatus
+        - isDeleted
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: [string, "null"]
+          description: Uploader. Null for system-generated assets.
+        source:
+          $ref: "#/components/schemas/FileSource"
+        targetType:
+          type: [string, "null"]
+          maxLength: 64
+          description: Resource kind the file is attached to (e.g. "profile", "hospital").
+        targetId:
+          type: [string, "null"]
+          maxLength: 255
+        blobUrl:
+          type: string
+          format: uri
+        pathname:
+          type: string
+          description: Blob storage key (unique).
+        downloadUrl:
+          type: [string, "null"]
+          format: uri
+        originalName:
+          type: string
+        visibility:
+          $ref: "#/components/schemas/FileVisibility"
+        status:
+          $ref: "#/components/schemas/FileStatus"
+        contentType:
+          type: [string, "null"]
+          maxLength: 255
+          description: Server-verified MIME type (authoritative).
+        size:
+          type: [integer, "null"]
+          minimum: 0
+          description: Server-verified byte size (authoritative).
+        checksum:
+          type: [string, "null"]
+          maxLength: 128
+        checksumAlgorithm:
+          type: [string, "null"]
+          maxLength: 16
+          example: sha256
+        declaredContentType:
+          type: [string, "null"]
+          maxLength: 255
+          description: Client-declared MIME (UNTRUSTED).
+        declaredSize:
+          type: [integer, "null"]
+          minimum: 0
+          description: Client-declared size (UNTRUSTED).
+        scanStatus:
+          $ref: "#/components/schemas/FileScanStatus"
+        scannedAt:
+          type: [string, "null"]
+          format: date-time
+        reviewStatus:
+          $ref: "#/components/schemas/FileReviewStatus"
+        completedAt:
+          type: [string, "null"]
+          format: date-time
+          description: When the upload was confirmed (onUploadCompleted).
+        expiresAt:
+          type: [string, "null"]
+          format: date-time
+          description: Orphan TTL for un-completed pending rows.
+        isDeleted:
+          type: boolean
+        deletedAt:
+          type: [string, "null"]
+          format: date-time
+        deletedBy:
+          type: [string, "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Public projection: what a non-owner is allowed to see for a public asset.
+    PublicFileAsset:
+      type: object
+      required: [id, blobUrl, contentType, size, originalName, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        blobUrl:
+          type: string
+          format: uri
+        downloadUrl:
+          type: [string, "null"]
+          format: uri
+        contentType:
+          type: [string, "null"]
+          maxLength: 255
+        size:
+          type: [integer, "null"]
+          minimum: 0
+        originalName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time

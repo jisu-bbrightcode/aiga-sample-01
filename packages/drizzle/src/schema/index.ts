@@ -41,6 +41,7 @@ export * from "./features/comment";
 export * from "./features/community";
 export * from "./features/doctor-curation";
 export * from "./features/email";
+export * from "./features/file-upload";
 export * from "./features/identity-verification";
 export * from "./features/localization";
 export * from "./features/message-sending";
