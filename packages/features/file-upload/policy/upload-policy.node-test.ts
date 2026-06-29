@@ -4,6 +4,7 @@ import {
   buildBlobPathname,
   DEFAULT_MAX_UPLOAD_BYTES,
   UploadPolicyError,
+  validateCompletedBlob,
   validateUploadRequest,
 } from "./upload-policy";
 
@@ -128,4 +129,62 @@ test("distinct ids yield distinct pathnames (collision resistance)", () => {
   const b = buildBlobPathname({ visibility: "public", extension: "pdf", id: "ID_B", now });
   assert.notEqual(a, b);
   assert.match(a, /^uploads\/public\/2026\/01\/ID_A\.pdf$/);
+});
+
+// ---- BBR-549: server-verified completion re-validation -----------------------
+
+test("validateCompletedBlob accepts a server report matching the stored pathname", () => {
+  const r = validateCompletedBlob({
+    pathname: "uploads/private/2026/06/01HX.png",
+    contentType: "image/png",
+    size: 4096,
+  });
+  assert.equal(r.contentType, "image/png");
+  assert.equal(r.extension, "png");
+  assert.equal(r.size, 4096);
+});
+
+test("validateCompletedBlob rejects a disallowed server-reported content type", () => {
+  assert.throws(
+    () =>
+      validateCompletedBlob({
+        pathname: "uploads/private/2026/06/01HX.png",
+        contentType: "image/svg+xml",
+        size: 10,
+      }),
+    (e: unknown) => e instanceof UploadPolicyError && e.code === "unsupported_content_type",
+  );
+});
+
+test("validateCompletedBlob rejects when the stored extension disagrees with the type", () => {
+  assert.throws(
+    () =>
+      validateCompletedBlob({
+        pathname: "uploads/private/2026/06/01HX.pdf",
+        contentType: "image/png",
+        size: 10,
+      }),
+    (e: unknown) => e instanceof UploadPolicyError && e.code === "extension_mismatch",
+  );
+});
+
+test("validateCompletedBlob rejects an oversized or empty server-reported size", () => {
+  assert.throws(
+    () =>
+      validateCompletedBlob({
+        pathname: "uploads/private/2026/06/01HX.png",
+        contentType: "image/png",
+        size: DEFAULT_MAX_UPLOAD_BYTES + 1,
+      }),
+    (e: unknown) => e instanceof UploadPolicyError && e.code === "size_exceeded",
+  );
+  assert.throws(
+    () =>
+      validateCompletedBlob({
+        pathname: "uploads/private/2026/06/01HX.png",
+        contentType: "image/png",
+        size: 0,
+      }),
+    (e: unknown) => e instanceof UploadPolicyError && e.code === "invalid_size",
+  );
 });
