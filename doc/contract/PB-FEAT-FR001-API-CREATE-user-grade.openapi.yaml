@@ -1,0 +1,146 @@
+# PB-FEAT-FR001-API-CREATE (BBR-528) — 사용자 생성 API: OpenAPI path fragment.
+#
+# OpenAPI 3.1 fragment for the FR-001 "사용자" grade-provisioning API. NestJS
+# Swagger (served at /api-docs/json) is the single source of truth; this file
+# is the human-readable contract mirror kept in sync with the controller
+# decorators in packages/features/user-grade/controller.
+#
+# Scope split (issue AC: "재사용 판정과 신규 구현을 명시적으로 분리"):
+#   - REUSE: identity/user creation itself = social login via core better-auth
+#     (genericOAuth kakao/naver) + the `user.create.after` profiles-sync hook.
+#     No NEW auth-user POST endpoint is built; see the .md for the SKIP rationale.
+#   - NEW (this contract): the FR-001 feature resource = a user's *grade*
+#     assignment (`user_grades`), admin-gated, with validation + audit provenance.
+openapi: 3.1.0
+info:
+  title: AIGA FR-001 user-grade API (PB-FEAT-FR001-API-CREATE)
+  version: 1.0.0
+paths:
+  /admin/users/{userId}/grade:
+    post:
+      tags: [User Grade (Admin)]
+      summary: 사용자 등급 부여 (생성)
+      description: >
+        Assigns (creates) a user's grade. Requires an authenticated owner/admin
+        (BetterAuthGuard + BetterAuthAdminGuard) — unauthenticated callers get
+        401 and non-admins get 403, so an unauthorized create never persists
+        (AC#1). Exactly one of gradeSlug/gradeId is required; missing/unknown
+        grade is rejected (400/404). One grade per user — a second assignment
+        returns 409 (use the update path to change). The created record is
+        immediately visible via GET detail/list (AC#2).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+          description: Target user's profile id (text better-auth id).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AssignUserGradeRequest" }
+      responses:
+        "201":
+          description: Grade assigned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserGrade" }
+        "400": { description: 필수 필드 누락 / 비활성 등급 }
+        "401": { description: Authentication required }
+        "403": { description: Admin(owner/admin) 권한 필요 }
+        "404": { description: 대상 사용자 또는 등급을 찾을 수 없음 }
+        "409": { description: 이미 등급이 부여된 사용자 }
+    get:
+      tags: [User Grade (Admin)]
+      summary: 사용자 등급 조회 (상세)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: 사용자 등급 상세.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserGrade" }
+        "401": { description: Authentication required }
+        "403": { description: Admin 권한 필요 }
+        "404": { description: 등급 정보 없음 }
+  /admin/user-grades:
+    get:
+      tags: [User Grade (Admin)]
+      summary: 사용자 등급 목록 (페이지네이션)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: gradeSlug, in: query, schema: { type: string }, description: 등급 슬러그 필터 }
+      responses:
+        "200":
+          description: 등급 배정 목록.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserGradeList" }
+        "401": { description: Authentication required }
+        "403": { description: Admin 권한 필요 }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    AssignUserGradeRequest:
+      type: object
+      description: gradeSlug 또는 gradeId 중 하나는 필수.
+      properties:
+        gradeSlug:
+          type: string
+          maxLength: 60
+          description: 등급 슬러그 (예 "verified").
+        gradeId:
+          type: string
+          format: uuid
+          description: 등급 정의 uuid.
+        source:
+          type: string
+          enum: [signup, identity_verified, manual, system]
+          description: 판정 근거. 미지정 시 admin 배정은 manual.
+        note:
+          type: string
+          maxLength: 1000
+          description: 감사용 메모 (수동 오버라이드 사유).
+        expiresAt:
+          type: string
+          format: date-time
+          description: 임시 등급 만료. null = 영구.
+    AdminUserGrade:
+      type: object
+      properties:
+        userId: { type: string }
+        gradeId: { type: string, format: uuid }
+        gradeSlug: { type: string }
+        gradeName: { type: string }
+        dailyUsageLimit: { type: [integer, "null"] }
+        source: { type: string, enum: [signup, identity_verified, manual, system] }
+        determinedBy: { type: [string, "null"] }
+        note: { type: [string, "null"] }
+        determinedAt: { type: [string, "null"], format: date-time }
+        expiresAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: [string, "null"], format: date-time }
+        updatedAt: { type: [string, "null"], format: date-time }
+    AdminUserGradeList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminUserGrade" }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }

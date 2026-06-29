@@ -26,6 +26,7 @@ import { ServiceDomainModule } from "@repo/features/service-domain";
 import { ServiceSearchModule } from "@repo/features/service-search";
 import { StoryModule } from "@repo/features/story";
 import { UserDirectoryModule } from "@repo/features/user-directory";
+import { UserGradeModule } from "@repo/features/user-grade";
 import { VideoLectureModule } from "@repo/features/video-lecture";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
@@ -95,6 +96,7 @@ const paymentFeature = getPaymentFeatureWiring();
     OperatorChatModule,
     LocalizationModule,
     StoryModule,
+    UserGradeModule,
     VideoLectureModule,
     // [/ATLAS:MODULES]
   ],
