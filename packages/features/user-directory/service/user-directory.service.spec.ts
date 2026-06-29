@@ -1,24 +1,31 @@
-import { NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { createMockDb } from "../../__test-utils__/mock-db";
 import type { UserDirectoryRow } from "../mappers";
 import { UserDirectoryService } from "./user-directory.service";
 
+type ProfileRow = UserDirectoryRow["profile"];
+
+function makeProfile(overrides: Partial<ProfileRow> = {}): ProfileRow {
+  return {
+    id: "u1",
+    name: "홍길동",
+    email: "hong@example.com",
+    handle: "hong",
+    bio: null,
+    avatar: null,
+    authProvider: "kakao",
+    isActive: true,
+    createdAt: new Date("2026-01-02T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-03T00:00:00.000Z"),
+    marketingConsentAt: null,
+    deletedAt: null,
+    ...overrides,
+  } as ProfileRow;
+}
+
 function makeRow(overrides: Partial<UserDirectoryRow> = {}): UserDirectoryRow {
   return {
-    profile: {
-      id: "u1",
-      name: "홍길동",
-      email: "hong@example.com",
-      handle: "hong",
-      bio: null,
-      avatar: null,
-      authProvider: "kakao",
-      isActive: true,
-      createdAt: new Date("2026-01-02T00:00:00.000Z"),
-      updatedAt: new Date("2026-01-03T00:00:00.000Z"),
-      marketingConsentAt: null,
-      deletedAt: null,
-    } as UserDirectoryRow["profile"],
+    profile: makeProfile(),
     gradeId: "g1",
     gradeSlug: "verified",
     gradeName: "인증 회원",
@@ -76,17 +83,55 @@ describe("UserDirectoryService", () => {
     });
   });
 
-  describe("getByHandle (public)", () => {
-    it("returns the public projection for a matching member", async () => {
+  describe("getByHandle (public, viewer-aware)", () => {
+    it("returns the public projection + anonymous viewer state for an active member", async () => {
       db._queueResolve("limit", [makeRow()]);
       const result = await service.getByHandle("hong");
       expect(result.handle).toBe("hong");
       expect(result).not.toHaveProperty("email");
+      expect(result.viewer).toEqual({ authenticated: false, isSelf: false });
     });
 
-    it("throws NotFound when no active member matches", async () => {
+    it("marks an authenticated non-owner as authenticated but not self", async () => {
+      db._queueResolve("limit", [makeRow()]);
+      const result = await service.getByHandle("hong", { id: "someone-else" });
+      expect(result.viewer).toEqual({ authenticated: true, isSelf: false });
+    });
+
+    it("marks the owner viewing their own handle as isSelf", async () => {
+      db._queueResolve("limit", [makeRow()]);
+      const result = await service.getByHandle("hong", { id: "u1" });
+      expect(result.viewer).toEqual({ authenticated: true, isSelf: true });
+    });
+
+    it("throws NotFound when no profile matches the handle", async () => {
       db._queueResolve("limit", []);
       await expect(service.getByHandle("ghost")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("hides a soft-deleted profile as 404 even from an authenticated viewer", async () => {
+      db._queueResolve("limit", [makeRow({ profile: makeProfile({ deletedAt: new Date() }) })]);
+      await expect(service.getByHandle("hong", { id: "other" })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it("returns 403 to an authenticated non-owner for a deactivated profile", async () => {
+      db._queueResolve("limit", [makeRow({ profile: makeProfile({ isActive: false }) })]);
+      await expect(service.getByHandle("hong", { id: "other" })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it("returns 404 (not 403) to an anonymous viewer for a deactivated profile", async () => {
+      db._queueResolve("limit", [makeRow({ profile: makeProfile({ isActive: false }) })]);
+      await expect(service.getByHandle("hong")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("lets the owner see their own deactivated profile", async () => {
+      db._queueResolve("limit", [makeRow({ profile: makeProfile({ isActive: false }) })]);
+      const result = await service.getByHandle("hong", { id: "u1" });
+      expect(result.viewer).toEqual({ authenticated: true, isSelf: true });
     });
   });
 

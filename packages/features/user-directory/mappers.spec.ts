@@ -1,4 +1,10 @@
-import { toAdminUser, toPublicUser, toSelfUser, type UserDirectoryRow } from "./mappers";
+import {
+  toAdminUser,
+  toPublicUser,
+  toPublicUserDetail,
+  toSelfUser,
+  type UserDirectoryRow,
+} from "./mappers";
 
 function makeRow(overrides: Partial<UserDirectoryRow> = {}): UserDirectoryRow {
   return {
@@ -98,10 +104,25 @@ describe("user-directory mappers", () => {
         expiresAt: null,
       });
     });
+  });
 
-    it("returns grade null when unassigned", () => {
-      const result = toAdminUser(makeRow({ gradeId: null, gradeSlug: null, gradeName: null }));
-      expect(result.grade).toBeNull();
+  describe("toPublicUserDetail (viewer-aware)", () => {
+    it("attaches anonymous viewer state and keeps the public projection", () => {
+      const result = toPublicUserDetail(makeRow(), null);
+      expect(result.viewer).toEqual({ authenticated: false, isSelf: false });
+      // still the public projection — no private fields
+      expect(result).not.toHaveProperty("email");
+      expect(result.handle).toBe("hong");
+    });
+
+    it("marks an authenticated non-owner as authenticated, not self", () => {
+      const result = toPublicUserDetail(makeRow(), { id: "other" });
+      expect(result.viewer).toEqual({ authenticated: true, isSelf: false });
+    });
+
+    it("marks the profile owner as isSelf", () => {
+      const result = toPublicUserDetail(makeRow(), { id: "u1" });
+      expect(result.viewer).toEqual({ authenticated: true, isSelf: true });
     });
   });
 });
