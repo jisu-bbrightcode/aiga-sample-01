@@ -18,6 +18,7 @@ import { LocalizationModule } from "@repo/features/localization";
 import { NotificationModule } from "@repo/features/notification";
 import { OnboardingModule } from "@repo/features/onboarding";
 import { OperatorChatModule } from "@repo/features/operator-chat";
+import { PersonalizationModule } from "@repo/features/personalization";
 import { ProjectModule } from "@repo/features/project";
 import { ReactionModule } from "@repo/features/reaction";
 import { ScheduledJobModule } from "@repo/features/scheduled-job";
@@ -81,6 +82,7 @@ const paymentFeature = getPaymentFeatureWiring();
     IdentityVerificationModule,
     NotificationModule,
     OnboardingModule,
+    PersonalizationModule,
     ...messageSendingFeature.imports,
     ...paymentFeature.imports,
     ProjectModule,

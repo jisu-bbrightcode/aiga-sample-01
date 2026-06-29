@@ -63,6 +63,8 @@
     "./message-sending": "./message-sending/index.ts",
     "./project": "./project/index.ts",
     "./project/events": "./project/events/index.ts",
+    "./personalization": "./personalization/index.ts",
+    "./personalization/schema": "./personalization/schema/index.ts",
     "./service-domain": "./service-domain/index.ts",
     "./user-directory": "./user-directory/index.ts",
     "./doctor-curation": "./doctor-curation/index.ts",
@@ -77,7 +79,7 @@
     "check-types": "tsc --noEmit",
     "test": "pnpm run test:jest && pnpm run test:node",
     "test:jest": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "test:node": "pnpm exec tsx --test common/__tests__/provider-feature-env.node.ts message-sending/__tests__/message-sending.service.node.ts message-sending/__tests__/solapi.client.node.ts message-sending/__tests__/solapi.config.node.ts message-sending/__tests__/solapi.webhook.node.ts video-lecture/cloudflare-stream/src/webhook.node-test.ts video-lecture/cloudflare-stream/src/tus.node-test.ts video-lecture/cloudflare-stream/src/progress.node-test.ts video-lecture/cloudflare-stream/src/upload.node-test.ts video-lecture/service/access-policy.node-test.ts video-lecture/service/asset-status.node-test.ts video-lecture/service/admin-asset-update.node-test.ts file-upload/policy/upload-policy.node-test.ts file-upload/service/file-upload.service.node-test.ts file-upload/service/file-upload-complete.service.node-test.ts",
+    "test:node": "pnpm exec tsx --test common/__tests__/provider-feature-env.node.ts message-sending/__tests__/message-sending.service.node.ts message-sending/__tests__/solapi.client.node.ts message-sending/__tests__/solapi.config.node.ts message-sending/__tests__/solapi.webhook.node.ts video-lecture/cloudflare-stream/src/webhook.node-test.ts video-lecture/cloudflare-stream/src/tus.node-test.ts video-lecture/cloudflare-stream/src/progress.node-test.ts video-lecture/cloudflare-stream/src/upload.node-test.ts video-lecture/service/access-policy.node-test.ts video-lecture/service/asset-status.node-test.ts video-lecture/service/admin-asset-update.node-test.ts file-upload/policy/upload-policy.node-test.ts file-upload/service/file-upload.service.node-test.ts file-upload/service/file-upload-complete.service.node-test.ts personalization/helpers/cursor.node-test.ts",
     "test:auth": "NODE_OPTIONS=--experimental-vm-modules jest -- email.module.spec.ts email.service.spec.ts email-template.service.spec.ts email/providers/resend.provider.spec.ts",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"
