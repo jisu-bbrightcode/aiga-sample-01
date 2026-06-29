@@ -7,10 +7,12 @@ import {
 import type { AuthOrganizationInvitationInput } from "@repo/core/auth/organization-invitation-sender";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
-import type { EmailLog, EmailTemplateType } from "@repo/drizzle/schema";
+import type { EmailLog, EmailStatus, EmailTemplateType } from "@repo/drizzle/schema";
 import { emailLogs } from "@repo/drizzle/schema";
 import { and, desc, eq, gte, ilike, type SQL } from "drizzle-orm";
 import type { EmailLogsFilters, SendEmailInput } from "../../common/types";
+import { mapResendEvent, resolveStatusUpdate } from "../webhooks/resend-event-mapper";
+import type { ResendWebhookPayload } from "../webhooks/resend.payload.schema";
 import { EmailProviderService } from "./email-provider.service";
 import { EmailTemplateService } from "./email-template.service";
 
@@ -304,6 +306,56 @@ export class EmailService {
 
       throw error;
     }
+  }
+
+  /**
+   * Resend webhook 이벤트 반영 (bounce/complaint/delivered/opened)
+   *
+   * providerMessageId(= Resend email_id)로 로그를 찾아 상태를 갱신한다.
+   * 상태는 역행하지 않으며(opened 이벤트가 bounced 를 덮어쓰지 않음),
+   * 일치하는 로그가 없으면 matched:false 로 조용히 무시한다(재시도 폭주 방지).
+   */
+  async recordProviderEvent(
+    payload: ResendWebhookPayload,
+  ): Promise<{ matched: boolean; status?: EmailStatus }> {
+    const mapped = mapResendEvent(payload);
+    if (!mapped) {
+      return { matched: false };
+    }
+
+    const [log] = await this.db
+      .select()
+      .from(emailLogs)
+      .where(eq(emailLogs.providerMessageId, mapped.emailId))
+      .limit(1);
+
+    if (!log) {
+      return { matched: false };
+    }
+
+    const nextStatus = resolveStatusUpdate(log.status, mapped.desiredStatus);
+    const update: Partial<EmailLog> = {};
+
+    if (nextStatus) {
+      update.status = nextStatus;
+    }
+    if (mapped.failureReason) {
+      update.failureReason = mapped.failureReason;
+    }
+    if (mapped.setDeliveredAt && !log.deliveredAt) {
+      update.deliveredAt = new Date();
+    }
+    if (mapped.setOpenedAt && !log.openedAt) {
+      update.openedAt = new Date();
+    }
+    update.metadata = {
+      ...((log.metadata as Record<string, unknown> | null) ?? {}),
+      lastProviderEvent: mapped.eventType,
+    };
+
+    await this.updateLogStatus(log.id, update);
+
+    return { matched: true, status: nextStatus ?? log.status };
   }
 
   /**
