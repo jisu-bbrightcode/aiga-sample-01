@@ -132,4 +132,68 @@ describe("PersonalizationService", () => {
       expect(result.items[0]!.filters).toBeNull();
     });
   });
+
+  describe("createSavedItem", () => {
+    const input = {
+      targetType: "doctor",
+      targetId: "22222222-2222-2222-2222-222222222222",
+      memo: "메모",
+      tags: ["관심"],
+    } as never;
+
+    it("inserts and returns the mapped item without leaking userId", async () => {
+      db._queueResolve("returning", [savedRow()]);
+      const result = await service.createSavedItem(USER, input);
+      expect(result).toEqual({
+        id: "11111111-1111-1111-1111-111111111111",
+        targetType: "doctor",
+        targetId: "22222222-2222-2222-2222-222222222222",
+        memo: "메모",
+        tags: ["관심"],
+        createdAt: "2026-06-29T03:00:00.000Z",
+        updatedAt: "2026-06-29T03:30:00.000Z",
+      });
+      expect(result).not.toHaveProperty("userId");
+    });
+
+    it("is idempotent: returns the existing row when the unique conflict skips the insert", async () => {
+      db._queueResolve("returning", []); // onConflictDoNothing → no inserted row
+      db._queueResolve("limit", [savedRow()]); // re-select existing
+      const result = await service.createSavedItem(USER, input);
+      expect(result.id).toBe("11111111-1111-1111-1111-111111111111");
+    });
+
+    it("throws a friendly 503 when the conflicting row cannot be read back", async () => {
+      db._queueResolve("returning", []);
+      db._queueResolve("limit", []);
+      await expect(service.createSavedItem(USER, input)).rejects.toMatchObject({
+        status: 503,
+      });
+    });
+  });
+
+  describe("createInterest", () => {
+    const input = {
+      targetType: "hospital",
+      targetId: "44444444-4444-4444-4444-444444444444",
+    } as never;
+
+    it("inserts and returns the mapped interest (no memo/tags/updatedAt)", async () => {
+      db._queueResolve("returning", [interestRow()]);
+      const result = await service.createInterest(USER, input);
+      expect(result).toEqual({
+        id: "33333333-3333-3333-3333-333333333333",
+        targetType: "hospital",
+        targetId: "44444444-4444-4444-4444-444444444444",
+        createdAt: "2026-06-29T02:00:00.000Z",
+      });
+    });
+
+    it("is idempotent on unique conflict", async () => {
+      db._queueResolve("returning", []);
+      db._queueResolve("limit", [interestRow()]);
+      const result = await service.createInterest(USER, input);
+      expect(result.id).toBe("33333333-3333-3333-3333-333333333333");
+    });
+  });
 });
