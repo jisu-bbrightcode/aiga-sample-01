@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -40,6 +40,30 @@ export class PersonalizationService {
 
     const page = buildCursorPage(rows, limit);
     return { items: page.items.map(toSavedItemDto), nextCursor: page.nextCursor };
+  }
+
+  /**
+   * 저장 항목 단건 조회 (FR-002 / BBR-725).
+   *
+   * Owner scope is enforced in the WHERE clause (`id = :id AND user_id = :userId`):
+   * a saved item that does not exist *or* belongs to another user resolves to the
+   * exact same empty result, which we surface as 404. We deliberately do not
+   * distinguish "not found" from "not yours" (no 403) so the endpoint never
+   * leaks whether another user's id exists — 타인 항목은 존재 여부조차 노출하지
+   * 않는다.
+   */
+  async getSavedItem(userId: string, id: string): Promise<SavedItemDto> {
+    const [row] = await this.db
+      .select()
+      .from(savedItem)
+      .where(and(eq(savedItem.id, id), eq(savedItem.userId, userId)))
+      .limit(1);
+
+    if (!row) {
+      throw new NotFoundException("저장 항목을 찾을 수 없습니다.");
+    }
+
+    return toSavedItemDto(row);
   }
 
   async listInterests(userId: string, query: ListQuery): Promise<CursorPage<InterestDto>> {

@@ -132,4 +132,41 @@ describe("PersonalizationService", () => {
       expect(result.items[0]!.filters).toBeNull();
     });
   });
+
+  describe("getSavedItem", () => {
+    const ID = "11111111-1111-1111-1111-111111111111";
+
+    it("returns the owner's item without leaking userId and serializes timestamps", async () => {
+      db._queueResolve("limit", [savedRow()]);
+
+      const result = await service.getSavedItem(USER, ID);
+
+      expect(result).toEqual({
+        id: ID,
+        targetType: "doctor",
+        targetId: "22222222-2222-2222-2222-222222222222",
+        memo: "메모",
+        tags: ["관심"],
+        createdAt: "2026-06-29T03:00:00.000Z",
+        updatedAt: "2026-06-29T03:30:00.000Z",
+      });
+      expect(result).not.toHaveProperty("userId");
+    });
+
+    it("scopes the read to the owner and fetches a single row", async () => {
+      db._queueResolve("limit", [savedRow()]);
+
+      await service.getSavedItem(USER, ID);
+
+      // owner scope is enforced at the data layer, not just by the auth guard
+      expect(db.where).toHaveBeenCalled();
+      expect(db.limit).toHaveBeenCalledWith(1);
+    });
+
+    it("throws 404 when no row matches (missing or owned by another user)", async () => {
+      db._queueResolve("limit", []);
+
+      await expect(service.getSavedItem(USER, ID)).rejects.toMatchObject({ status: 404 });
+    });
+  });
 });

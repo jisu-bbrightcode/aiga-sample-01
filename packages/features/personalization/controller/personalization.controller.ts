@@ -1,8 +1,14 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import type { User } from "@repo/core/nestjs/auth";
 import { BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
-import { InterestListDto, ListQueryDto, SavedItemListDto, SearchHistoryListDto } from "../dto";
+import {
+  InterestListDto,
+  ListQueryDto,
+  SavedItemDto,
+  SavedItemListDto,
+  SearchHistoryListDto,
+} from "../dto";
 import { PersonalizationService } from "../service";
 
 /**
@@ -27,6 +33,16 @@ export class PersonalizationController {
   @ApiResponse({ status: 401, description: "인증 필요" })
   listSavedItems(@CurrentUser() user: User, @Query() query: ListQueryDto) {
     return this.service.listSavedItems(user.id, query);
+  }
+
+  @Get("saved-items/:id")
+  @ApiOperation({ summary: "내 저장 항목 단건 조회 (소유자 전용, 로그인 필요)" })
+  @ApiParam({ name: "id", format: "uuid", description: "저장 항목 id" })
+  @ApiResponse({ status: 200, type: SavedItemDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 404, description: "저장 항목 없음 또는 타인 소유" })
+  getSavedItem(@CurrentUser() user: User, @Param("id", ParseUUIDPipe) id: string) {
+    return this.service.getSavedItem(user.id, id);
   }
 
   @Get("interests")
