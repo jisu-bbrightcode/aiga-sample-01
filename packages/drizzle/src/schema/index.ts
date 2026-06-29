@@ -49,5 +49,6 @@ export * from "./features/payment";
 export * from "./features/project";
 export * from "./features/reaction";
 export * from "./features/scheduled-job";
+export * from "./features/service-domain";
 export * from "./features/story";
 export * from "./features/video-lecture";
