@@ -351,6 +351,13 @@
       "when": 1781311600000,
       "tag": "0049_doctor_curation",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1781311700000,
+      "tag": "0050_file_assets",
+      "breakpoints": true
     }
   ]
 }
