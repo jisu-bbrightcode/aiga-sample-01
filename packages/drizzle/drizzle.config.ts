@@ -124,6 +124,10 @@ export default defineConfig({
     "service_doctors",
     "service_doctor_specialties",
     "service_doctor_hospitals",
+    // features/user-grade (PB-DATA-FR001-001)
+    "user_grade_definitions",
+    "user_grades",
+    "user_daily_usage",
     // [/ATLAS:TABLES]
   ],
   verbose: true,
