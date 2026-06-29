@@ -152,6 +152,67 @@ export function validateUploadRequest(
   return { contentType, extension, size: input.size, maxBytes };
 }
 
+export interface CompletedBlobInput {
+  /** Server-stored pathname (carries the extension). Never client-supplied. */
+  pathname: string;
+  /** Server-verified MIME type reported by the store (Blob `head`). */
+  contentType: string;
+  /** Server-verified byte size reported by the store (Blob `head`). */
+  size: number;
+}
+
+/**
+ * Re-validate the SERVER-verified metadata of a finished upload against the
+ * locked policy (PB-FILE-API-COMPLETE-001 / BBR-549, acceptance criteria §4 —
+ * "client upload 결과만 믿지 않고 서버 상태를 다시 확인한다").
+ *
+ * Unlike {@link validateUploadRequest} (which gates token issuance on UNTRUSTED
+ * client-declared values), this runs on the store's own report after the bytes
+ * land: the content type must still be allowed, must agree with the stored
+ * pathname's extension, and the size must be within the ceiling. A violation
+ * means the uploaded object cannot be activated and must be rolled back.
+ *
+ * Throws {@link UploadPolicyError} on violation; returns the normalized shape
+ * on success.
+ */
+export function validateCompletedBlob(
+  input: CompletedBlobInput,
+  maxBytes: number = DEFAULT_MAX_UPLOAD_BYTES,
+): NormalizedUpload {
+  const contentType = normalizeContentType(input.contentType);
+  const allowedExtensions = ALLOWED_UPLOAD_TYPES[contentType];
+  if (!allowedExtensions) {
+    throw new UploadPolicyError(
+      "unsupported_content_type",
+      "지원하지 않는 파일 형식입니다. 이미지(PNG, JPG, WebP, GIF) 또는 PDF만 업로드할 수 있습니다.",
+    );
+  }
+
+  const extension = extensionOf(input.pathname);
+  if (!extension || !allowedExtensions.includes(extension)) {
+    throw new UploadPolicyError(
+      "extension_mismatch",
+      "파일 형식과 확장자가 일치하지 않습니다. 파일을 확인한 뒤 다시 시도해 주세요.",
+    );
+  }
+
+  if (!Number.isInteger(input.size) || input.size <= 0) {
+    throw new UploadPolicyError(
+      "invalid_size",
+      "파일 크기를 확인할 수 없습니다. 다른 파일로 다시 시도해 주세요.",
+    );
+  }
+  if (input.size > maxBytes) {
+    const mb = Math.floor(maxBytes / (1024 * 1024));
+    throw new UploadPolicyError(
+      "size_exceeded",
+      `파일이 너무 큽니다. ${mb}MB 이하의 파일만 업로드할 수 있습니다.`,
+    );
+  }
+
+  return { contentType, extension, size: input.size, maxBytes };
+}
+
 export interface BuildPathnameInput {
   visibility: UploadVisibility;
   extension: string;

@@ -1,0 +1,111 @@
+# PB-FILE-API-COMPLETE-001 (BBR-549) — file upload completion API: OpenAPI path.
+#
+# OpenAPI 3.1 fragment for `POST /files/uploads/complete`. EXTEND of the base
+# file-upload capability: confirms a finished Vercel Blob client upload and
+# activates its `file_assets` metadata (PB-FILE-DATA-001 / BBR-547), on top of
+# the create/token flow (PB-FILE-API-CREATE-001 / BBR-548).
+#
+# Flow (https://vercel.com/docs/vercel-blob):
+#   1. After `put()` resolves, the client POSTs only the `fileAssetId` it got
+#      from `POST /files/uploads` — never a Blob URL/size/content type.
+#   2. The server (authenticated) re-checks ownership, reads the blob's truth via
+#      `head(pathname)` using the SERVER-stored pathname, re-validates that
+#      metadata against the locked policy, and flips the row to `ready`.
+#   3. Duplicate requests converge on the same asset (idempotent). Orphaned or
+#      policy-violating uploads are rolled back (failed + bytes deleted via `del`).
+openapi: 3.1.0
+info:
+  title: AIGA file-upload completion API (PB-FILE-API-COMPLETE-001)
+  version: 1.0.0
+paths:
+  /files/uploads/complete:
+    post:
+      tags: [File Upload]
+      summary: Confirm a finished upload — server re-verifies the blob and activates metadata
+      description: >
+        Requires authentication. The client sends only the `fileAssetId`; it
+        cannot inject a Blob URL (AC#1). The server matches the pending row it
+        owns (re-checking authorization, AC#4), reads the blob's authoritative
+        metadata from the store via the server-stored pathname, re-validates it
+        against the locked policy (the client's upload result is never trusted,
+        AC#4), and activates the asset. Duplicate completion/callback requests
+        converge on the same asset (AC#2). Orphaned or policy-violating uploads
+        are rolled back — marked failed and their bytes deleted (AC#3).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteUploadRequest"
+      responses:
+        "200":
+          description: >
+            The activated, server-verified file asset. Idempotent: an
+            already-completed asset returns the same payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompletedUpload"
+        "401":
+          description: Authentication required — no asset is activated (AC#1/#4).
+        "404":
+          description: >
+            No pending metadata matches the id for this user (includes owner
+            mismatch — existence is not leaked).
+        "422":
+          description: >
+            Upload never landed (orphan) or the server-verified metadata violates
+            policy — the upload is rolled back.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    CompleteUploadRequest:
+      type: object
+      required: [fileAssetId]
+      properties:
+        fileAssetId:
+          type: string
+          maxLength: 255
+          description: Id returned by POST /files/uploads. The only client-supplied input.
+    CompletedUpload:
+      type: object
+      required:
+        [fileAssetId, status, pathname, url, contentType, size, visibility, completedAt]
+      properties:
+        fileAssetId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [ready]
+        pathname:
+          type: string
+        url:
+          type: string
+          description: Canonical, server-verified Blob URL.
+        downloadUrl:
+          type: string
+          nullable: true
+        contentType:
+          type: string
+          description: Server-verified MIME type (from Blob head).
+        size:
+          type: integer
+          description: Server-verified byte size (from Blob head).
+        visibility:
+          type: string
+          enum: [public, private]
+        targetType:
+          type: string
+          nullable: true
+        targetId:
+          type: string
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time

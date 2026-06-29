@@ -2,33 +2,41 @@ import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DRIZZLE, type DrizzleDB } from "@repo/drizzle";
 import { FileUploadController } from "./controller";
-import { createBlobClientTokenIssuer, FileUploadService } from "./service";
+import {
+  createBlobClientTokenIssuer,
+  createBlobDeleter,
+  createBlobHeadReader,
+  FileUploadService,
+} from "./service";
 
 /**
- * File upload feature module (PB-FILE-API-CREATE-001 / BBR-548).
+ * File upload feature module.
  *
- * Wires the create/token controller + service. The client-token issuer is
- * backed by Vercel Blob (`BLOB_READ_WRITE_TOKEN`); when the token is unset the
- * service surfaces a friendly 503 rather than leaking SDK errors.
+ * Wires the create/token + completion controller and service. The Vercel Blob
+ * helpers (token issuer, `head` reader, `del`) are backed by
+ * `BLOB_READ_WRITE_TOKEN`; when it is unset the service surfaces friendly
+ * 503s rather than leaking SDK errors.
  *
  * `FILE_UPLOAD_PUBLIC_BASE_URL` is the public absolute URL of this server, used
- * to build the Blob completion callback (`/files/uploads/callback`, owned by
- * BBR-549). When unset, no callback is attached — the token still works; the
- * completion API can be wired independently.
+ * to build the Blob completion callback (`/files/uploads/callback`). When unset,
+ * no callback is attached — the client-driven `POST /files/uploads/complete`
+ * endpoint (BBR-549) confirms uploads regardless.
  */
 @Module({
   controllers: [FileUploadController],
   providers: [
     {
       provide: FileUploadService,
-      useFactory: (db: DrizzleDB, configService: ConfigService) =>
-        new FileUploadService({
+      useFactory: (db: DrizzleDB, configService: ConfigService) => {
+        const readWriteToken = configService.get<string>("BLOB_READ_WRITE_TOKEN");
+        return new FileUploadService({
           db,
-          issueClientToken: createBlobClientTokenIssuer(
-            configService.get<string>("BLOB_READ_WRITE_TOKEN"),
-          ),
+          issueClientToken: createBlobClientTokenIssuer(readWriteToken),
+          readBlobHead: createBlobHeadReader(readWriteToken),
+          deleteBlob: createBlobDeleter(readWriteToken),
           callbackBaseUrl: configService.get<string>("FILE_UPLOAD_PUBLIC_BASE_URL"),
-        }),
+        });
+      },
       inject: [DRIZZLE, ConfigService],
     },
   ],

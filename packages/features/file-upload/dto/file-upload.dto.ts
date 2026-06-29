@@ -61,3 +61,54 @@ export const uploadDraftOpenApiSchema = {
     expiresAt: { type: "string", format: "date-time", description: "Pending row orphan TTL" },
   },
 };
+
+/**
+ * Request body for `POST /files/uploads/complete` (PB-FILE-API-COMPLETE-001 /
+ * BBR-549).
+ *
+ * The client sends ONLY the `fileAssetId` it received from `POST /files/uploads`.
+ * It deliberately cannot send a Blob URL/pathname/size/content type: the server
+ * looks up the pending row it created and re-derives the truth from the store
+ * itself (acceptance criteria §1 — "임의 Blob URL을 주입할 수 없다", §4 — the
+ * client's upload result is never trusted).
+ */
+export const completeUploadInputSchema = z.object({
+  /** Id of the pending asset returned by `POST /files/uploads`. */
+  fileAssetId: z.string().min(1).max(255),
+});
+
+export type CompleteUploadInput = z.infer<typeof completeUploadInputSchema>;
+
+export class CompleteUploadDto extends createZodDto(completeUploadInputSchema) {}
+
+/**
+ * Response: the activated file asset after the server re-verified the uploaded
+ * blob (Blob `head`) and flipped its status to `ready`. All fields are
+ * server-verified — the client-declared values are never echoed back.
+ */
+export const completedUploadOpenApiSchema = {
+  type: "object",
+  required: [
+    "fileAssetId",
+    "status",
+    "pathname",
+    "url",
+    "contentType",
+    "size",
+    "visibility",
+    "completedAt",
+  ],
+  properties: {
+    fileAssetId: { type: "string", format: "uuid" },
+    status: { type: "string", enum: ["ready"] },
+    pathname: { type: "string" },
+    url: { type: "string", description: "Canonical, server-verified Blob URL" },
+    downloadUrl: { type: "string", nullable: true },
+    contentType: { type: "string", description: "Server-verified MIME type" },
+    size: { type: "integer", description: "Server-verified byte size" },
+    visibility: { type: "string", enum: ["public", "private"] },
+    targetType: { type: "string", nullable: true },
+    targetId: { type: "string", nullable: true },
+    completedAt: { type: "string", format: "date-time" },
+  },
+};
