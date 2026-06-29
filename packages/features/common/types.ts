@@ -11,6 +11,19 @@ export interface SendEmailInput {
   variables: Record<string, unknown>;
 }
 
+/**
+ * Send an email by stable template key (PB-NOTI-EMAIL-TEMPLATE-001 / BBR-656).
+ * The published version's variable schema is validated before send; subject and
+ * body are rendered from the registry rather than supplied by the caller.
+ */
+export interface SendTemplateEmailInput {
+  key: string;
+  recipientEmail: string;
+  recipientName?: string | null;
+  recipientId?: string;
+  variables: Record<string, unknown>;
+}
+
 export interface EmailLogsFilters {
   page?: number;
   limit?: number;

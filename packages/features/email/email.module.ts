@@ -10,6 +10,7 @@ import { DomainVerificationService } from "./service/domain-verification.service
 import { EmailService } from "./service/email.service";
 import { EmailProviderService } from "./service/email-provider.service";
 import { EmailTemplateService } from "./service/email-template.service";
+import { EmailTemplateRegistryService } from "./service/email-template-registry.service";
 import { injectEmailService } from "./service-registry";
 
 /**
@@ -19,8 +20,19 @@ import { injectEmailService } from "./service-registry";
  */
 @Module({
   controllers: [EmailController, ResendWebhookController],
-  providers: [EmailService, EmailProviderService, EmailTemplateService, DomainVerificationService],
-  exports: [EmailService, EmailTemplateService, DomainVerificationService],
+  providers: [
+    EmailService,
+    EmailProviderService,
+    EmailTemplateService,
+    EmailTemplateRegistryService,
+    DomainVerificationService,
+  ],
+  exports: [
+    EmailService,
+    EmailTemplateService,
+    EmailTemplateRegistryService,
+    DomainVerificationService,
+  ],
 })
 export class EmailModule implements OnModuleInit {
   constructor(private readonly emailService: EmailService) {}

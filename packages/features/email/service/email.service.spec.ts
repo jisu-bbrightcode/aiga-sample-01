@@ -5,7 +5,7 @@ class CapturingEmailService extends EmailService {
   sentInput: unknown;
 
   constructor() {
-    super({} as never, {} as never, {} as never);
+    super({} as never, {} as never, {} as never, {} as never);
   }
 
   override sendEmail(input: never): Promise<EmailLog> {
