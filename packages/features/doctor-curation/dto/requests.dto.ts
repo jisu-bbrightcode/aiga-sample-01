@@ -75,3 +75,25 @@ export const listCollectionsQuerySchema = z.object({
 });
 
 export class ListCollectionsQueryDto extends createZodDto(listCollectionsQuerySchema) {}
+
+// ---- public list / search query (FR-004 / BBR-536) -------------------------
+
+/**
+ * Public 명의 찾기 browse query. Only published, non-deleted collections are
+ * ever returned, so this DTO has no `status`/`includeDeleted` knobs by design —
+ * the public filter surface itself is role-separated from the admin one above.
+ */
+export const publicListCollectionsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  /** Facet: 기획(editorial) / 분야별(specialty) / 지역별(region). */
+  kind: kindEnum.optional(),
+  specialtyId: z.string().uuid().optional(),
+  regionId: z.string().uuid().optional(),
+  /** Home-rail filter: only featured collections. */
+  featured: z.coerce.boolean().optional(),
+  /** Free-text search over the collection title. */
+  q: z.string().trim().min(1).max(120).optional(),
+});
+
+export class PublicListCollectionsQueryDto extends createZodDto(publicListCollectionsQuerySchema) {}

@@ -9,6 +9,7 @@
 import { serviceCollectionKindEnum, servicePublishStatusEnum } from "@repo/drizzle/schema";
 import { createZodDto } from "@repo/shared/zod-nestjs";
 import { z } from "zod";
+import { publicDoctorSchema } from "../../service-domain/dto";
 
 const kind = z.enum(serviceCollectionKindEnum.enumValues);
 const status = z.enum(servicePublishStatusEnum.enumValues);
@@ -69,3 +70,27 @@ export const adminCollectionListSchema = z.object({
   limit: z.number(),
 });
 export class AdminCollectionListDto extends createZodDto(adminCollectionListSchema) {}
+
+// ---- public list / detail (FR-004 / BBR-536) -------------------------------
+
+/** Public list envelope — published collections, public projection only. */
+export const collectionListSchema = z.object({
+  items: z.array(publicCollectionSchema),
+  total: z.number(),
+  page: z.number(),
+  limit: z.number(),
+});
+export class CollectionListDto extends createZodDto(collectionListSchema) {}
+
+/** Public 수록 의사 entry — rank/note + the embedded public-mapped doctor. */
+export const publicCollectionItemSchema = z.object({
+  rank: z.number(),
+  note: z.string().nullable(),
+  doctor: publicDoctorSchema,
+});
+
+/** Public detail = public collection + ranked published 수록 의사. */
+export const publicCollectionDetailSchema = publicCollectionSchema.extend({
+  items: z.array(publicCollectionItemSchema),
+});
+export class PublicCollectionDetailDto extends createZodDto(publicCollectionDetailSchema) {}

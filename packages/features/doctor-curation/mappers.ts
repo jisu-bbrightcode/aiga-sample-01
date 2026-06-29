@@ -12,6 +12,7 @@
  * public output by default (fail-closed).
  */
 import type { ServiceDoctorCollection, ServiceDoctorCollectionItem } from "@repo/drizzle/schema";
+import { type PublicDoctor, toPublicDoctor } from "../service-domain/mappers";
 
 const iso = (value: Date | string | null | undefined): string | null => {
   if (value == null) return null;
@@ -89,4 +90,35 @@ export function toAdminCollectionDetail(
     ...toAdminCollection(row),
     items: items.map(toCollectionItem),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Public 수록 의사 (FR-004 / BBR-536) — per-entry blurb + the public doctor.
+// The admin item view above is id-only; the public browse surface embeds the
+// resolved, public-mapped doctor so the 명의 찾기 list/detail is self-contained.
+// ---------------------------------------------------------------------------
+
+export interface PublicCollectionItem {
+  rank: number;
+  note: string | null;
+  doctor: PublicDoctor;
+}
+
+/** Item row joined with its doctor row, as drizzle returns via `with`. */
+interface PublicItemRow {
+  rank: number;
+  note: string | null;
+  doctor: Parameters<typeof toPublicDoctor>[0];
+}
+
+export function toPublicCollectionItem(row: PublicItemRow): PublicCollectionItem {
+  return {
+    rank: row.rank,
+    note: row.note,
+    doctor: toPublicDoctor(row.doctor),
+  };
+}
+
+export interface PublicCollectionDetail extends PublicCollection {
+  items: PublicCollectionItem[];
 }

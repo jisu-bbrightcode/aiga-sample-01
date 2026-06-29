@@ -2,9 +2,19 @@ import { ConflictException, Injectable, Logger, NotFoundException } from "@nestj
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
 import { serviceDoctorCollectionItems, serviceDoctorCollections } from "@repo/drizzle/schema";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
-import type { CreateCollectionDto, ListCollectionsQueryDto } from "../dto";
-import { toAdminCollection, toAdminCollectionDetail } from "../mappers";
+import { and, asc, desc, eq, ilike, sql } from "drizzle-orm";
+import type {
+  CreateCollectionDto,
+  ListCollectionsQueryDto,
+  PublicListCollectionsQueryDto,
+} from "../dto";
+import {
+  type PublicCollectionDetail,
+  toAdminCollection,
+  toAdminCollectionDetail,
+  toPublicCollection,
+  toPublicCollectionItem,
+} from "../mappers";
 
 /** Postgres unique-violation SQLSTATE — surfaced as a friendly 409. */
 const PG_UNIQUE_VIOLATION = "23505";
@@ -13,6 +23,16 @@ const PUBLISHED = "published";
 
 /** The transaction handle drizzle hands to a `db.transaction(...)` callback. */
 type CurationDbTx = Parameters<Parameters<DrizzleDB["transaction"]>[0]>[0];
+
+/** A collection-item row joined with its doctor, as drizzle returns via `with`. */
+interface PublicItemRow {
+  rank: number;
+  note: string | null;
+  doctor: Parameters<typeof toPublicCollectionItem>[0]["doctor"] & {
+    status: string;
+    isDeleted: boolean;
+  };
+}
 
 /**
  * 명의 큐레이션 service — FR-004 (BBR-538).
@@ -94,6 +114,63 @@ export class DoctorCurationService {
     ]);
 
     return { items: rows.map(toAdminCollection), total: countRows[0]?.count ?? 0, page, limit };
+  }
+
+  // =========================================================================
+  // Public browse (FR-004 / BBR-536) — published-only, public projection
+  // =========================================================================
+
+  async listPublicCollections(query: PublicListCollectionsQueryDto) {
+    const { page, limit, kind, specialtyId, regionId, featured, q } = query;
+    const where = and(
+      eq(serviceDoctorCollections.status, PUBLISHED),
+      eq(serviceDoctorCollections.isDeleted, false),
+      kind ? eq(serviceDoctorCollections.kind, kind) : undefined,
+      specialtyId ? eq(serviceDoctorCollections.specialtyId, specialtyId) : undefined,
+      regionId ? eq(serviceDoctorCollections.regionId, regionId) : undefined,
+      featured === true ? eq(serviceDoctorCollections.isFeatured, true) : undefined,
+      q ? ilike(serviceDoctorCollections.name, `%${q}%`) : undefined,
+    );
+
+    const [rows, countRows] = await Promise.all([
+      this.db
+        .select()
+        .from(serviceDoctorCollections)
+        .where(where)
+        // public 명의 찾기 rail order: editorial sortOrder, then newest
+        .orderBy(asc(serviceDoctorCollections.sortOrder), desc(serviceDoctorCollections.createdAt))
+        .limit(limit)
+        .offset((page - 1) * limit),
+      this.db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(serviceDoctorCollections)
+        .where(where),
+    ]);
+
+    return { items: rows.map(toPublicCollection), total: countRows[0]?.count ?? 0, page, limit };
+  }
+
+  async getPublicCollectionBySlug(slug: string): Promise<PublicCollectionDetail> {
+    const row = await this.db.query.serviceDoctorCollections.findFirst({
+      where: and(
+        eq(serviceDoctorCollections.slug, slug),
+        eq(serviceDoctorCollections.status, PUBLISHED),
+        eq(serviceDoctorCollections.isDeleted, false),
+      ),
+      with: { items: { with: { doctor: true } } },
+    });
+
+    if (!row) {
+      throw new NotFoundException("명의 컬렉션을 찾을 수 없습니다.");
+    }
+
+    // Never surface a draft/deleted doctor through a published collection.
+    const items = (row.items as PublicItemRow[])
+      .filter((it) => it.doctor && it.doctor.status === PUBLISHED && !it.doctor.isDeleted)
+      .sort((a, b) => a.rank - b.rank)
+      .map(toPublicCollectionItem);
+
+    return { ...toPublicCollection(row), items };
   }
 
   // =========================================================================
