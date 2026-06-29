@@ -337,6 +337,13 @@
       "when": 1781311400000,
       "tag": "0047_user_grade",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1781311500000,
+      "tag": "0048_service_search",
+      "breakpoints": true
     }
   ]
 }
