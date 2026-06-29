@@ -14,6 +14,20 @@ import { publicDoctorSchema } from "../../service-domain/dto";
 const kind = z.enum(serviceCollectionKindEnum.enumValues);
 const status = z.enum(servicePublishStatusEnum.enumValues);
 
+// ---- viewer state (FR-004 / BBR-537) ----------------------------------------
+
+/**
+ * Per-role access summary attached to every detail response. `role` resolves to
+ * `guest`/`member` on the public detail route (anonymous vs signed-in) and
+ * `admin` on the gated admin detail route; `canManage` is true only for admins.
+ */
+export const viewerStateSchema = z.object({
+  authenticated: z.boolean(),
+  role: z.enum(["guest", "member", "admin"]),
+  canManage: z.boolean(),
+});
+export class ViewerStateDto extends createZodDto(viewerStateSchema) {}
+
 // ---- public -----------------------------------------------------------------
 
 export const publicCollectionSchema = z.object({
@@ -58,6 +72,7 @@ export class AdminCollectionDto extends createZodDto(adminCollectionSchema) {}
 
 export const adminCollectionDetailSchema = adminCollectionSchema.extend({
   items: z.array(collectionItemSchema),
+  viewerState: viewerStateSchema,
 });
 export class AdminCollectionDetailDto extends createZodDto(adminCollectionDetailSchema) {}
 
@@ -89,8 +104,9 @@ export const publicCollectionItemSchema = z.object({
   doctor: publicDoctorSchema,
 });
 
-/** Public detail = public collection + ranked published 수록 의사. */
+/** Public detail = public collection + ranked published 수록 의사 + viewer state. */
 export const publicCollectionDetailSchema = publicCollectionSchema.extend({
   items: z.array(publicCollectionItemSchema),
+  viewerState: viewerStateSchema,
 });
 export class PublicCollectionDetailDto extends createZodDto(publicCollectionDetailSchema) {}

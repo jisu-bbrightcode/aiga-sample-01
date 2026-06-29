@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import type { User } from "@repo/core/nestjs/auth";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
 import { serviceDoctorCollectionItems, serviceDoctorCollections } from "@repo/drizzle/schema";
@@ -9,6 +10,7 @@ import type {
   PublicListCollectionsQueryDto,
 } from "../dto";
 import {
+  buildViewerState,
   type PublicCollectionDetail,
   toAdminCollection,
   toAdminCollectionDetail,
@@ -71,7 +73,11 @@ export class DoctorCurationService {
         const inserted = await this.insertItems(tx, created.id, items);
         return { collection: created, itemRows: inserted };
       });
-      return toAdminCollectionDetail(collection, itemRows);
+      // The creator is, by construction, an admin (route is guard-gated).
+      return {
+        ...toAdminCollectionDetail(collection, itemRows),
+        viewerState: buildViewerState("admin"),
+      };
     } catch (error) {
       throw this.mapWriteError(error);
     }
@@ -88,7 +94,12 @@ export class DoctorCurationService {
       .from(serviceDoctorCollectionItems)
       .where(eq(serviceDoctorCollectionItems.collectionId, id))
       .orderBy(asc(serviceDoctorCollectionItems.rank));
-    return toAdminCollectionDetail(collection, items);
+    // Admin detail is only reachable behind the admin guard, so the viewer is
+    // always an operator with manage rights.
+    return {
+      ...toAdminCollectionDetail(collection, items),
+      viewerState: buildViewerState("admin"),
+    };
   }
 
   async listCollections(query: ListCollectionsQueryDto) {
@@ -150,7 +161,7 @@ export class DoctorCurationService {
     return { items: rows.map(toPublicCollection), total: countRows[0]?.count ?? 0, page, limit };
   }
 
-  async getPublicCollectionBySlug(slug: string): Promise<PublicCollectionDetail> {
+  async getPublicCollectionBySlug(slug: string, viewer?: User): Promise<PublicCollectionDetail> {
     const row = await this.db.query.serviceDoctorCollections.findFirst({
       where: and(
         eq(serviceDoctorCollections.slug, slug),
@@ -161,6 +172,9 @@ export class DoctorCurationService {
     });
 
     if (!row) {
+      // 없는 리소스와 비공개(draft/deleted) 리소스를 동일하게 404로 처리한다 —
+      // 공개 탐색면에서 존재 여부가 새지 않도록 (no enumeration leak). 관리자는
+      // 별도의 가드된 admin 상세 라우트로 미게시 컬렉션을 조회한다.
       throw new NotFoundException("명의 컬렉션을 찾을 수 없습니다.");
     }
 
@@ -170,7 +184,11 @@ export class DoctorCurationService {
       .sort((a, b) => a.rank - b.rank)
       .map(toPublicCollectionItem);
 
-    return { ...toPublicCollection(row), items };
+    return {
+      ...toPublicCollection(row),
+      items,
+      viewerState: buildViewerState(viewer ? "member" : "guest"),
+    };
   }
 
   // =========================================================================
