@@ -157,7 +157,9 @@ export class IdentityVerificationService {
       // Audit the blocked/failed hand-off as the first attempt so adapter health/JAR
       // failures are visible in the per-attempt log, separate from the user-facing
       // `blocked` response below.
-      await this.recordAttempt(request.id, 1, "failed", clientIp, publicError.code);
+      await this.recordAttempt(request.id, 1, "failed", clientIp, {
+        failureCode: publicError.code,
+      });
 
       return {
         ...serializeRequest(updated ?? request),
@@ -216,17 +218,20 @@ export class IdentityVerificationService {
     return this.finalizeVerification(request, providerPayload);
   }
 
-  // biome-ignore lint/complexity/noExcessiveLinesPerFunction: verification finalize is intentionally linear (expiry -> replay -> provider verify -> persist).
+  // Verify-and-persist a provider result. Each terminal outcome (verified / canceled /
+  // failed / expired / provider-error) maps to a distinct internal status and records an
+  // immutable attempt audit row. Duplicate callbacks are idempotent: an already-finalized
+  // request returns its stored result without re-calling the provider or re-inserting a
+  // verification.
   private async finalizeVerification(
     request: RequestRow,
     providerPayload: Record<string, unknown>,
   ) {
-    if (request.expiresAt.getTime() < Date.now()) {
-      await this.markRequest(request.id, "expired", "session_expired");
-      throw new KcbIdentityVerificationError("session_expired", "KCB request expired");
+    if (isTerminalStatus(request.status)) {
+      return serializeRequest(request);
     }
-    if (request.status === "verified" || request.status === "failed") {
-      throw new KcbIdentityVerificationError("replay_detected", "KCB replay detected");
+    if (request.expiresAt.getTime() < Date.now()) {
+      return this.finalizeExpired(request);
     }
 
     let result: KcbAdapterVerifyResponse;
@@ -236,36 +241,88 @@ export class IdentityVerificationService {
           ? await this.adapter.verifyCustom(providerPayload)
           : await this.adapter.verifyStandard(providerPayload);
     } catch (error) {
-      const publicError = toPublicKcbError(error);
-      const [updated] = await this.db
-        .update(identityVerificationRequests)
-        .set({
-          status: "failed",
-          resultCode: publicError.code,
-          failureCode: publicError.code,
-          updatedAt: new Date(),
-        })
-        .where(eq(identityVerificationRequests.id, request.id))
-        .returning();
-      return serializeRequest(updated ?? request);
+      return this.finalizeProviderError(request, error);
     }
 
-    const now = new Date();
+    if (result.canceled) {
+      return this.finalizeCanceled(request, result);
+    }
     if (!result.verified) {
-      const [updated] = await this.db
-        .update(identityVerificationRequests)
-        .set({
-          status: "failed",
-          providerTransactionId: result.providerTransactionId ?? request.providerTransactionId,
-          resultCode: result.resultCode,
-          failureCode: "provider_rejected",
-          updatedAt: now,
-        })
-        .where(eq(identityVerificationRequests.id, request.id))
-        .returning();
-      return serializeRequest(updated ?? request);
+      return this.finalizeFailed(request, result);
     }
+    return this.finalizeVerified(request, result);
+  }
 
+  private async finalizeExpired(request: RequestRow) {
+    const now = new Date();
+    const [updated] = await this.db
+      .update(identityVerificationRequests)
+      .set({ status: "expired", failureCode: "session_expired", updatedAt: now })
+      .where(eq(identityVerificationRequests.id, request.id))
+      .returning();
+    await this.recordCallbackAttempt(request, "expired", { failureCode: "session_expired" });
+    return serializeRequest(updated ?? request);
+  }
+
+  private async finalizeProviderError(request: RequestRow, error: unknown) {
+    const publicError = toPublicKcbError(error);
+    const now = new Date();
+    const [updated] = await this.db
+      .update(identityVerificationRequests)
+      .set({
+        status: "failed",
+        resultCode: publicError.code,
+        failureCode: publicError.code,
+        updatedAt: now,
+      })
+      .where(eq(identityVerificationRequests.id, request.id))
+      .returning();
+    await this.recordCallbackAttempt(request, "failed", { failureCode: publicError.code });
+    return serializeRequest(updated ?? request);
+  }
+
+  private async finalizeCanceled(request: RequestRow, result: KcbAdapterVerifyResponse) {
+    const now = new Date();
+    const [updated] = await this.db
+      .update(identityVerificationRequests)
+      .set({
+        status: "canceled",
+        providerTransactionId: result.providerTransactionId ?? request.providerTransactionId,
+        resultCode: result.resultCode,
+        failureCode: "canceled",
+        updatedAt: now,
+      })
+      .where(eq(identityVerificationRequests.id, request.id))
+      .returning();
+    await this.recordCallbackAttempt(request, "canceled", {
+      resultCode: result.resultCode,
+      failureCode: "canceled",
+    });
+    return serializeRequest(updated ?? request);
+  }
+
+  private async finalizeFailed(request: RequestRow, result: KcbAdapterVerifyResponse) {
+    const now = new Date();
+    const [updated] = await this.db
+      .update(identityVerificationRequests)
+      .set({
+        status: "failed",
+        providerTransactionId: result.providerTransactionId ?? request.providerTransactionId,
+        resultCode: result.resultCode,
+        failureCode: "provider_rejected",
+        updatedAt: now,
+      })
+      .where(eq(identityVerificationRequests.id, request.id))
+      .returning();
+    await this.recordCallbackAttempt(request, "failed", {
+      resultCode: result.resultCode,
+      failureCode: "provider_rejected",
+    });
+    return serializeRequest(updated ?? request);
+  }
+
+  private async finalizeVerified(request: RequestRow, result: KcbAdapterVerifyResponse) {
+    const now = new Date();
     await this.db.insert(identityVerifications).values({
       requestId: request.id,
       userId: request.userId,
@@ -290,6 +347,7 @@ export class IdentityVerificationService {
       .where(eq(identityVerificationRequests.id, request.id))
       .returning();
 
+    await this.recordCallbackAttempt(request, "verified", { resultCode: result.resultCode });
     return serializeRequest(updated ?? request);
   }
 
@@ -365,13 +423,6 @@ export class IdentityVerificationService {
     return request ?? null;
   }
 
-  private async markRequest(requestId: string, status: "failed" | "expired", failureCode: string) {
-    await this.db
-      .update(identityVerificationRequests)
-      .set({ status, failureCode, updatedAt: new Date() })
-      .where(eq(identityVerificationRequests.id, requestId));
-  }
-
   /**
    * Append an immutable per-attempt audit row. Stores only non-sensitive correlation
    * data (attempt number, outcome, stable codes, client IP) — never CI/DI, RRN, or the
@@ -380,19 +431,51 @@ export class IdentityVerificationService {
   private async recordAttempt(
     requestId: string,
     attemptNo: number,
-    outcome: "redirected" | "verified" | "failed" | "canceled" | "expired",
+    outcome: AttemptOutcome,
     clientIp: string | null,
-    failureCode?: string,
+    codes: AttemptCodes = {},
   ) {
     await this.db.insert(identityVerificationAttempts).values({
       requestId,
       attemptNo,
       outcome,
-      failureCode: failureCode ?? null,
-      resultCode: failureCode ?? null,
+      resultCode: codes.resultCode ?? null,
+      failureCode: codes.failureCode ?? null,
       clientIp,
     });
   }
+
+  /**
+   * Record a callback-flow attempt. The attempt number continues from the session's
+   * first (`redirected`) row, so a request's retry history reads 1, 2, 3… across the
+   * redirect hand-off and each callback outcome.
+   */
+  private async recordCallbackAttempt(
+    request: RequestRow,
+    outcome: AttemptOutcome,
+    codes: AttemptCodes = {},
+  ) {
+    const attemptNo = await this.nextAttemptNo(request.id);
+    await this.recordAttempt(request.id, attemptNo, outcome, request.clientIp, codes);
+  }
+
+  private async nextAttemptNo(requestId: string): Promise<number> {
+    const rows = await this.db
+      .select({ attemptNo: identityVerificationAttempts.attemptNo })
+      .from(identityVerificationAttempts)
+      .where(eq(identityVerificationAttempts.requestId, requestId));
+    return rows.length + 1;
+  }
+}
+
+type AttemptOutcome = "redirected" | "verified" | "failed" | "canceled" | "expired";
+type AttemptCodes = { resultCode?: string | null; failureCode?: string | null };
+
+const TERMINAL_STATUSES = new Set(["verified", "failed", "canceled", "expired"]);
+
+/** A request whose outcome is already decided — duplicate callbacks must be idempotent. */
+function isTerminalStatus(status: string): boolean {
+  return TERMINAL_STATUSES.has(status);
 }
 
 type RequestRow = typeof identityVerificationRequests.$inferSelect;

@@ -42,6 +42,8 @@ export function publicMessageForCode(code: KcbBlockerCode): string {
       return "커스텀형 본인확인은 공식 허용 확인 전까지 사용할 수 없습니다.";
     case "replay_detected":
       return "이미 처리된 본인확인 요청입니다. 다시 시작해 주세요.";
+    case "canceled":
+      return "본인확인이 취소되었습니다. 다시 시도해 주세요.";
     case "session_not_found":
       return "본인확인 요청을 찾을 수 없습니다. 다시 시작해 주세요.";
     case "session_expired":
