@@ -14,9 +14,12 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
+  serviceDoctorCredentials,
   serviceDoctorHospitals,
   serviceDoctorSpecialties,
   serviceDoctors,
+  serviceHospitalHours,
+  serviceHospitalSpecialties,
   serviceHospitals,
   serviceRegions,
   serviceSpecialties,
@@ -105,15 +108,151 @@ const DOCTORS = [
   },
 ];
 
+// FR-005 의사 프로필 이력 (credentials), keyed by doctor slug.
+type CredentialKind = "education" | "career" | "certification" | "award";
+const CREDENTIALS: Record<
+  string,
+  {
+    kind: CredentialKind;
+    title: string;
+    organization?: string;
+    startYear?: number;
+    endYear?: number;
+    displayPeriod?: string;
+    sortOrder: number;
+  }[]
+> = {
+  "kim-jeongho-ortho": [
+    { kind: "education", title: "서울대학교 의과대학 의학박사", organization: "서울대학교", startYear: 1988, endYear: 1994, displayPeriod: "1988–1994", sortOrder: 1 },
+    { kind: "career", title: "정형외과 교수", organization: "서울중앙메디컬센터", startYear: 2005, displayPeriod: "2005–현재", sortOrder: 1 },
+    { kind: "certification", title: "정형외과 전문의", organization: "대한정형외과학회", startYear: 1999, displayPeriod: "1999", sortOrder: 1 },
+    { kind: "award", title: "올해의 명의 (관절·척추)", organization: "대한의사협회", startYear: 2021, displayPeriod: "2021", sortOrder: 1 },
+  ],
+  "lee-soyeon-cardio": [
+    { kind: "education", title: "연세대학교 의과대학 의학석사", organization: "연세대학교", startYear: 2000, endYear: 2006, displayPeriod: "2000–2006", sortOrder: 1 },
+    { kind: "career", title: "심장내과 과장", organization: "서울중앙메디컬센터", startYear: 2014, displayPeriod: "2014–현재", sortOrder: 1 },
+    { kind: "certification", title: "내과 전문의", organization: "대한내과학회", startYear: 2010, displayPeriod: "2010", sortOrder: 1 },
+  ],
+  "park-minsu-derma": [
+    { kind: "education", title: "고려대학교 의과대학 학사", organization: "고려대학교", startYear: 2003, endYear: 2009, displayPeriod: "2003–2009", sortOrder: 1 },
+    { kind: "career", title: "피부과 원장", organization: "송파웰니스병원", startYear: 2016, displayPeriod: "2016–현재", sortOrder: 1 },
+  ],
+};
+
+// FR-006 병원 진료과목 (departments), keyed by hospital slug → specialty slugs.
+const HOSPITAL_SPECIALTIES: Record<string, string[]> = {
+  "seoul-central-medical": ["orthopedics", "cardiology", "neurosurgery"],
+  "songpa-wellness-hospital": ["dermatology", "family-medicine"],
+};
+
+// FR-006 병원 운영시간 (weekly hours), keyed by hospital slug.
+// dayOfWeek: 0 = Sun … 6 = Sat. Weekdays 09:00–18:00, Sat varies, Sun closed.
+const WEEKDAY = { opensAt: "09:00", closesAt: "18:00", note: "점심시간 13:00–14:00" };
+const HOSPITAL_HOURS: Record<
+  string,
+  { dayOfWeek: number; opensAt?: string; closesAt?: string; isClosed?: boolean; note?: string }[]
+> = {
+  "seoul-central-medical": [
+    { dayOfWeek: 1, ...WEEKDAY },
+    { dayOfWeek: 2, ...WEEKDAY },
+    { dayOfWeek: 3, ...WEEKDAY },
+    { dayOfWeek: 4, ...WEEKDAY },
+    { dayOfWeek: 5, ...WEEKDAY },
+    { dayOfWeek: 6, opensAt: "09:00", closesAt: "13:00" },
+    { dayOfWeek: 0, isClosed: true },
+  ],
+  "songpa-wellness-hospital": [
+    { dayOfWeek: 1, ...WEEKDAY },
+    { dayOfWeek: 2, ...WEEKDAY },
+    { dayOfWeek: 3, ...WEEKDAY },
+    { dayOfWeek: 4, ...WEEKDAY },
+    { dayOfWeek: 5, ...WEEKDAY },
+    { dayOfWeek: 6, isClosed: true },
+    { dayOfWeek: 0, isClosed: true },
+  ],
+};
+
+type ServiceDb = ReturnType<typeof drizzle>;
+type IdBySlug = (
+  table:
+    | typeof serviceSpecialties
+    | typeof serviceRegions
+    | typeof serviceHospitals
+    | typeof serviceDoctors,
+  slug: string,
+) => Promise<string>;
+
+// FR-005 의사 프로필 이력. Idempotent per doctor: skip when any credential already
+// exists (the table has no natural unique key, so we guard on presence).
+async function seedDoctorCredentials(db: ServiceDb, idBySlug: IdBySlug): Promise<void> {
+  console.log("Seeding service_doctor_credentials (idempotent per doctor)...");
+  for (const [doctorSlug, entries] of Object.entries(CREDENTIALS)) {
+    const doctorId = await idBySlug(serviceDoctors, doctorSlug);
+    const existing = await db
+      .select({ id: serviceDoctorCredentials.id })
+      .from(serviceDoctorCredentials)
+      .where(eq(serviceDoctorCredentials.doctorId, doctorId));
+    if (existing.length > 0) continue;
+    for (const c of entries) {
+      await db.insert(serviceDoctorCredentials).values({
+        doctorId,
+        kind: c.kind,
+        title: c.title,
+        organization: c.organization,
+        startYear: c.startYear,
+        endYear: c.endYear,
+        displayPeriod: c.displayPeriod,
+        sortOrder: c.sortOrder,
+      });
+    }
+  }
+}
+
+// FR-006 병원 진료과목 (departments) — M:N on composite PK.
+async function seedHospitalSpecialties(db: ServiceDb, idBySlug: IdBySlug): Promise<void> {
+  console.log("Seeding service_hospital_specialties...");
+  for (const [hospitalSlug, specialtySlugs] of Object.entries(HOSPITAL_SPECIALTIES)) {
+    const hospitalId = await idBySlug(serviceHospitals, hospitalSlug);
+    let order = 1;
+    for (const specialtySlug of specialtySlugs) {
+      const specialtyId = await idBySlug(serviceSpecialties, specialtySlug);
+      await db
+        .insert(serviceHospitalSpecialties)
+        .values({ hospitalId, specialtyId, sortOrder: order++ })
+        .onConflictDoNothing();
+    }
+  }
+}
+
+// FR-006 병원 운영시간 (weekly hours) — one row per (hospital, weekday).
+async function seedHospitalHours(db: ServiceDb, idBySlug: IdBySlug): Promise<void> {
+  console.log("Seeding service_hospital_hours...");
+  for (const [hospitalSlug, days] of Object.entries(HOSPITAL_HOURS)) {
+    const hospitalId = await idBySlug(serviceHospitals, hospitalSlug);
+    for (const h of days) {
+      await db
+        .insert(serviceHospitalHours)
+        .values({
+          hospitalId,
+          dayOfWeek: h.dayOfWeek,
+          opensAt: h.opensAt,
+          closesAt: h.closesAt,
+          isClosed: h.isClosed ?? false,
+          note: h.note,
+        })
+        .onConflictDoNothing({
+          target: [serviceHospitalHours.hospitalId, serviceHospitalHours.dayOfWeek],
+        });
+    }
+  }
+}
+
 async function seed() {
   if (!DATABASE_URL) throw new Error("DATABASE_URL is required");
   const client = postgres(DATABASE_URL, { max: 1 });
   const db = drizzle(client);
 
-  const idBySlug = async (
-    table: typeof serviceSpecialties | typeof serviceRegions | typeof serviceHospitals,
-    slug: string,
-  ): Promise<string> => {
+  const idBySlug: IdBySlug = async (table, slug) => {
     const [row] = await db.select({ id: table.id }).from(table).where(eq(table.slug, slug));
     if (!row) throw new Error(`expected seeded row for slug "${slug}"`);
     return row.id;
@@ -195,6 +334,10 @@ async function seed() {
       .onConflictDoNothing();
   }
 
+  await seedDoctorCredentials(db, idBySlug);
+  await seedHospitalSpecialties(db, idBySlug);
+  await seedHospitalHours(db, idBySlug);
+
   const counts = await client`
     SELECT
       (SELECT COUNT(*)::int FROM service_specialties) AS specialties,
@@ -202,7 +345,10 @@ async function seed() {
       (SELECT COUNT(*)::int FROM service_hospitals) AS hospitals,
       (SELECT COUNT(*)::int FROM service_doctors) AS doctors,
       (SELECT COUNT(*)::int FROM service_doctor_specialties) AS doctor_specialties,
-      (SELECT COUNT(*)::int FROM service_doctor_hospitals) AS doctor_hospitals
+      (SELECT COUNT(*)::int FROM service_doctor_hospitals) AS doctor_hospitals,
+      (SELECT COUNT(*)::int FROM service_doctor_credentials) AS doctor_credentials,
+      (SELECT COUNT(*)::int FROM service_hospital_specialties) AS hospital_specialties,
+      (SELECT COUNT(*)::int FROM service_hospital_hours) AS hospital_hours
   `;
   console.log("  [ok]", counts[0]);
 
