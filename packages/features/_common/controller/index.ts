@@ -1,3 +1,4 @@
+export * from "./admin-audit.controller";
 export * from "./admin-users.controller";
 export * from "./organization-settings.controller";
 export * from "./settings-projects.controller";
