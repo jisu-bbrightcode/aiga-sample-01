@@ -9,8 +9,10 @@ import {
   serviceRegions,
   serviceSpecialties,
 } from "@repo/drizzle/schema";
-import { and, asc, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import type {
+  AdminListDoctorsQueryDto,
+  AdminListHospitalsQueryDto,
   CreateDoctorDto,
   CreateHospitalDto,
   ListDoctorsQueryDto,
@@ -101,7 +103,10 @@ export class ServiceDomainService {
         .orderBy(...orderBy)
         .limit(limit)
         .offset((page - 1) * limit),
-      this.db.select({ count: sql<number>`cast(count(*) as int)` }).from(serviceDoctors).where(where),
+      this.db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(serviceDoctors)
+        .where(where),
     ]);
 
     return { items: rows.map(toPublicDoctor), total: countRows[0]?.count ?? 0, page, limit };
@@ -198,6 +203,101 @@ export class ServiceDomainService {
         .filter((d) => d && d.status === PUBLISHED && !d.isDeleted)
         .map(toPublicDoctor),
     };
+  }
+
+  // =========================================================================
+  // Admin browse (full editorial catalog — sensitive fields + all statuses)
+  // =========================================================================
+
+  async adminListDoctors(query: AdminListDoctorsQueryDto) {
+    const { page, limit, status, includeDeleted, specialtyId, regionId, featured, q, sort } = query;
+    // Admin tier: NOT constrained to published/non-deleted. Editors can scope to
+    // a specific status and opt into soft-deleted rows; default hides deleted.
+    const where = and(
+      includeDeleted ? undefined : eq(serviceDoctors.isDeleted, false),
+      status ? eq(serviceDoctors.status, status) : undefined,
+      specialtyId ? eq(serviceDoctors.primarySpecialtyId, specialtyId) : undefined,
+      regionId ? eq(serviceDoctors.regionId, regionId) : undefined,
+      featured === true ? eq(serviceDoctors.isFeatured, true) : undefined,
+      q
+        ? or(ilike(serviceDoctors.name, `%${q}%`), ilike(serviceDoctors.slug, `%${q}%`))
+        : undefined,
+    );
+
+    const orderBy = this.resolveDoctorOrder(sort);
+
+    const [rows, countRows] = await Promise.all([
+      this.db
+        .select()
+        .from(serviceDoctors)
+        .where(where)
+        .orderBy(...orderBy)
+        .limit(limit)
+        .offset((page - 1) * limit),
+      this.db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(serviceDoctors)
+        .where(where),
+    ]);
+
+    return { items: rows.map(toAdminDoctor), total: countRows[0]?.count ?? 0, page, limit };
+  }
+
+  async adminListHospitals(query: AdminListHospitalsQueryDto) {
+    const { page, limit, status, includeDeleted, regionId, featured, q, sort } = query;
+    const where = and(
+      includeDeleted ? undefined : eq(serviceHospitals.isDeleted, false),
+      status ? eq(serviceHospitals.status, status) : undefined,
+      regionId ? eq(serviceHospitals.regionId, regionId) : undefined,
+      featured === true ? eq(serviceHospitals.isFeatured, true) : undefined,
+      q
+        ? or(ilike(serviceHospitals.name, `%${q}%`), ilike(serviceHospitals.slug, `%${q}%`))
+        : undefined,
+    );
+
+    const orderBy = this.resolveHospitalOrder(sort);
+
+    const [rows, countRows] = await Promise.all([
+      this.db
+        .select()
+        .from(serviceHospitals)
+        .where(where)
+        .orderBy(...orderBy)
+        .limit(limit)
+        .offset((page - 1) * limit),
+      this.db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(serviceHospitals)
+        .where(where),
+    ]);
+
+    return { items: rows.map(toAdminHospital), total: countRows[0]?.count ?? 0, page, limit };
+  }
+
+  private resolveDoctorOrder(sort: AdminListDoctorsQueryDto["sort"]) {
+    switch (sort) {
+      case "recent":
+        return [desc(serviceDoctors.createdAt)];
+      case "rating":
+        return [desc(serviceDoctors.ratingAvg), desc(serviceDoctors.createdAt)];
+      case "name":
+        return [asc(serviceDoctors.name)];
+      default:
+        return [desc(serviceDoctors.updatedAt)];
+    }
+  }
+
+  private resolveHospitalOrder(sort: AdminListHospitalsQueryDto["sort"]) {
+    switch (sort) {
+      case "recent":
+        return [desc(serviceHospitals.createdAt)];
+      case "rating":
+        return [desc(serviceHospitals.ratingAvg), desc(serviceHospitals.createdAt)];
+      case "name":
+        return [asc(serviceHospitals.name)];
+      default:
+        return [desc(serviceHospitals.updatedAt)];
+    }
   }
 
   // =========================================================================
@@ -368,11 +468,13 @@ export class ServiceDomainService {
     hospitals: CreateDoctorDto["hospitals"],
   ) {
     if (specialtyIds !== undefined) {
-      await tx.delete(serviceDoctorSpecialties).where(eq(serviceDoctorSpecialties.doctorId, doctorId));
+      await tx
+        .delete(serviceDoctorSpecialties)
+        .where(eq(serviceDoctorSpecialties.doctorId, doctorId));
       if (specialtyIds.length > 0) {
-        await tx.insert(serviceDoctorSpecialties).values(
-          specialtyIds.map((specialtyId) => ({ doctorId, specialtyId })),
-        );
+        await tx
+          .insert(serviceDoctorSpecialties)
+          .values(specialtyIds.map((specialtyId) => ({ doctorId, specialtyId })));
       }
     }
     if (hospitals !== undefined) {
@@ -394,10 +496,15 @@ export class ServiceDomainService {
     if (typeof error === "object" && error !== null && "code" in error) {
       const code = (error as { code?: string }).code;
       if (code === PG_UNIQUE_VIOLATION) {
-        return new ConflictException(`이미 사용 중인 slug입니다. 다른 ${label} slug를 사용해주세요.`);
+        return new ConflictException(
+          `이미 사용 중인 slug입니다. 다른 ${label} slug를 사용해주세요.`,
+        );
       }
     }
-    this.logger.error(`${label} write failed`, error instanceof Error ? error.stack : String(error));
+    this.logger.error(
+      `${label} write failed`,
+      error instanceof Error ? error.stack : String(error),
+    );
     return error instanceof Error ? error : new Error(String(error));
   }
 }

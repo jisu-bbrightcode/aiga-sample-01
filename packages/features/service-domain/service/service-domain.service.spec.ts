@@ -171,6 +171,70 @@ describe("ServiceDomainService", () => {
       expect(out).toEqual({ success: true, id: "11111111-1111-1111-1111-111111111111" });
     });
   });
+
+  describe("adminListDoctors", () => {
+    it("exposes sensitive fields + non-published status to the admin tier with meta", async () => {
+      const row = makeDoctorRow({ status: "draft", licenseNumber: "LIC-1" });
+      db._queueResolve("offset", [row]); // items terminal
+      db._queueResolve("where", [{ count: 1 }]); // count terminal
+
+      const result = await service.adminListDoctors({
+        page: 1,
+        limit: 20,
+        includeDeleted: false,
+        sort: "updated",
+      } as never);
+
+      expect(result).toMatchObject({ total: 1, page: 1, limit: 20 });
+      // admin tier is the opposite of the public list: sensitive columns + status DO surface
+      expect(result.items[0]).toMatchObject({ status: "draft", licenseNumber: "LIC-1" });
+    });
+
+    it("orders by rating with a createdAt tiebreaker when sort=rating", async () => {
+      db._queueResolve("offset", []);
+      db._queueResolve("where", [{ count: 0 }]);
+      await service.adminListDoctors({
+        page: 1,
+        limit: 20,
+        includeDeleted: false,
+        sort: "rating",
+      } as never);
+      expect(db.orderBy.mock.calls[0]).toHaveLength(2);
+    });
+
+    it("orders by name alone when sort=name", async () => {
+      db._queueResolve("offset", []);
+      db._queueResolve("where", [{ count: 0 }]);
+      await service.adminListDoctors({
+        page: 1,
+        limit: 20,
+        includeDeleted: false,
+        sort: "name",
+      } as never);
+      expect(db.orderBy.mock.calls[0]).toHaveLength(1);
+    });
+  });
+
+  describe("adminListHospitals", () => {
+    it("exposes businessRegistrationNo + archived status to the admin tier", async () => {
+      const row = makeHospitalRow({ status: "archived" });
+      db._queueResolve("offset", [row]);
+      db._queueResolve("where", [{ count: 1 }]);
+
+      const result = await service.adminListHospitals({
+        page: 2,
+        limit: 10,
+        includeDeleted: true,
+        sort: "updated",
+      } as never);
+
+      expect(result).toMatchObject({ total: 1, page: 2, limit: 10 });
+      expect(result.items[0]).toMatchObject({
+        status: "archived",
+        businessRegistrationNo: "123-45-67890",
+      });
+    });
+  });
 });
 
 function makeHospitalRow(overrides: Record<string, unknown> = {}) {
