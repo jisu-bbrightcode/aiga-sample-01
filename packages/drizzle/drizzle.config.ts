@@ -128,6 +128,10 @@ export default defineConfig({
     "user_grade_definitions",
     "user_grades",
     "user_daily_usage",
+    // features/service-search (PB-DATA-FR003 / BBR-521)
+    "service_search_documents",
+    "service_search_synonyms",
+    "service_search_queries",
     // [/ATLAS:TABLES]
   ],
   verbose: true,

@@ -2,8 +2,9 @@
 -- the PB-DATA-001 doctor hub. Idempotent, hand-authored to match the repo style
 -- (CREATE TYPE … EXCEPTION WHEN duplicate_object, CREATE TABLE/INDEX IF NOT
 -- EXISTS, ADD CONSTRAINT in DO guards). Depends on 0046_service_domain.
--- NOTE: if a sibling FR DATA migration (FR-001/003/005) merges as 0047 first,
--- renumber this file/journal entry to the next free index — the DDL is order-safe.
+-- Renumbered to 0049: siblings FR-001 user_grade (0047) and FR-003 service_search
+-- (0048) merged first; this DDL is order-safe (idempotent, only depends on 0046)
+-- so the index bump is mechanical.
 -- Tables: service_doctor_collections, service_doctor_collection_items.
 
 DO $$ BEGIN
