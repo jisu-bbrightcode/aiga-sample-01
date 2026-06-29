@@ -103,6 +103,52 @@ export class CreateHospitalDto extends createZodDto(createHospitalSchema) {}
 export const updateHospitalSchema = createHospitalSchema.partial();
 export class UpdateHospitalDto extends createZodDto(updateHospitalSchema) {}
 
+// ---- doctor profile credential create (FR-005) ------------------------------
+
+/** 의사 프로필 이력 종류 — mirrors the service_doctor_credential_kind enum. */
+export const SERVICE_DOCTOR_CREDENTIAL_KINDS = [
+  "education",
+  "career",
+  "certification",
+  "award",
+] as const;
+
+const credentialYear = z.number().int().min(1900).max(2200);
+
+export const createDoctorCredentialSchema = z.object({
+  kind: z.enum(SERVICE_DOCTOR_CREDENTIAL_KINDS),
+  title: z.string().min(1, "항목 제목을 입력해주세요.").max(200),
+  organization: z.string().max(200).optional(),
+  startYear: credentialYear.optional(),
+  endYear: credentialYear.optional(),
+  displayPeriod: z.string().max(80).optional(),
+  description: z.string().optional(),
+  sortOrder: z.number().int().min(0).default(0),
+  // initial state: an entry is publicly visible unless the editor hides it.
+  isVisible: z.boolean().default(true),
+});
+export class CreateDoctorCredentialDto extends createZodDto(createDoctorCredentialSchema) {}
+
+// ---- hospital detail create (FR-005 / FR-006 병원 상세) ----------------------
+
+export const createHospitalSpecialtySchema = z.object({
+  specialtyId: z.string().uuid(),
+  sortOrder: z.number().int().min(0).default(0),
+});
+export class CreateHospitalSpecialtyDto extends createZodDto(createHospitalSpecialtySchema) {}
+
+const timeOfDay = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "시간은 HH:MM 형식이어야 합니다.");
+
+export const createHospitalHoursSchema = z.object({
+  // 0 = Sunday … 6 = Saturday (JS getDay()).
+  dayOfWeek: z.number().int().min(0).max(6),
+  opensAt: timeOfDay.optional(),
+  closesAt: timeOfDay.optional(),
+  isClosed: z.boolean().default(false),
+  note: z.string().max(120).optional(),
+});
+export class CreateHospitalHoursDto extends createZodDto(createHospitalHoursSchema) {}
+
 // ---- status change ----------------------------------------------------------
 
 export const changeStatusSchema = z.object({ status: statusEnum });

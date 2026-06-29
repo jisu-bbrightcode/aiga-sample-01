@@ -10,15 +10,21 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
-import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import type { User } from "@repo/core/nestjs/auth";
+import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import {
+  AdminDoctorCredentialDto,
   AdminDoctorDto,
   AdminHospitalDto,
+  AdminHospitalHoursDto,
   ChangeStatusDto,
+  CreateDoctorCredentialDto,
   CreateDoctorDto,
   CreateHospitalDto,
+  CreateHospitalHoursDto,
+  CreateHospitalSpecialtyDto,
   DeleteResultDto,
+  HospitalSpecialtyLinkDto,
   UpdateDoctorDto,
   UpdateHospitalDto,
 } from "../dto";
@@ -80,6 +86,18 @@ export class ServiceDomainAdminController {
     return this.service.deleteDoctor(user.id, id);
   }
 
+  @Post("doctors/:id/credentials")
+  @ApiOperation({ summary: "의사 프로필 이력 생성 (학력/경력/자격/수상)" })
+  @ApiResponse({ status: 201, type: AdminDoctorCredentialDto })
+  @ApiResponse({ status: 404, description: "의사를 찾을 수 없음" })
+  createDoctorCredential(
+    @CurrentUser() user: User,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CreateDoctorCredentialDto,
+  ) {
+    return this.service.createDoctorCredential(user.id, id, dto);
+  }
+
   // ---- hospitals ----
 
   @Post("hospitals")
@@ -120,5 +138,31 @@ export class ServiceDomainAdminController {
   @ApiResponse({ status: 404, description: "병원을 찾을 수 없음" })
   deleteHospital(@CurrentUser() user: User, @Param("id", ParseUUIDPipe) id: string) {
     return this.service.deleteHospital(user.id, id);
+  }
+
+  @Post("hospitals/:id/specialties")
+  @ApiOperation({ summary: "병원 진료과 추가" })
+  @ApiResponse({ status: 201, type: HospitalSpecialtyLinkDto })
+  @ApiResponse({ status: 404, description: "병원 또는 진료과를 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "이미 등록된 진료과" })
+  addHospitalSpecialty(
+    @CurrentUser() user: User,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CreateHospitalSpecialtyDto,
+  ) {
+    return this.service.addHospitalSpecialty(user.id, id, dto);
+  }
+
+  @Post("hospitals/:id/hours")
+  @ApiOperation({ summary: "병원 운영시간 추가 (요일별)" })
+  @ApiResponse({ status: 201, type: AdminHospitalHoursDto })
+  @ApiResponse({ status: 404, description: "병원을 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "해당 요일 운영시간 중복" })
+  addHospitalHours(
+    @CurrentUser() user: User,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CreateHospitalHoursDto,
+  ) {
+    return this.service.addHospitalHours(user.id, id, dto);
   }
 }

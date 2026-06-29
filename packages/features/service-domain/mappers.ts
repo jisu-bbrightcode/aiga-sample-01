@@ -13,7 +13,9 @@
  */
 import type {
   ServiceDoctor,
+  ServiceDoctorCredential,
   ServiceHospital,
+  ServiceHospitalHours,
   ServiceRegion,
   ServiceSpecialty,
 } from "@repo/drizzle/schema";
@@ -175,6 +177,82 @@ export function toAdminDoctor(row: ServiceDoctor) {
 }
 
 // ---------------------------------------------------------------------------
+// Doctor profile credentials (FR-005)
+// ---------------------------------------------------------------------------
+
+export interface PublicDoctorCredential {
+  id: string;
+  kind: ServiceDoctorCredential["kind"];
+  title: string;
+  organization: string | null;
+  startYear: number | null;
+  endYear: number | null;
+  displayPeriod: string | null;
+  description: string | null;
+  sortOrder: number;
+}
+
+/** Public credential: the `isVisible` admin flag is intentionally dropped. */
+export function toPublicDoctorCredential(row: ServiceDoctorCredential): PublicDoctorCredential {
+  return {
+    id: row.id,
+    kind: row.kind,
+    title: row.title,
+    organization: row.organization,
+    startYear: row.startYear,
+    endYear: row.endYear,
+    displayPeriod: row.displayPeriod,
+    description: row.description,
+    sortOrder: row.sortOrder,
+  };
+}
+
+/** Admin view: full credential row including the visibility flag + timestamps. */
+export function toAdminDoctorCredential(row: ServiceDoctorCredential) {
+  return {
+    ...toPublicDoctorCredential(row),
+    doctorId: row.doctorId,
+    isVisible: row.isVisible,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Hospital operating hours (FR-005 / 병원 상세)
+// ---------------------------------------------------------------------------
+
+export interface PublicHospitalHours {
+  id: string;
+  dayOfWeek: number;
+  opensAt: string | null;
+  closesAt: string | null;
+  isClosed: boolean;
+  note: string | null;
+}
+
+export function toPublicHospitalHours(row: ServiceHospitalHours): PublicHospitalHours {
+  return {
+    id: row.id,
+    dayOfWeek: row.dayOfWeek,
+    opensAt: row.opensAt,
+    closesAt: row.closesAt,
+    isClosed: row.isClosed,
+    note: row.note,
+  };
+}
+
+/** Admin view: hours entry with parent id + timestamps. */
+export function toAdminHospitalHours(row: ServiceHospitalHours) {
+  return {
+    ...toPublicHospitalHours(row),
+    hospitalId: row.hospitalId,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Detail (hub) view types — public doctor/hospital plus resolved relations.
 // ---------------------------------------------------------------------------
 
@@ -182,9 +260,12 @@ export interface PublicDoctorDetail extends PublicDoctor {
   region: PublicRegion | null;
   specialties: PublicSpecialty[];
   hospitals: Array<{ hospital: PublicHospital; role: string | null; isPrimary: boolean }>;
+  credentials: PublicDoctorCredential[];
 }
 
 export interface PublicHospitalDetail extends PublicHospital {
   region: PublicRegion | null;
   doctors: PublicDoctor[];
+  specialties: PublicSpecialty[];
+  hours: PublicHospitalHours[];
 }

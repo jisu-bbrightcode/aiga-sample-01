@@ -9,6 +9,7 @@
 import { createZodDto } from "@repo/shared/zod-nestjs";
 import { z } from "zod";
 import { SERVICE_PUBLISH_STATUSES } from "../status";
+import { SERVICE_DOCTOR_CREDENTIAL_KINDS } from "./requests.dto";
 
 // ---- taxonomy ---------------------------------------------------------------
 
@@ -74,6 +75,35 @@ export const publicDoctorSchema = z.object({
 });
 export class PublicDoctorDto extends createZodDto(publicDoctorSchema) {}
 
+// ---- doctor profile credential (FR-005) -------------------------------------
+
+/** Public 의사 프로필 이력 항목 — visible entries on the doctor detail page. */
+export const doctorCredentialSchema = z.object({
+  id: z.string(),
+  kind: z.enum(SERVICE_DOCTOR_CREDENTIAL_KINDS),
+  title: z.string(),
+  organization: z.string().nullable(),
+  startYear: z.number().nullable(),
+  endYear: z.number().nullable(),
+  displayPeriod: z.string().nullable(),
+  description: z.string().nullable(),
+  sortOrder: z.number(),
+});
+export class DoctorCredentialDto extends createZodDto(doctorCredentialSchema) {}
+
+// ---- hospital operating hours (FR-005 / 병원 상세) ---------------------------
+
+/** Public 병원 운영시간 — one entry per weekday on the hospital detail page. */
+export const hospitalHoursSchema = z.object({
+  id: z.string(),
+  dayOfWeek: z.number(),
+  opensAt: z.string().nullable(),
+  closesAt: z.string().nullable(),
+  isClosed: z.boolean(),
+  note: z.string().nullable(),
+});
+export class HospitalHoursDto extends createZodDto(hospitalHoursSchema) {}
+
 /** Doctor detail = public doctor + resolved hub relations (all public-mapped). */
 export const publicDoctorDetailSchema = publicDoctorSchema.extend({
   region: publicRegionSchema.nullable(),
@@ -85,6 +115,8 @@ export const publicDoctorDetailSchema = publicDoctorSchema.extend({
       isPrimary: z.boolean(),
     }),
   ),
+  // FR-005 의사 프로필: visible credential timeline entries.
+  credentials: z.array(doctorCredentialSchema),
 });
 export class PublicDoctorDetailDto extends createZodDto(publicDoctorDetailSchema) {}
 
@@ -92,6 +124,9 @@ export class PublicDoctorDetailDto extends createZodDto(publicDoctorDetailSchema
 export const publicHospitalDetailSchema = publicHospitalSchema.extend({
   region: publicRegionSchema.nullable(),
   doctors: z.array(publicDoctorSchema),
+  // FR-005 병원 상세: department list + weekly operating hours.
+  specialties: z.array(publicSpecialtySchema),
+  hours: z.array(hospitalHoursSchema),
 });
 export class PublicHospitalDetailDto extends createZodDto(publicHospitalDetailSchema) {}
 
@@ -154,3 +189,34 @@ export class AdminHospitalDto extends createZodDto(adminHospitalSchema) {}
 
 export const deleteResultSchema = z.object({ success: z.boolean(), id: z.string() });
 export class DeleteResultDto extends createZodDto(deleteResultSchema) {}
+
+// ---- admin profile create responses (FR-005) --------------------------------
+
+/** Admin view of a created 의사 프로필 이력 — adds the editorial-only fields. */
+export const adminDoctorCredentialSchema = doctorCredentialSchema
+  .extend({
+    doctorId: z.string(),
+    isVisible: z.boolean(),
+    createdAt: z.string().nullable(),
+    updatedAt: z.string().nullable(),
+  })
+  .passthrough();
+export class AdminDoctorCredentialDto extends createZodDto(adminDoctorCredentialSchema) {}
+
+/** A created 병원 진료과 link (hospital ↔ specialty). */
+export const hospitalSpecialtyLinkSchema = z.object({
+  hospitalId: z.string(),
+  specialtyId: z.string(),
+  sortOrder: z.number(),
+});
+export class HospitalSpecialtyLinkDto extends createZodDto(hospitalSpecialtyLinkSchema) {}
+
+/** Admin view of a created 병원 운영시간 entry. */
+export const adminHospitalHoursSchema = hospitalHoursSchema
+  .extend({
+    hospitalId: z.string(),
+    createdAt: z.string().nullable(),
+    updatedAt: z.string().nullable(),
+  })
+  .passthrough();
+export class AdminHospitalHoursDto extends createZodDto(adminHospitalHoursSchema) {}
