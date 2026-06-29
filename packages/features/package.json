@@ -64,6 +64,7 @@
     "./project": "./project/index.ts",
     "./project/events": "./project/events/index.ts",
     "./service-domain": "./service-domain/index.ts",
+    "./user-directory": "./user-directory/index.ts",
     "./story": "./story/index.ts",
     "./video-lecture": "./video-lecture/index.ts",
     "./video-lecture/cloudflare-stream": "./video-lecture/cloudflare-stream/src/index.ts",
