@@ -13,6 +13,8 @@
     "build": "nest build",
     "check:sync-auth-bundle": "node scripts/check-sync-auth-bundle.mjs",
     "check-types": "tsc --noEmit",
+    "db:bootstrap:super-admin": "tsx src/scripts/bootstrap-super-admin.ts",
+    "test:bootstrap": "tsx --test src/scripts/super-admin-config.test.ts",
     "dev": "nest start --watch",
     "format": "node ../../scripts/biome-changed.mjs format .",
     "start": "nest start",
