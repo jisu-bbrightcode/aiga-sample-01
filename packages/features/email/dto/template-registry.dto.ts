@@ -24,6 +24,36 @@ const rendererEnum = z.enum([
 export const templateVariablesBodySchema = z.record(z.string(), z.unknown());
 export class TemplateVariablesBodyDto extends createZodDto(templateVariablesBodySchema) {}
 
+/**
+ * Request body for creating a template (PB-NOTI-EMAIL-API-CREATE-001 / BBR-658).
+ *
+ * `variableSchema` is intentionally loose here (a flat object map). Its shape is
+ * validated semantically in the service so a malformed schema is rejected with
+ * 422 ("잘못된 변수 스키마를 422로 거부"), not the 400 a strict Zod schema would
+ * produce. Truly malformed requests (missing key/subject, bad enum) still 400.
+ */
+const templateKeyPattern = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
+export const createEmailTemplateSchema = z.object({
+  key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .regex(templateKeyPattern, "키는 소문자/숫자와 . _ - 구분자만 사용할 수 있습니다.")
+    .describe("안정적인 템플릿 식별자 (예: transactional.order-confirmed)"),
+  name: z.string().trim().min(1).max(200).describe("템플릿 이름"),
+  description: z.string().max(2000).optional().describe("템플릿 설명"),
+  category: categoryEnum.optional().describe("카테고리 (기본값: transactional)"),
+  subject: z.string().trim().min(1).max(200).describe("이메일 제목 (변수 보간 지원)"),
+  bodySource: z.string().optional().describe("DB 저장형 본문 소스 (React 렌더러가 없을 때)"),
+  changelog: z.string().max(2000).optional().describe("초기 버전 변경 이력"),
+  variableSchema: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe("템플릿이 기대하는 변수 스키마 { name: { type, required, description } }"),
+});
+export class CreateEmailTemplateDto extends createZodDto(createEmailTemplateSchema) {}
+
 const validationIssueSchema = z.object({
   variable: z.string(),
   code: z.enum(["missing_required", "type_mismatch"]),

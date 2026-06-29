@@ -27,9 +27,11 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
-import { BetterAuthAdminGuard, BetterAuthGuard } from "@repo/core/nestjs/auth";
+import type { User } from "@repo/core/nestjs/auth";
+import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import type { EmailTemplateType } from "@repo/drizzle/schema";
 import {
+  CreateEmailTemplateDto,
   EmailLogResponseDto,
   EmailTemplateDetailDto,
   EmailTemplatePreviewDto,
@@ -150,6 +152,22 @@ export class EmailController {
   @ApiResponse({ status: 403, description: "관리자 권한 필요" })
   listTemplates() {
     return this.templateRegistry.listTemplates();
+  }
+
+  @Post("templates")
+  @ApiOperation({ summary: "[Admin] 이메일 템플릿 생성 (초기 draft 버전 포함)" })
+  @ApiBody({ type: CreateEmailTemplateDto })
+  @ApiResponse({
+    status: 201,
+    description: "생성된 템플릿 + 초기 draft 버전 반환",
+    type: EmailTemplateDetailDto,
+  })
+  @ApiResponse({ status: 400, description: "요청 본문이 올바르지 않음" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 필요" })
+  @ApiResponse({ status: 422, description: "중복 템플릿 키 또는 잘못된 변수 스키마" })
+  createTemplate(@CurrentUser() user: User, @Body() dto: CreateEmailTemplateDto) {
+    return this.templateRegistry.createTemplate(user.id, dto);
   }
 
   @Get("templates/:key")
