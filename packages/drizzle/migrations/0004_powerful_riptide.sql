@@ -5,7 +5,7 @@ CREATE TABLE "sync_changelog" (
 	"row_id" uuid NOT NULL,
 	"operation" varchar(10) NOT NULL,
 	"changed_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"changed_by" uuid,
+	"changed_by" varchar(255),
 	"payload" jsonb
 );
 --> statement-breakpoint
