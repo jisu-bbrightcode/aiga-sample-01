@@ -344,6 +344,13 @@
       "when": 1781311500000,
       "tag": "0048_service_search",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1781311600000,
+      "tag": "0049_doctor_curation",
+      "breakpoints": true
     }
   ]
 }
