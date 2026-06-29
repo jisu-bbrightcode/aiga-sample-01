@@ -9,6 +9,7 @@ import { CommonFeatureModule } from "@repo/features/_common";
 import { BlogModule } from "@repo/features/blog";
 import { CommentModule } from "@repo/features/comment";
 import { CommunityModule } from "@repo/features/community";
+import { DoctorCurationModule } from "@repo/features/doctor-curation";
 import { EmailModule } from "@repo/features/email";
 import { FeedbackModule } from "@repo/features/feedback";
 import { FileUploadModule } from "@repo/features/file-upload";
@@ -73,6 +74,7 @@ const paymentFeature = getPaymentFeatureWiring();
     CommentModule,
     CommonFeatureModule,
     CommunityModule,
+    DoctorCurationModule,
     EmailModule,
     FeedbackModule,
     FileUploadModule,
