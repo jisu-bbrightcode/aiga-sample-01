@@ -58,6 +58,32 @@ export KCB_CUSTOM_MODE_ENABLED=false
 `KCB_INTERNAL_AUTH_TOKEN`은 Node API와 Java bridge 사이의 내부 인증 토큰입니다.
 사용자에게 노출하지 않습니다.
 
+## Callback / 결과 검증 (PB-IDV-KCB-CALLBACK-001)
+
+`callback` / `return` / `popup-return`은 동일한 검증 파이프라인을 거칩니다.
+
+1. 세션 조회 (없으면 `session_not_found`).
+2. `state` / `nonce` 해시 일치 검증 — 불일치는 `replay_detected` (provider 호출 안 함).
+   `popup-return`은 KCB가 항상 돌려주는 단일 사용 `mdl_tkn` 해시로 세션을 찾습니다.
+3. 만료 시각 검증 — 만료 시 provider 호출 없이 `expired`.
+4. 서명/복호화 검증은 **KCB JAR adapter 경계**(`/internal/kcb/*/verify`)에서만 수행하고,
+   서비스는 결과만 매핑합니다 (임의 복호화/코드 매칭 금지).
+
+결과 code → 내부 상태 / 사용자 메시지 매핑:
+
+| adapter 응답 | 내부 status | failureCode | 사용자 메시지 키 |
+|---|---|---|---|
+| `verified: true` | `verified` | – | `verified` |
+| `canceled: true` | `canceled` | `canceled` | `canceled` |
+| `verified: false` | `failed` | `provider_rejected` | `failed` |
+| adapter 오류/timeout | `failed` | (stable blocker code) | 해당 code |
+| 세션 만료 | `expired` | `session_expired` | `expired` |
+
+- **Idempotency**: 종료 상태(verified/failed/canceled/expired)인 세션에 중복 callback이
+  와도 저장된 결과를 그대로 반환합니다 — provider 재호출·verification 중복 insert 없음.
+- 각 결과는 `identity_verification_attempts`에 비민감 코드만(원문/CI/DI/RRN 제외) audit row로 남습니다.
+- KCB 응답 원문은 로그·DB에 저장하지 않으며, identity는 hash(`ci_hash`/`di_hash`)·masked로만 보관합니다.
+
 ## Java bridge 사용 방법
 
 1. KCB에서 받은 공식 artifact를 ignored directory에 배치합니다.

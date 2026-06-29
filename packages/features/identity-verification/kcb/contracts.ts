@@ -33,6 +33,7 @@ export const kcbBlockerCodeSchema = z.enum([
   "custom_mode_not_enabled",
   "provider_rejected",
   "replay_detected",
+  "canceled",
   "session_not_found",
   "session_expired",
 ]);
@@ -135,6 +136,12 @@ export const kcbAdapterVerifyResponseSchema = z.object({
   resultCode: z.string().min(1),
   resultMessage: z.string().min(1),
   verified: z.boolean(),
+  // User-cancellation is decided at the adapter (JAR) boundary, which owns the KCB
+  // result-code table — the cancel/fail distinction is NOT made by string-matching codes
+  // in our service. When the decrypted KCB result is a user abort, the adapter sets
+  // `canceled: true` (with `verified: false`); the service maps it to the `canceled`
+  // state, separate from a provider rejection.
+  canceled: z.boolean().nullish(),
   ciHash: z.string().nullish(),
   diHash: z.string().nullish(),
   nameMasked: z.string().nullish(),
