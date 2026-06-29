@@ -2,19 +2,25 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
-import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import type { User } from "@repo/core/nestjs/auth";
+import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import {
   AdminDoctorDto,
+  AdminDoctorListDto,
   AdminHospitalDto,
+  AdminHospitalListDto,
+  AdminListDoctorsQueryDto,
+  AdminListHospitalsQueryDto,
   ChangeStatusDto,
   CreateDoctorDto,
   CreateHospitalDto,
@@ -39,6 +45,17 @@ export class ServiceDomainAdminController {
   constructor(private readonly service: ServiceDomainService) {}
 
   // ---- doctors ----
+
+  @Get("doctors")
+  @ApiOperation({
+    summary: "의사 목록 (관리자, 전체 상태 + 민감 필드)",
+    description:
+      "공개 목록과 달리 draft/archived를 포함한 모든 상태를 조회하며 status·includeDeleted 필터와 민감 필드를 노출한다.",
+  })
+  @ApiResponse({ status: 200, type: AdminDoctorListDto })
+  listDoctors(@Query() query: AdminListDoctorsQueryDto) {
+    return this.service.adminListDoctors(query);
+  }
 
   @Post("doctors")
   @ApiOperation({ summary: "의사 생성" })
@@ -81,6 +98,17 @@ export class ServiceDomainAdminController {
   }
 
   // ---- hospitals ----
+
+  @Get("hospitals")
+  @ApiOperation({
+    summary: "병원 목록 (관리자, 전체 상태 + 민감 필드)",
+    description:
+      "공개 목록과 달리 draft/archived를 포함한 모든 상태를 조회하며 status·includeDeleted 필터와 민감 필드를 노출한다.",
+  })
+  @ApiResponse({ status: 200, type: AdminHospitalListDto })
+  listHospitals(@Query() query: AdminListHospitalsQueryDto) {
+    return this.service.adminListHospitals(query);
+  }
 
   @Post("hospitals")
   @ApiOperation({ summary: "병원 생성" })

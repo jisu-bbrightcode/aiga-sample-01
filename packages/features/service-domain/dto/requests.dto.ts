@@ -44,6 +44,38 @@ export const listRegionsQuerySchema = z.object({
 });
 export class ListRegionsQueryDto extends createZodDto(listRegionsQuerySchema) {}
 
+// ---- admin list / search query ---------------------------------------------
+//
+// The admin browse tier (FR-005-API-LIST / BBR-541) is gated by the admin
+// guards and therefore sees the FULL editorial catalog — including `draft` /
+// `archived` rows and (opt-in) soft-deleted rows — projected through the admin
+// mapper with sensitive columns. Public browse (`listDoctorsQuerySchema`) only
+// ever returns published, non-deleted records, so the two tiers are separated
+// at both the field level (mapper) and the filter level (these schemas).
+
+const adminSortSchema = z.enum(["recent", "updated", "rating", "name"]).default("updated");
+
+const adminPageQuerySchema = pageQuerySchema.extend({
+  // Editorial filter: when omitted, every status is returned.
+  status: statusEnum.optional(),
+  // Soft-deleted rows are hidden by default even from admins; opt in explicitly.
+  includeDeleted: z.coerce.boolean().default(false),
+  featured: z.coerce.boolean().optional(),
+  q: z.string().trim().min(1).max(120).optional(),
+  sort: adminSortSchema,
+});
+
+export const adminListDoctorsQuerySchema = adminPageQuerySchema.extend({
+  specialtyId: z.string().uuid().optional(),
+  regionId: z.string().uuid().optional(),
+});
+export class AdminListDoctorsQueryDto extends createZodDto(adminListDoctorsQuerySchema) {}
+
+export const adminListHospitalsQuerySchema = adminPageQuerySchema.extend({
+  regionId: z.string().uuid().optional(),
+});
+export class AdminListHospitalsQueryDto extends createZodDto(adminListHospitalsQuerySchema) {}
+
 // ---- doctor create / update -------------------------------------------------
 
 const doctorAffiliationSchema = z.object({

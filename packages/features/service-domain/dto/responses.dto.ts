@@ -152,5 +152,23 @@ export const adminHospitalSchema = publicHospitalSchema
   .passthrough();
 export class AdminHospitalDto extends createZodDto(adminHospitalSchema) {}
 
+// ---- admin paginated envelopes ----------------------------------------------
+//
+// Same `{ items, total, page, limit }` shape as the public lists, but the items
+// carry the full admin projection. This is the admin tier of the public/admin
+// field separation required by FR-005-API-LIST (BBR-541).
+
+export const adminDoctorListSchema = z.object({
+  items: z.array(adminDoctorSchema),
+  ...pageMeta,
+});
+export class AdminDoctorListDto extends createZodDto(adminDoctorListSchema) {}
+
+export const adminHospitalListSchema = z.object({
+  items: z.array(adminHospitalSchema),
+  ...pageMeta,
+});
+export class AdminHospitalListDto extends createZodDto(adminHospitalListSchema) {}
+
 export const deleteResultSchema = z.object({ success: z.boolean(), id: z.string() });
 export class DeleteResultDto extends createZodDto(deleteResultSchema) {}
