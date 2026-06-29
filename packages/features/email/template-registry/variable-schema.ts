@@ -144,3 +144,81 @@ export function validateTemplateVariables(
 export function summarizeValidationIssues(issues: TemplateValidationIssue[]): string {
   return issues.map((issue) => issue.message).join(" ");
 }
+
+/** Outcome of strictly parsing an admin-supplied `variableSchema` for a new template. */
+export interface VariableSchemaParseResult {
+  valid: boolean;
+  /** The cleaned schema (empty object when input is absent or invalid). */
+  schema: TemplateVariableSchema;
+  /** Human-readable reasons the input was rejected (empty when valid). */
+  errors: string[];
+}
+
+/**
+ * Validate a single variable definition. Returns the cleaned spec, or an error
+ * string describing why it was rejected. Extracted so the per-entry branching
+ * does not inflate {@link parseVariableSchemaInput}'s cognitive complexity.
+ */
+function parseVariableSpec(
+  name: string,
+  value: unknown,
+): { spec: TemplateVariableSpec } | { error: string } {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { error: `변수 "${name}" 정의는 객체여야 합니다.` };
+  }
+
+  const spec = value as Record<string, unknown>;
+
+  if (!VALID_TYPES.includes(spec.type as TemplateVariableType)) {
+    return {
+      error: `변수 "${name}"의 type이 올바르지 않습니다. (허용: ${VALID_TYPES.join(", ")})`,
+    };
+  }
+  if (spec.required !== undefined && typeof spec.required !== "boolean") {
+    return { error: `변수 "${name}"의 required는 boolean이어야 합니다.` };
+  }
+  if (spec.description !== undefined && typeof spec.description !== "string") {
+    return { error: `변수 "${name}"의 description은 문자열이어야 합니다.` };
+  }
+
+  return {
+    spec: {
+      type: spec.type as TemplateVariableType,
+      required: spec.required === true,
+      description: typeof spec.description === "string" ? spec.description : undefined,
+    },
+  };
+}
+
+/**
+ * Strictly validate a `variableSchema` supplied when CREATING a template
+ * (PB-NOTI-EMAIL-API-CREATE-001 / BBR-658).
+ *
+ * Unlike {@link normalizeVariableSchema} — which silently coerces untrusted DB
+ * jsonb so reads never throw — this REJECTS malformed input so the create
+ * endpoint can answer 422 ("잘못된 변수 스키마를 422로 거부한다"). Absent input
+ * (`undefined`/`null`) is valid and yields an empty schema.
+ */
+export function parseVariableSchemaInput(raw: unknown): VariableSchemaParseResult {
+  if (raw === undefined || raw === null) {
+    return { valid: true, schema: {}, errors: [] };
+  }
+
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    return { valid: false, schema: {}, errors: ["변수 스키마는 객체여야 합니다."] };
+  }
+
+  const schema: TemplateVariableSchema = {};
+  const errors: string[] = [];
+
+  for (const [name, value] of Object.entries(raw as Record<string, unknown>)) {
+    const result = parseVariableSpec(name, value);
+    if ("error" in result) {
+      errors.push(result.error);
+    } else {
+      schema[name] = result.spec;
+    }
+  }
+
+  return { valid: errors.length === 0, schema, errors };
+}

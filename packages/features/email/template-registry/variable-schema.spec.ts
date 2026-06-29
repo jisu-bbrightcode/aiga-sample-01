@@ -1,5 +1,6 @@
 import {
   normalizeVariableSchema,
+  parseVariableSchemaInput,
   type TemplateVariableSchema,
   validateTemplateVariables,
 } from "./variable-schema";
@@ -94,5 +95,50 @@ describe("validateTemplateVariables", () => {
 
     expect(result.valid).toBe(true);
     expect(result.unknownVariables).toEqual(["surpriseVar"]);
+  });
+});
+
+describe("parseVariableSchemaInput", () => {
+  it("accepts absent input as an empty schema (variableSchema is optional)", () => {
+    expect(parseVariableSchemaInput(undefined)).toEqual({ valid: true, schema: {}, errors: [] });
+    expect(parseVariableSchemaInput(null)).toEqual({ valid: true, schema: {}, errors: [] });
+  });
+
+  it("accepts a well-formed schema and normalizes optional fields", () => {
+    const result = parseVariableSchemaInput({
+      userName: { type: "string", required: true, description: "수신자 이름" },
+      resetUrl: { type: "url", required: false },
+      count: { type: "number" },
+    });
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.schema).toEqual({
+      userName: { type: "string", required: true, description: "수신자 이름" },
+      resetUrl: { type: "url", required: false, description: undefined },
+      count: { type: "number", required: false, description: undefined },
+    });
+  });
+
+  it("rejects a non-object schema", () => {
+    expect(parseVariableSchemaInput("nope").valid).toBe(false);
+    expect(parseVariableSchemaInput([{ type: "string" }]).valid).toBe(false);
+  });
+
+  it("rejects an unknown variable type (→ 422 source)", () => {
+    const result = parseVariableSchemaInput({ amount: { type: "currency", required: true } });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain("amount");
+  });
+
+  it("rejects a non-boolean required and non-string description", () => {
+    expect(parseVariableSchemaInput({ a: { type: "string", required: "yes" } }).valid).toBe(false);
+    expect(parseVariableSchemaInput({ a: { type: "string", description: 1 } }).valid).toBe(false);
+  });
+
+  it("rejects a non-object variable definition", () => {
+    const result = parseVariableSchemaInput({ a: "string" });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain("a");
   });
 });

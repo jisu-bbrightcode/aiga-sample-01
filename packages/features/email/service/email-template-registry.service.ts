@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
 import type { EmailTemplate, EmailTemplateType, EmailTemplateVersion } from "@repo/drizzle/schema";
@@ -6,6 +11,7 @@ import { emailTemplates, emailTemplateVersions } from "@repo/drizzle/schema";
 import { and, desc, eq } from "drizzle-orm";
 import {
   normalizeVariableSchema,
+  parseVariableSchemaInput,
   renderTemplateString,
   resolveRenderer,
   summarizeValidationIssues,
@@ -63,6 +69,19 @@ export interface RenderedTemplate {
   subjectMissing: string[];
 }
 
+/** Admin-supplied payload for creating a new template + its initial draft version. */
+export interface CreateTemplateInput {
+  key: string;
+  name: string;
+  description?: string | null;
+  category?: EmailTemplate["category"];
+  subject: string;
+  bodySource?: string | null;
+  changelog?: string | null;
+  /** Untrusted variable schema; validated semantically (422 on malformed). */
+  variableSchema?: unknown;
+}
+
 /**
  * Email Template Registry Service
  *
@@ -81,6 +100,18 @@ export interface RenderedTemplate {
  * Pure logic lives in `../template-registry`; this service only handles DB I/O
  * and orchestration.
  */
+const PG_UNIQUE_VIOLATION = "23505";
+
+/** Detect a Postgres unique-constraint violation (e.g. concurrent duplicate key). */
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === PG_UNIQUE_VIOLATION
+  );
+}
+
 @Injectable()
 export class EmailTemplateRegistryService {
   constructor(
@@ -129,6 +160,88 @@ export class EmailTemplateRegistryService {
       .where(eq(emailTemplateVersions.templateId, template.id))
       .orderBy(desc(emailTemplateVersions.version));
 
+    return this.toDetailView(template, versions);
+  }
+
+  /**
+   * Create a new template and its initial draft version
+   * (PB-NOTI-EMAIL-API-CREATE-001 / BBR-658).
+   *
+   * - Rejects a malformed `variableSchema` with 422 (AC: "잘못된 변수 스키마를 422로 거부").
+   * - Rejects a duplicate `key` with 422 (AC: "중복 템플릿 키를 422로 거부"). A unique
+   *   index also guards the key, so a concurrent insert is mapped to 422 too.
+   * - The created template starts with NO published pointer; its first version is
+   *   `draft` v1 (AC: "생성된 템플릿은 draft 상태와 버전 정보를 가진다").
+   */
+  async createTemplate(
+    actorUserId: string | null,
+    input: CreateTemplateInput,
+  ): Promise<TemplateDetailView> {
+    const parsedSchema = parseVariableSchemaInput(input.variableSchema);
+    if (!parsedSchema.valid) {
+      throw new UnprocessableEntityException(
+        `변수 스키마가 올바르지 않습니다. ${parsedSchema.errors.join(" ")}`,
+      );
+    }
+
+    const [existing] = await this.db
+      .select({ id: emailTemplates.id })
+      .from(emailTemplates)
+      .where(eq(emailTemplates.key, input.key))
+      .limit(1);
+    if (existing) {
+      throw new UnprocessableEntityException(`이미 존재하는 템플릿 키입니다: ${input.key}`);
+    }
+
+    try {
+      return await this.db.transaction(async (tx) => {
+        const [template] = await tx
+          .insert(emailTemplates)
+          .values({
+            key: input.key,
+            name: input.name,
+            description: input.description ?? null,
+            category: input.category ?? "transactional",
+            isActive: true,
+          })
+          .returning();
+        if (!template) {
+          throw new Error("email_templates insert returned no row");
+        }
+
+        const [version] = await tx
+          .insert(emailTemplateVersions)
+          .values({
+            templateId: template.id,
+            version: 1,
+            subject: input.subject,
+            variableSchema: parsedSchema.schema,
+            bodySource: input.bodySource ?? null,
+            status: "draft",
+            changelog: input.changelog ?? null,
+            createdBy: actorUserId,
+            publishedAt: null,
+          })
+          .returning();
+        if (!version) {
+          throw new Error("email_template_versions insert returned no row");
+        }
+
+        return this.toDetailView(template, [version]);
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new UnprocessableEntityException(`이미 존재하는 템플릿 키입니다: ${input.key}`);
+      }
+      throw error;
+    }
+  }
+
+  /** Map a template row + its version rows into the admin detail view. */
+  private toDetailView(
+    template: EmailTemplate,
+    versions: EmailTemplateVersion[],
+  ): TemplateDetailView {
     const current = versions.find((v) => v.id === template.currentVersionId) ?? null;
 
     return {
