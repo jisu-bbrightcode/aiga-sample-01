@@ -1,0 +1,16 @@
+{
+  "name": "aiga-notification",
+  "private": true,
+  "version": "0.1.0",
+  "description": "공통 알림 서비스 (PB-NOTI-001) — notification.core capability: provider-agnostic NotificationService port, <domain>.<event> template key registry, channel routing (Email/Resend + Kakao 알림톡), send history + retry policy. EXTEND of product-builder-base packages/features/notification + packages/features/email. Framework-agnostic core + NestJS adapters for apps/server.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test '__tests__/**/*.test.ts'",
+    "test:watch": "node --test --watch '__tests__/**/*.test.ts'",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "typescript": "^5.6.3"
+  }
+}
