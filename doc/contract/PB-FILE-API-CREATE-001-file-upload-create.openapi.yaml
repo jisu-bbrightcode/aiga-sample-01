@@ -1,0 +1,108 @@
+# PB-FILE-API-CREATE-001 (BBR-548) — file upload create/token API: OpenAPI path.
+#
+# OpenAPI 3.1 fragment for `POST /files/uploads`. EXTEND of the base file-upload
+# capability: adds the Vercel Blob *client upload* token flow on top of the
+# `file_assets` data model (PB-FILE-DATA-001 / BBR-547).
+#
+# Flow (https://vercel.com/docs/vercel-blob/client-upload):
+#   1. Client POSTs declared {filename, contentType, size, visibility, target}.
+#   2. Server (authenticated) validates against the locked policy (PB-FILE-001
+#      §5.2), generates an unguessable pathname, persists a `pending` file_asset,
+#      and mints a short-lived client token bound to that pathname.
+#   3. Client uploads directly to Blob with the token; Blob then calls the
+#      completion callback (`POST /files/uploads/callback`, BBR-549).
+openapi: 3.1.0
+info:
+  title: AIGA file-upload create/token API (PB-FILE-API-CREATE-001)
+  version: 1.0.0
+paths:
+  /files/uploads:
+    post:
+      tags: [File Upload]
+      summary: Start a file upload — issue a Vercel Blob client-upload token + pending metadata
+      description: >
+        Requires authentication. Validates the declared content type / extension /
+        size against the locked policy and returns the upload draft (server-generated
+        pathname + short-lived client token). Unauthenticated callers receive 401 and
+        never get a token (AC#1). Disallowed type/extension/size are rejected with 422
+        (AC#2). The pathname is server-generated and collision-resistant (AC#3).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUploadRequest"
+      responses:
+        "201":
+          description: Upload draft for the Vercel Blob client upload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadDraft"
+        "401":
+          description: Authentication required (no token issued).
+        "422":
+          description: Policy rejection — disallowed MIME type, extension, or size.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    CreateUploadRequest:
+      type: object
+      required: [filename, contentType, size]
+      properties:
+        filename:
+          type: string
+          maxLength: 255
+          description: Original filename incl. extension (display + extension check).
+        contentType:
+          type: string
+          maxLength: 255
+          description: Client-declared MIME type (untrusted; gates token issuance only).
+        size:
+          type: integer
+          minimum: 1
+          description: Client-declared byte size (untrusted; becomes the token ceiling).
+        visibility:
+          type: string
+          enum: [public, private]
+          default: private
+          description: Access policy. Defaults to private (PB-FILE-001 §5.1).
+        targetType:
+          type: string
+          maxLength: 64
+          description: Resource kind the file attaches to, e.g. "profile", "hospital".
+        targetId:
+          type: string
+          maxLength: 255
+          description: Id of the attached resource.
+    UploadDraft:
+      type: object
+      required:
+        [fileAssetId, pathname, clientToken, contentType, maximumSizeInBytes, visibility, expiresAt]
+      properties:
+        fileAssetId:
+          type: string
+          format: uuid
+          description: Id of the pending file_assets row.
+        pathname:
+          type: string
+          description: Server-generated, collision-resistant Blob key the token is bound to.
+        clientToken:
+          type: string
+          description: Short-lived Vercel Blob client upload token.
+        contentType:
+          type: string
+        maximumSizeInBytes:
+          type: integer
+        visibility:
+          type: string
+          enum: [public, private]
+        expiresAt:
+          type: string
+          format: date-time
+          description: Pending-row orphan TTL (cleanup target if upload never completes).

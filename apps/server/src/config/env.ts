@@ -14,6 +14,10 @@ export const serverEnvSchema = z.object({
   INNGEST_EVENT_KEY: z.string().min(1).optional(),
   INNGEST_SIGNING_KEY: z.string().min(1).optional(),
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  // Public absolute URL of THIS server, used to build the Vercel Blob client-upload
+  // completion callback (/files/uploads/callback). Optional: when unset, no callback
+  // is attached to issued tokens (PB-FILE-API-CREATE-001 / BBR-548).
+  FILE_UPLOAD_PUBLIC_BASE_URL: z.string().url().optional(),
   CLOUDFLARE_ACCOUNT_ID: z.string().min(1).optional(),
   CLOUDFLARE_STREAM_API_TOKEN: z.string().min(1).optional(),
   CLOUDFLARE_STREAM_WEBHOOK_SECRET: z.string().min(1).optional(),
