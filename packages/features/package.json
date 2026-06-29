@@ -69,6 +69,7 @@
     "./user-directory": "./user-directory/index.ts",
     "./doctor-curation": "./doctor-curation/index.ts",
     "./service-search": "./service-search/index.ts",
+    "./user-grade": "./user-grade/index.ts",
     "./story": "./story/index.ts",
     "./video-lecture": "./video-lecture/index.ts",
     "./video-lecture/cloudflare-stream": "./video-lecture/cloudflare-stream/src/index.ts",
