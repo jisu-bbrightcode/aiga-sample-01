@@ -34,7 +34,7 @@ export const identityVerificationSessionOpenApiSchema = {
     targetAction: { type: "string" },
     status: {
       type: "string",
-      enum: ["created", "redirected", "verified", "failed", "expired"],
+      enum: ["created", "redirected", "pending", "verified", "failed", "canceled", "expired"],
     },
     providerTransactionId: { type: "string", nullable: true },
     resultCode: { type: "string", nullable: true },
@@ -45,6 +45,48 @@ export const identityVerificationSessionOpenApiSchema = {
     expiresAt: { type: "string", format: "date-time" },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" },
+  },
+};
+
+// Verified identity result (one row in identity_verifications). Exposes only
+// masked/coarse fields — never CI/DI hashes, RRN, or raw payload. The status/result
+// API (PB-IDV-KCB-API-STATUS-001) returns this shape.
+export const identityVerificationResultOpenApiSchema = {
+  type: "object",
+  required: ["id", "requestId", "provider", "verifiedAt", "createdAt"],
+  properties: {
+    id: { type: "string", format: "uuid" },
+    requestId: { type: "string", format: "uuid" },
+    userId: { type: "string", nullable: true },
+    provider: { type: "string", enum: ["kcb"] },
+    nameMasked: { type: "string", nullable: true },
+    phoneMasked: { type: "string", nullable: true },
+    birthYear: { type: "string", nullable: true },
+    birthDateMasked: { type: "string", nullable: true },
+    gender: { type: "string", enum: ["male", "female"], nullable: true },
+    isForeigner: { type: "boolean", nullable: true },
+    verifiedAt: { type: "string", format: "date-time" },
+    retainedUntil: { type: "string", format: "date-time", nullable: true },
+    anonymizedAt: { type: "string", format: "date-time", nullable: true },
+    createdAt: { type: "string", format: "date-time" },
+  },
+};
+
+// One immutable attempt audit record (identity_verification_attempts). Non-sensitive
+// codes only; used by the status/retry API to surface retry history.
+export const identityVerificationAttemptOpenApiSchema = {
+  type: "object",
+  required: ["id", "attemptNo", "outcome", "createdAt"],
+  properties: {
+    id: { type: "string", format: "uuid" },
+    attemptNo: { type: "integer" },
+    outcome: {
+      type: "string",
+      enum: ["redirected", "verified", "failed", "canceled", "expired"],
+    },
+    resultCode: { type: "string", nullable: true },
+    failureCode: { type: "string", nullable: true },
+    createdAt: { type: "string", format: "date-time" },
   },
 };
 
