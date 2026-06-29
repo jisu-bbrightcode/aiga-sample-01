@@ -11,6 +11,7 @@ import { CommentModule } from "@repo/features/comment";
 import { CommunityModule } from "@repo/features/community";
 import { EmailModule } from "@repo/features/email";
 import { FeedbackModule } from "@repo/features/feedback";
+import { FileUploadModule } from "@repo/features/file-upload";
 import { IdentityVerificationModule } from "@repo/features/identity-verification";
 import { LocalizationModule } from "@repo/features/localization";
 import { NotificationModule } from "@repo/features/notification";
@@ -73,6 +74,7 @@ const paymentFeature = getPaymentFeatureWiring();
     CommunityModule,
     EmailModule,
     FeedbackModule,
+    FileUploadModule,
     IdentityVerificationModule,
     NotificationModule,
     OnboardingModule,
