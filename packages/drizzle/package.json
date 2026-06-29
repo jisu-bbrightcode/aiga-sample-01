@@ -22,6 +22,7 @@
     "db:seed:profiles": "npx tsx src/scripts/db-seed-profiles.ts",
     "db:seed:payment": "npx tsx src/seed/payment-catalog.ts",
     "db:seed:service-domain": "npx tsx src/seed/service-domain.ts",
+    "db:seed:doctor-curation": "npx tsx src/seed/doctor-curation.ts",
     "db:seed:lore-a4": "tsx scripts/seed-lore-a4.ts"
   },
   "dependencies": {

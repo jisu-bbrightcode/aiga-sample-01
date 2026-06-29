@@ -39,6 +39,7 @@ export * from "./features/character-chat";
 export * from "./features/character-chat";
 export * from "./features/comment";
 export * from "./features/community";
+export * from "./features/doctor-curation";
 export * from "./features/email";
 export * from "./features/identity-verification";
 export * from "./features/localization";
