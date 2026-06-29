@@ -1,0 +1,5 @@
+{
+  "buildCommand": "cd ../.. && pnpm --filter site build",
+  "installCommand": "cd ../.. && ELECTRON_SKIP_BINARY_DOWNLOAD=1 pnpm install --no-frozen-lockfile",
+  "framework": "nextjs"
+}

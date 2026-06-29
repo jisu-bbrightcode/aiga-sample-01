@@ -1,0 +1,7 @@
+export const DEFAULT_CHARACTER_CHAT_MODEL_PROVIDER = "gateway";
+export const DEFAULT_CHARACTER_CHAT_MODEL_NAME = "openai/gpt-4o-mini";
+
+export const DEFAULT_CHARACTER_CHAT_MODEL = {
+  provider: DEFAULT_CHARACTER_CHAT_MODEL_PROVIDER,
+  model: DEFAULT_CHARACTER_CHAT_MODEL_NAME,
+} as const;

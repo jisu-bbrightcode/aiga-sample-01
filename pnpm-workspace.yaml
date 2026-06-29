@@ -1,0 +1,31 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  # localization-bridge/-server는 .worktrees/localization-phase0 에서만 작업 중.
+  # main 머지 시 아래 2줄 제거.
+  - "!apps/localization-bridge"
+  - "!apps/localization-server"
+allowBuilds:
+  '@nestjs/core': true
+  '@parcel/watcher': true
+  '@prisma/engines': false
+  '@scarf/scarf': true
+  '@swc/core': true
+  core-js: true
+  esbuild: true
+  prisma: false
+  protobufjs: true
+  sharp: false
+  unrs-resolver: false
+overrides:
+  '@hono/node-server': ^1.19.13
+  esbuild: ^0.25.0
+  express-rate-limit: ^8.2.2
+  fast-uri: ^3.1.2
+  ip-address: ^10.1.1
+  path-to-regexp: ^8.4.0
+  picomatch: ^4.0.4
+  postcss: ^8.5.10
+  protobufjs: ^7.5.5
+  qs: ^6.15.2
+  uuid: ^11.1.1

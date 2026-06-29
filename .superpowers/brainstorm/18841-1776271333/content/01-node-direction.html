@@ -1,0 +1,112 @@
+<h2>Story Node 고도화 방향</h2>
+<p class="subtitle">Meeting Notes 카드 스타일 기반 — 현재 vs 목표</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">현재 엔진 노드 (CardDemo)</div>
+    <div class="mockup-body" style="padding:24px; background:#1a1a2e;">
+      <div style="width:280px; background:#252540; border-radius:12px; overflow:hidden; font-family:system-ui; color:#e0e0e0; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+        <div style="height:80px; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center;">
+          <span style="font-size:32px;">&#x1F30C;</span>
+        </div>
+        <div style="padding:16px;">
+          <div style="font-size:11px; color:#a78bfa; font-weight:600; letter-spacing:0.5px; margin-bottom:6px;">WORLD</div>
+          <div style="font-size:15px; font-weight:600; margin-bottom:8px;">아르카디아 대륙</div>
+          <div style="font-size:12px; color:#888; line-height:1.5;">태초의 마법이 깃든 대륙. 5개 왕국이 경쟁하는...</div>
+        </div>
+      </div>
+      <p style="color:#666; font-size:11px; margin-top:12px; text-align:center;">이미지 + 뱃지 + 텍스트<br/>인터랙션/메뉴 없음</p>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">목표: Meeting Notes 스타일 Story Node</div>
+    <div class="mockup-body" style="padding:24px; background:#1a1a2e;">
+      <div style="width:320px; background:#1e1e2e; border:1px solid #2a2a3e; border-radius:16px; font-family:'Pretendard Variable',system-ui; color:#e0e0e0; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+        <div style="padding:14px 16px 0; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:8px; height:8px; border-radius:50%; background:#a78bfa;"></div>
+            <span style="font-size:11px; color:#a78bfa; font-weight:600; letter-spacing:0.5px;">ACT 2 &middot; SCENE 3</span>
+          </div>
+          <div style="color:#555; font-size:14px; cursor:pointer;">&#x22EF;</div>
+        </div>
+        <div style="padding:10px 16px 0;">
+          <div style="font-size:16px; font-weight:700; line-height:1.3;">왕국의 몰락을 목격하다</div>
+        </div>
+        <div style="padding:8px 16px;">
+          <div style="font-size:13px; color:#888; line-height:1.6;">엘리아 공주가 성벽 위에서 적군의 진격을 바라보는 장면. 이 순간 플레이어의 선택에 따라 3가지 분기로...</div>
+        </div>
+        <div style="padding:4px 16px; display:flex; gap:6px; flex-wrap:wrap;">
+          <span style="font-size:11px; padding:3px 8px; background:#2a2a3e; border-radius:6px; color:#8b8ba0;">분기점</span>
+          <span style="font-size:11px; padding:3px 8px; background:#2a2a3e; border-radius:6px; color:#e8a87c;">긴장</span>
+          <span style="font-size:11px; padding:3px 8px; background:#2a2a3e; border-radius:6px; color:#a78bfa;">엘리아</span>
+        </div>
+        <div style="margin:10px 16px; border-top:1px solid #2a2a3e;"></div>
+        <div style="padding:0 16px 14px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <div style="display:flex;">
+              <div style="width:22px; height:22px; border-radius:50%; background:#4a4a6a; border:2px solid #1e1e2e; display:flex; align-items:center; justify-content:center; font-size:9px;">E</div>
+              <div style="width:22px; height:22px; border-radius:50%; background:#6a4a6a; border:2px solid #1e1e2e; margin-left:-6px; display:flex; align-items:center; justify-content:center; font-size:9px;">K</div>
+            </div>
+            <span style="font-size:11px; color:#555;">2명 등장</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:11px; color:#555;">&#x21C4; 3분기</span>
+            <span style="font-size:11px; color:#555;">&#x1F4AC; 12</span>
+          </div>
+        </div>
+      </div>
+      <p style="color:#666; font-size:11px; margin-top:12px; text-align:center;">타입 뱃지 + &#x22EF; 메뉴 + 태그<br/>캐릭터 아바타 + 분기 수 + 대사 수</p>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:24px;">
+  <h3>첫 번째 질문</h3>
+  <p class="subtitle">Meeting Notes 카드에서 어떤 요소가 스토리 노드에 가장 중요한가요? (복수 선택 가능)</p>
+</div>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="menu" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>&#x22EF; 컨텍스트 메뉴</h3>
+      <p>노드 위에서 복제, 삭제, 색상 변경, 연결 등 액션</p>
+    </div>
+  </div>
+  <div class="option" data-choice="metadata" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>메타데이터 푸터</h3>
+      <p>분기 수, 대사 수, 등장인물, 워드카운트 등 한눈에</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tags" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>태그/칩 시스템</h3>
+      <p>감정(긴장, 유머), 스토리 태그(분기점, 컷씬), 캐릭터 태그</p>
+    </div>
+  </div>
+  <div class="option" data-choice="avatars" onclick="toggleSelect(this)">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>캐릭터 아바타 스택</h3>
+      <p>이 씬에 등장하는 캐릭터들을 아바타로 표시</p>
+    </div>
+  </div>
+  <div class="option" data-choice="editing" onclick="toggleSelect(this)">
+    <div class="letter">5</div>
+    <div class="content">
+      <h3>인라인 편집</h3>
+      <p>노드 더블클릭 시 제목/본문 직접 편집 (WebGL 텍스트 에디터 활용)</p>
+    </div>
+  </div>
+  <div class="option" data-choice="status" onclick="toggleSelect(this)">
+    <div class="letter">6</div>
+    <div class="content">
+      <h3>상태 인디케이터</h3>
+      <p>초안/검토중/완료/충돌 — 작업 진행 상태 표시</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS sync_cursors CASCADE;
+DROP TABLE IF EXISTS sync_changelog CASCADE;

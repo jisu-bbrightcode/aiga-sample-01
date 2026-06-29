@@ -1,0 +1,17 @@
+{"type":"server-started","port":54548,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:54548","screen_dir":"/Users/bbright/Projects/flotter/.superpowers/brainstorm/18841-1776271333/content","state_dir":"/Users/bbright/Projects/flotter/.superpowers/brainstorm/18841-1776271333/state"}
+{"type":"screen-added","file":"/Users/bbright/Projects/flotter/.superpowers/brainstorm/18841-1776271333/content/01-node-direction.html"}
+{"source":"user-event","type":"click","text":"1\n    \n      ⋯ 컨텍스트 메뉴\n      노드 위에서 복제, 삭제, 색상 변경, 연결 등 액션","choice":"menu","id":null,"timestamp":1776271489619}
+{"source":"user-event","type":"click","text":"3\n    \n      태그/칩 시스템\n      감정(긴장, 유머), 스토리 태그(분기점, 컷씬), 캐릭터 태그","choice":"tags","id":null,"timestamp":1776271497079}
+{"source":"user-event","type":"click","text":"4\n    \n      캐릭터 아바타 스택\n      이 씬에 등장하는 캐릭터들을 아바타로 표시","choice":"avatars","id":null,"timestamp":1776271499643}
+{"source":"user-event","type":"click","text":"6\n    \n      상태 인디케이터\n      초안/검토중/완료/충돌 — 작업 진행 상태 표시","choice":"status","id":null,"timestamp":1776271501647}
+{"type":"screen-added","file":"/Users/bbright/Projects/flotter/.superpowers/brainstorm/18841-1776271333/content/02-context-menu.html"}
+{"source":"user-event","type":"click","text":"A\n    \n      이대로 좋다\n      편집, 복제, 연결, 색상, 태그, 캐릭터, 내보내기, 삭제","choice":"good","id":null,"timestamp":1776271611329}
+{"type":"screen-added","file":"/Users/bbright/Projects/flotter/.superpowers/brainstorm/18841-1776271333/content/03-implementation-layer.html"}
+{"source":"user-event","type":"click","text":"B. 하이브리드 (추천)\n      노드 카드 = 엔진(Canvas)에서 렌더. 메뉴/팝업 = React DOM 오버레이로 띄움.\n      \n        Pros\n          노드 렌더링 성능 유지 (엔진)\n          메뉴는 DOM이라 구현 쉽고 접근성 좋음\n          shadcn 컴포넌트 재활용 가능\n          tldraw, Figma가 쓰는 검증된 패턴\n        \n        Cons\n          Canvas↔DOM 좌표 변환 필요\n          줌 레벨에 따른 위치 계산","choice":"hybrid","id":null,"timestamp":1776271658441}
+{"type":"screen-added","file":"/Users/bbright/Projects/flotter/.superpowers/brainstorm/18841-1776271333/content/04-card-layout.html"}
+{"type":"screen-added","file":"/Users/bbright/Projects/flotter/.superpowers/brainstorm/18841-1776271333/content/05-expand-collapse.html"}
+{"type":"screen-added","file":"/Users/bbright/Projects/flotter/.superpowers/brainstorm/18841-1776271333/content/06-tag-system.html"}
+{"source":"user-event","type":"click","text":"A\n    \n      접힌: 최대 2개 + 숫자 / 펼친: 전부\n      접힌 상태에서 태그 2개만 보이고 \"+3\" 표시. 펼치면 전체.","choice":"inline-max2","id":null,"timestamp":1776272018617}
+{"type":"screen-added","file":"/Users/bbright/Projects/flotter/.superpowers/brainstorm/18841-1776271333/content/07-final-design.html"}
+{"type":"screen-added","file":"/Users/bbright/Projects/flotter/.superpowers/brainstorm/18841-1776271333/content/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}

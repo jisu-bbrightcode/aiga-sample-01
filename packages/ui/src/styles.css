@@ -1,0 +1,191 @@
+@import "tailwindcss";
+@import "./typography.css";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-background-subtle: var(--background-subtle);
+  --color-background-warm: var(--background-warm);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-surface-page: var(--surface-page);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-accent-gold: var(--accent-gold);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Origo elevation (design-system/origo shadows → Tailwind shadow tiers) */
+  --shadow-xs: 0 1px 2px 0 #1018280d;
+  --shadow-sm: 0 1px 2px 0 #0000004c;
+  --shadow-md: 0 2px 4px 0 #1b1c1d0a;
+  --shadow-lg: 0 12px 24px 0 #868c981f;
+
+  --color-entity-world: var(--entity-world);
+  --color-entity-character: var(--entity-character);
+  --color-entity-location: var(--entity-location);
+  --color-entity-faction: var(--entity-faction);
+  --color-entity-codex: var(--entity-codex);
+}
+
+/* Type scale tokens (--text-*) + data-text-size levels: ./typography.css */
+
+@layer base {
+  :root {
+    --font-sans:
+      "Inter", "Pretendard Variable", system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", "Menlo", monospace;
+
+    /* Origo design system — light (design-system/origo/tokens) */
+    --background: #ffffff;
+    --background-subtle: #f6f8fa;
+    --background-warm: #f6f8fa;
+    --foreground: #0a0d14;
+    --card: #ffffff;
+    --card-foreground: #0a0d14;
+    --popover: #ffffff;
+    --popover-foreground: #0a0d14;
+    --primary: #0f5d66;
+    --primary-foreground: #ffffff;
+    --secondary: #f6f8fa;
+    --secondary-foreground: #0a0d14;
+    --muted: #f6f8fa;
+    --muted-foreground: #525866;
+    --accent: #e2e4e9;
+    --accent-foreground: #0a0d14;
+    --destructive: #df1c41;
+    --destructive-foreground: #ffffff;
+    --success: #38c793;
+    --border: #e2e4e9;
+    --border-subtle: #e2e4e9;
+    --border-strong: #cdd0d5;
+    --input: #e2e4e9;
+    --ring: #868c98;
+    --radius: 0.5rem;
+    --chart-1: #0f5d66;
+    --chart-2: #38c793;
+    --chart-3: #0ea5e9;
+    --chart-4: #6457f9;
+    --chart-5: #d946ef;
+    --sidebar: #ffffff;
+    --sidebar-foreground: #0a0d14;
+    --sidebar-primary: #0f5d66;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #f6f8fa;
+    --sidebar-accent-foreground: #0a0d14;
+    --sidebar-border: #e2e4e9;
+    --sidebar-ring: #868c98;
+    --surface-page: #ffffff;
+    --surface-elevated: #ffffff;
+    --accent-gold: #0f5d66;
+    --entity-world: #0ea5e9;
+    --entity-character: #6457f9;
+    --entity-location: #38c793;
+    --entity-faction: #d946ef;
+    --entity-codex: #0f5d66;
+  }
+
+  .dark {
+    /* Origo neutral 반전 + 표면 합성 (Origo 공식 아님) */
+    --background: #0a0d14;
+    --background-subtle: #0a0d14;
+    --background-warm: #14181f;
+    --foreground: #f6f8fa;
+    --card: #14181f;
+    --card-foreground: #f6f8fa;
+    --popover: #14181f;
+    --popover-foreground: #f6f8fa;
+    --primary: #2fa3ad;
+    --primary-foreground: #0a0d14;
+    --secondary: #1c2027;
+    --secondary-foreground: #f6f8fa;
+    --muted: #1c2027;
+    --muted-foreground: #868c98;
+    --accent: #1c2027;
+    --accent-foreground: #f6f8fa;
+    --destructive: #fb3748;
+    --destructive-foreground: #ffffff;
+    --success: #38c793;
+    --border: #2a2f38;
+    --border-subtle: #2a2f38;
+    --border-strong: #525866;
+    --input: #2a2f38;
+    --ring: #525866;
+    --chart-1: #2fa3ad;
+    --chart-2: #38c793;
+    --chart-3: #0ea5e9;
+    --chart-4: #6457f9;
+    --chart-5: #d946ef;
+    --sidebar: #0a0d14;
+    --sidebar-foreground: #f6f8fa;
+    --sidebar-primary: #2fa3ad;
+    --sidebar-primary-foreground: #0a0d14;
+    --sidebar-accent: #1c2027;
+    --sidebar-accent-foreground: #f6f8fa;
+    --sidebar-border: #2a2f38;
+    --sidebar-ring: #525866;
+    --surface-page: #0a0d14;
+    --surface-elevated: #14181f;
+    --accent-gold: #2fa3ad;
+    --entity-world: #0ea5e9;
+    --entity-character: #6457f9;
+    --entity-location: #38c793;
+    --entity-faction: #d946ef;
+    --entity-codex: #2fa3ad;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    font-size: var(--fs-base);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+}

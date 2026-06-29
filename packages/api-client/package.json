@@ -1,0 +1,28 @@
+{
+  "name": "@repo/api-client",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./paths": "./src/generated/paths.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.13.8",
+    "openapi-react-query": "^0.5.4"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "openapi-typescript": "^7.8.0",
+    "typescript": "^5.7.3",
+    "vitest": "^2.0.0"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "react": "*"
+  }
+}

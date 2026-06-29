@@ -1,0 +1,49 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "notion": {
+      "type": "remote",
+      "url": "https://mcp.notion.com/mcp",
+      "oauth": {},
+      "enabled": true
+    },
+    "linear": {
+      "type": "remote",
+      "url": "https://mcp.linear.app/mcp",
+      "oauth": {},
+      "enabled": true
+    },
+    "vercel": {
+      "type": "remote",
+      "url": "https://mcp.vercel.com",
+      "oauth": {},
+      "enabled": true
+    },
+    "heptabase": {
+      "type": "remote",
+      "url": "https://api.heptabase.com/mcp",
+      "oauth": {},
+      "enabled": true
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "ctx7sk-7fab54dd-8f56-4ad2-93fa-ecddaa11f398"
+      },
+      "enabled": true
+    },
+    "obsidian": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@mauricio.wolff/mcp-obsidian@latest",
+        "/Users/bbright/Documents/Atlas"
+      ]
+    }
+  },
+  "plugin": [
+    ".opencode/plugins/graphify.js"
+  ]
+}

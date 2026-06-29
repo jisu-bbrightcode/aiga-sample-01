@@ -1,0 +1,8 @@
+/jar/*
+!/jar/.gitkeep
+
+/license/*
+!/license/.gitkeep
+
+/native/*
+!/native/.gitkeep

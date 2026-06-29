@@ -1,0 +1,37 @@
+---
+description: System Architecture and Documentation Guide
+globs: **/*.md
+alwaysApply: true
+---
+
+# Architecture & Documentation
+
+The official documentation for Flotter is located in the `docs/` directory.
+
+## Core Documents
+
+- **System Overview**: `docs/architecture/01-system-overview.md`
+- **Feature Specification**: `docs/architecture/02-feature-spec.md`
+- **Database Schema**: `docs/architecture/03-database-schema.md`
+
+## Directory Map
+
+- `apps/app`: Frontend (Vite + React + TanStack Router)
+  - `src/features/`: Client Feature 코드
+- `apps/server`: Backend (NestJS + Fastify)
+  - Imports from `@repo/features`
+- `packages/features`: Server Feature 코드
+  - `{name}/server/`: Server-side implementation
+- `packages/core`: Shared infrastructure
+- `registry`: Feature metadata
+
+## Documentation Structure
+
+- `docs/architecture/`: **Single Source of Truth** for system design & implementation patterns.
+- `docs/guides/`: Step-by-step guides (Installation, Testing, Agent Checklist).
+- `.claude/rules/`: Coding standards (Frontend, Backend, Imports).
+- `docs/templates/`: Standard templates for Issues and READMEs.
+
+## Rules
+
+Always refer to `.claude/rules/frontend/naming-structure.md` or `.claude/rules/backend/naming-dto.md` for naming conventions.

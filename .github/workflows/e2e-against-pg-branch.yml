@@ -1,0 +1,113 @@
+name: e2e against Postgres service
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - ".pi/**"
+      - ".crew/**"
+      - ".github/**"
+      - "*.md"
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "Playwright grep variant (default: @db)"
+        required: false
+        default: "@db"
+
+concurrency:
+  # One in-flight @db E2E per event + target branch — older push runs cancel, manual runs stay isolated.
+  group: e2e-pg-service-${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright E2E (@db, Postgres service)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: product_builder_test
+          POSTGRES_PASSWORD: product_builder_test
+          POSTGRES_DB: product_builder_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://product_builder_test:product_builder_test@localhost:5432/product_builder_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply drizzle migrations
+        run: pnpm --filter @repo/drizzle db:migrate
+
+      - name: Install Playwright browsers
+        run: pnpm --filter app exec playwright install --with-deps chromium
+
+      - name: Build server
+        run: pnpm --filter server build
+
+      - name: Start server (background)
+        run: |
+          pnpm --filter server start:prod > server.log 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+          # Wait for /health (assume server exposes one) — fall back to TCP probe.
+          for i in $(seq 1 30); do
+            if nc -z localhost 3001 2>/dev/null; then
+              echo "server up"; break
+            fi
+            sleep 1
+          done
+
+      - name: Build apps/app
+        run: pnpm --filter app build
+
+      - name: Start apps/app (background, port 3000)
+        run: |
+          pnpm --filter app preview --host 0.0.0.0 --port 3000 > app.log 2>&1 &
+          echo "APP_PID=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 30); do
+            if nc -z localhost 3000 2>/dev/null; then
+              echo "app up"; break
+            fi
+            sleep 1
+          done
+
+      - name: Run Playwright E2E (@db tag only)
+        env:
+          # This workflow includes real Postgres + NestJS backend setup.
+          # Mock specs should stay in e2e.yml; run only @db specs here.
+          PLAYWRIGHT_GREP: ${{ github.event.inputs.variant || '@db' }}
+        run: pnpm --filter app exec playwright test --reporter=list
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace-${{ github.run_id }}
+          path: |
+            apps/app/test-results/**
+            apps/app/playwright-report/**
+            server.log
+            app.log
+          if-no-files-found: ignore
+
+      - name: Stop background processes
+        if: always()
+        run: |
+          [ -n "${SERVER_PID:-}" ] && kill "$SERVER_PID" 2>/dev/null || true
+          [ -n "${APP_PID:-}" ] && kill "$APP_PID" 2>/dev/null || true

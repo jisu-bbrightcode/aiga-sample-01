@@ -1,0 +1,55 @@
+<h2>현지화 페이지 구조 — 어떻게 나눌까요?</h2>
+<p class="subtitle">현재 3탭(오버뷰/번역/사전)인데, 작가 관점에서 최적의 구조는?</p>
+
+<div class="section">
+  <h3>현재 구조 (참고)</h3>
+  <div style="background: #f8f8f8; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 13px; line-height: 1.8; color: #666;">
+    사이드바 > 현지화<br>
+    &nbsp;&nbsp;├── 오버뷰 (언어 목록 + 진행률 + 사전 테이블)<br>
+    &nbsp;&nbsp;├── 세계관 번역 (세계/캐릭터/장소/세력/코덱스 행)<br>
+    &nbsp;&nbsp;└── 캔버스 번역 (씬/대화/분기 노드 행)
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>언어 중심 (Language-First)</h3>
+      <p>
+        <strong>현지화 > 언어 선택(EN/JA/ZH) > 해당 언어의 모든 번역 대상</strong><br>
+        <span style="color: #888; font-size: 13px;">언어를 먼저 고르고 들어가면 그 언어의 세계관+캔버스가 한 화면에. 작가가 "영어 번역부터 끝내자"로 작업.</span>
+      </p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>콘텐츠 중심 (Content-First)</h3>
+      <p>
+        <strong>현지화 > 세계관/캔버스 > 엔티티 선택 > 모든 언어 번역</strong><br>
+        <span style="color: #888; font-size: 13px;">"아르테미아" 캐릭터를 선택하면 EN/JA/ZH 번역이 나란히. 작가가 "이 캐릭터의 번역을 다 확인하자"로 작업.</span>
+      </p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>현재 유지 + 개선 (3탭 유지)</h3>
+      <p>
+        <strong>오버뷰 / 세계관 번역 / 캔버스 번역 (+ 사전을 오버뷰에서 분리)</strong><br>
+        <span style="color: #888; font-size: 13px;">기존 구조를 유지하되 각 탭의 UX를 개선. 가장 적은 변경. 사전은 별도 탭으로 승격.</span>
+      </p>
+    </div>
+  </div>
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>대시보드 + 단일 에디터 (Minimal)</h3>
+      <p>
+        <strong>대시보드(진행률) + 하나의 번역 에디터(필터로 세계관/캔버스 전환)</strong><br>
+        <span style="color: #888; font-size: 13px;">탭을 최소화. 대시보드에서 "번역 시작"하면 에디터로. 세계관/캔버스 구분은 필터로. 가장 단순.</span>
+      </p>
+    </div>
+  </div>
+</div>

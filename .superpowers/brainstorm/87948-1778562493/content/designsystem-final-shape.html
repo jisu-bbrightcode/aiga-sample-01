@@ -1,0 +1,83 @@
+<h2>/designsystem 최종 화면 골격</h2>
+<p class="subtitle">Top-level standalone route. packages/ui 컴포넌트를 apps/app에서 소비하는 구조를 눈에 보이게 하는 개발자용 인벤토리.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Route: /designsystem</div>
+  <div class="mockup-body">
+    <div style="display:flex; min-height:640px; background:#f7f1df; color:#1f1d18; border-radius:14px; overflow:hidden;">
+      <aside style="width:260px; padding:22px 18px; background:#eee5cf; border-right:1px solid rgba(31,29,24,.12);">
+        <div style="font-size:18px; font-weight:900; letter-spacing:-.02em;">Flotter Design System</div>
+        <div style="font-size:12px; opacity:.7; margin-top:4px;">@flotter/ui → apps/app</div>
+        <div style="margin-top:26px;">
+          <div class="label">Foundation</div>
+          <div style="font-weight:800; padding:8px 10px; border-radius:8px; background:rgba(31,29,24,.08);">Colors</div>
+          <div style="padding:8px 10px;">Typography</div>
+          <div style="padding:8px 10px;">Spacing</div>
+          <div style="padding:8px 10px;">Radius / Shadow</div>
+        </div>
+        <div style="margin-top:20px;">
+          <div class="label">Components</div>
+          <div style="padding:8px 10px;">Buttons</div>
+          <div style="padding:8px 10px;">Inputs</div>
+          <div style="padding:8px 10px;">Toolbar</div>
+          <div style="padding:8px 10px;">Popover</div>
+          <div style="padding:8px 10px;">Table</div>
+          <div style="padding:8px 10px;">Dialog</div>
+          <div style="padding:8px 10px;">Empty State</div>
+          <div style="padding:8px 10px;">Sidebar</div>
+          <div style="padding:8px 10px;">Settings Components</div>
+        </div>
+        <div style="margin-top:20px;">
+          <div class="label">Patterns</div>
+          <div style="padding:8px 10px;">Page Shell</div>
+          <div style="padding:8px 10px;">Entity Page</div>
+          <div style="padding:8px 10px;">Toolbar Pattern</div>
+          <div style="padding:8px 10px;">Popover Pattern</div>
+        </div>
+        <div style="margin-top:20px;">
+          <div class="label">Pages</div>
+          <div style="padding:8px 10px;">Story Pages</div>
+          <div style="padding:8px 10px;">Settings Pages</div>
+        </div>
+      </aside>
+      <main style="flex:1; padding:28px 34px; overflow:auto;">
+        <div style="display:flex; justify-content:space-between; gap:20px; align-items:flex-start;">
+          <div>
+            <div class="label">Foundation</div>
+            <h3 style="font-size:32px; margin:4px 0 8px;">Colors</h3>
+            <p style="margin:0; max-width:620px; opacity:.72;">현재 CSS variables와 Flotter semantic colors를 preview하고, 어떤 컴포넌트에서 쓰는지 코드 경로를 함께 보여준다.</p>
+          </div>
+          <div style="font-size:12px; padding:8px 10px; border-radius:999px; background:#1f1d18; color:#f7f1df;">packages/ui source</div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:28px;">
+          <div style="height:112px; border-radius:14px; background:#1f1d18; color:#f7f1df; padding:14px; display:flex; flex-direction:column; justify-content:flex-end;"><strong>foreground</strong><span style="font-size:12px;">#1f1d18</span></div>
+          <div style="height:112px; border-radius:14px; background:#f7f1df; border:1px solid rgba(31,29,24,.18); padding:14px; display:flex; flex-direction:column; justify-content:flex-end;"><strong>background</strong><span style="font-size:12px;">#f7f1df</span></div>
+          <div style="height:112px; border-radius:14px; background:#3d8b6e; color:white; padding:14px; display:flex; flex-direction:column; justify-content:flex-end;"><strong>success</strong><span style="font-size:12px;">#3d8b6e</span></div>
+          <div style="height:112px; border-radius:14px; background:#d95f43; color:white; padding:14px; display:flex; flex-direction:column; justify-content:flex-end;"><strong>danger</strong><span style="font-size:12px;">#d95f43</span></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:24px;">
+          <div class="placeholder" style="height:150px;">Usage rules + Do / Don't</div>
+          <div class="placeholder" style="height:150px;">Code references: packages/ui, apps/app consumers</div>
+        </div>
+        <div class="placeholder" style="height:180px; margin-top:24px;">State samples area for components: default, hover, active, disabled, loading, open</div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>이 설계로 spec 작성</h3>
+      <p>Standalone route, Foundation-first sidebar, packages/ui visibility inventory로 확정한다.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="revise" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>조정 필요</h3>
+      <p>섹션명, 색감, route 성격, 콘텐츠 깊이 중 하나 이상을 수정한다.</p>
+    </div>
+  </div>
+</div>

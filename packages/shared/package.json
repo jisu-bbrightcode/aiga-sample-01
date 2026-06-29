@@ -1,0 +1,43 @@
+{
+  "name": "@repo/shared",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./components": "./components/index.ts",
+    "./components/*": "./components/*.tsx",
+    "./errors": "./errors/index.ts",
+    "./hooks": "./hooks/index.ts",
+    "./store/*": "./store/*.ts",
+    "./types": "./types/index.ts",
+    "./types/*": "./types/*.ts",
+    "./utils/*": "./utils/*.ts",
+    "./utils/validators/*": "./utils/validators/*.ts",
+    "./zod-nestjs": "./zod-nestjs/index.ts"
+  },
+  "scripts": {
+    "lint": "node ../../scripts/biome-changed.mjs lint .",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/react": "19.2.2",
+    "rxjs": "^7.8.2",
+    "typescript": "5.9.2",
+    "vitest": "^3.2.4",
+    "zod-v4": "npm:zod@^4.4.3"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "clsx": "^2.1.1",
+    "es-toolkit": "^1.35.0",
+    "html2canvas": "^1.4.1",
+    "jotai": "^2.12.3",
+    "jspdf": "^4.1.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.2.0",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^3.25.32",
+    "zod-to-json-schema": "^3.25.2"
+  }
+}

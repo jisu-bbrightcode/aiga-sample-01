@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  "plugins": [],
+  "jsPlugins": ["../packages/oxlint-plugin/src/index.mjs"],
+  "rules": {
+    "product-builder/no-raw-sql-query": "error",
+    "product-builder/no-schema-outside-drizzle": "error"
+  },
+  "ignorePatterns": ["**/*", "!apps/**", "!packages/**"]
+}

@@ -1,0 +1,10 @@
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1"
+
+[mcp_servers.shadcnio]
+url = "https://www.shadcn.io/api/mcp"
+env_http_headers = { "Authorization" = "SHADCNIO_BEARER" }
+startup_timeout_sec = 20

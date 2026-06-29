@@ -1,0 +1,39 @@
+<h2>미분류 노드 처리 — 어떻게 보여줄까?</h2>
+<p class="subtitle">캔버스에 속하지 않거나 그루핑이 안 된 노드도 번역 대상입니다</p>
+
+<div class="section">
+  <h3>상황</h3>
+  <div style="background: #f8f8f6; border: 1px solid #e5e5e0; border-radius: 8px; padding: 16px; font-size: 13px; line-height: 1.8; color: #555;">
+    <div>✅ 챕터 1: 시작의 땅 — <span style="color: #999;">257개</span></div>
+    <div>✅ 챕터 2: 어둠의 숲 — <span style="color: #999;">346개</span></div>
+    <div>✅ 사이드 퀘스트: 잃어버린 검 — <span style="color: #999;">89개</span></div>
+    <div style="margin-top: 8px; color: #ef4444; font-weight: 500;">❓ 어디에도 속하지 않은 노드 — 124개</div>
+    <div style="padding-left: 20px; color: #999; font-size: 12px;">
+      테스트용 대화, 삭제 안 된 초안, 아직 캔버스에 배치 안 한 노드 등
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>"미분류" 그룹으로 맨 아래에</h3>
+      <p>다른 캔버스 그룹 아래에 "미분류 (124개)"가 항상 보임. 접혀 있되 펼칠 수 있음. 존재를 인지시키되 방해하지 않음.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>"전체" 필터에만 포함</h3>
+      <p>캔버스 그룹 뷰에서는 숨기고, 상태 필터 "전체"로 보면 미분류 노드도 flat하게 나옴. 깔끔하지만 놓칠 수 있음.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>"미분류" 그룹 + 경고 뱃지</h3>
+      <p>맨 아래에 미분류 그룹 + 주황색 경고 뱃지. "번역 전에 정리하세요" 느낌. 작가에게 구조 정리를 유도.</p>
+    </div>
+  </div>
+</div>

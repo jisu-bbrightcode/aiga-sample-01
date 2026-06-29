@@ -1,0 +1,19 @@
+{
+  "title": "본인확인 (KCB 휴대폰)",
+  "description": "KCB 휴대폰 본인확인을 실제 인증 팝업으로 진행합니다.",
+  "note": "인증 팝업에서 휴대폰 본인확인을 완료하면 결과가 이 화면에 표시됩니다.",
+  "consentLabel": "개인정보 수집·이용 및 본인확인에 동의합니다.",
+  "formTitle": "새로운 휴대폰 번호로\n본인인증을 진행할게요",
+  "formPhoneLabel": "휴대폰번호",
+  "formPhonePlaceholder": "휴대폰번호 입력",
+  "formRrnLabel": "주민등록번호 앞 7자리",
+  "formBirthPlaceholder": "생년월일 6자리",
+  "formNameLabel": "이름",
+  "formNamePlaceholder": "홍길동",
+  "formCarrierSkt": "SKT",
+  "formCarrierKt": "KT",
+  "formCarrierLgu": "LGU+",
+  "formCarrierMvnoSkt": "SKT 알뜰폰",
+  "formCarrierMvnoKt": "KT 알뜰폰",
+  "formCarrierMvnoLgu": "LGU+ 알뜰폰"
+}

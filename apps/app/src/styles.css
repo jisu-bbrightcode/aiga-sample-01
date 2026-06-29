@@ -1,0 +1,77 @@
+@import "@repo/ui/styles";
+
+@source "../../../packages/ui/src/**/*.tsx";
+@source "../../../packages/core/**/*.tsx";
+@source "../../../packages/features/**/*.tsx";
+
+/* ─── App-specific overrides (scrollbar etc.) ─── */
+
+@layer base {
+  * {
+    @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.8 0 0) transparent;
+  }
+
+  /* Webkit 스크롤바 */
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: oklch(0.85 0 0);
+    border-radius: 4px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.75 0 0);
+  }
+
+  .dark *::-webkit-scrollbar-thumb {
+    background: oklch(0.3 0 0);
+  }
+  .dark *::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.4 0 0);
+  }
+  .dark * {
+    scrollbar-color: oklch(0.3 0 0) transparent;
+  }
+}
+
+@layer components {
+  .electron-workspace-chrome {
+    -webkit-app-region: drag;
+  }
+
+  .electron-workspace-chrome [data-electron-no-drag="true"] {
+    -webkit-app-region: no-drag;
+  }
+
+  /*
+   * Electron 일 때 fixed-position sidebar 가 viewport top:0 부터 시작해
+   * tabbed header (h-12) 와 겹치는 걸 막는다. router root 가 부여하는
+   * `electron-runtime-root` 아래로 모든 라우트의 sidebar 에 적용.
+   */
+  .electron-runtime-root [data-slot="sidebar-wrapper"] {
+    height: calc(100svh - 2.75rem);
+    min-height: calc(100svh - 2.75rem);
+  }
+
+  .electron-runtime-root [data-slot="sidebar-container"] {
+    top: 2.75rem !important;
+    bottom: 0;
+    height: calc(100svh - 2.75rem) !important;
+  }
+
+  @keyframes custom-caret-blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
+  }
+}

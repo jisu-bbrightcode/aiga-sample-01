@@ -1,0 +1,4 @@
+# raw 이미지는 origo/source/*.fig 에서 재생성 가능 → 추적 안 함 (repo 경량화)
+origo/raw/*/images/
+scripts/node_modules/
+scripts/package-lock.json

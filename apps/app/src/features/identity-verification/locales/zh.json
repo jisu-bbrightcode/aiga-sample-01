@@ -1,0 +1,19 @@
+{
+  "title": "身份验证 (KCB 手机)",
+  "description": "在真实的验证弹窗中进行 KCB 手机身份验证。",
+  "note": "在弹窗中完成手机身份验证后，结果将显示在此页面。",
+  "consentLabel": "我同意为身份验证收集和使用个人信息。",
+  "formTitle": "使用新手机号码\n进行身份验证",
+  "formPhoneLabel": "手机号码",
+  "formPhonePlaceholder": "输入手机号码",
+  "formRrnLabel": "身份证号前 7 位",
+  "formBirthPlaceholder": "出生日期 6 位",
+  "formNameLabel": "姓名",
+  "formNamePlaceholder": "洪吉童",
+  "formCarrierSkt": "SKT",
+  "formCarrierKt": "KT",
+  "formCarrierLgu": "LGU+",
+  "formCarrierMvnoSkt": "SKT 虚拟运营商",
+  "formCarrierMvnoKt": "KT 虚拟运营商",
+  "formCarrierMvnoLgu": "LGU+ 虚拟运营商"
+}

@@ -1,0 +1,55 @@
+{
+  "type": "benefit_grant.cycled",
+  "timestamp": "2026-04-26T12:00:00.000000Z",
+  "data": {
+    "created_at": "2026-04-26T12:00:00.000000Z",
+    "modified_at": "2026-04-26T12:00:00.000000Z",
+    "id": "00000000-0000-0000-0000-0000bgrant01",
+    "granted_at": "2026-04-26T12:00:00.000000Z",
+    "revoked_at": null,
+    "is_granted": true,
+    "is_revoked": false,
+    "subscription_id": "d88f49da-6f38-4451-be37-2ff6dc1ebf09",
+    "order_id": null,
+    "customer_id": "a27d47ed-0150-4ea4-83d8-ba545ebeb045",
+    "user_id": "a27d47ed-0150-4ea4-83d8-ba545ebeb045",
+    "benefit_id": "00000000-0000-0000-0000-00000benefit1",
+    "properties": {},
+    "benefit": {
+      "id": "00000000-0000-0000-0000-00000benefit1",
+      "type": "custom",
+      "description": "Pro plan credits",
+      "organization_id": "c3bbd923-b869-4d78-8b23-1613887f2096"
+    },
+    "customer": {
+      "id": "a27d47ed-0150-4ea4-83d8-ba545ebeb045",
+      "created_at": "2026-04-26T06:18:08.050511Z",
+      "modified_at": "2026-04-26T06:19:34.913167Z",
+      "metadata": {},
+      "external_id": null,
+      "email": "bright@example.com",
+      "email_verified": false,
+      "type": "individual",
+      "name": "BBRIGHTCODE",
+      "billing_address": {
+        "line1": "386, Gimpohangang 8-ro",
+        "line2": null,
+        "postal_code": "10071",
+        "city": "Gyeonggi-do",
+        "state": null,
+        "country": "KR"
+      },
+      "tax_id": null,
+      "locale": "en",
+      "organization_id": "c3bbd923-b869-4d78-8b23-1613887f2096",
+      "deleted_at": null,
+      "avatar_url": "https://img.logo.dev/example.com?size=64&retina=true&token=pk_F9AlCmtZTqK_Ky1UDqCs9Q&fallback=404"
+    },
+    "metadata": {
+      "kind": "subscription",
+      "plan_id": "35f52750-4425-4b8b-ba65-ef63014322fd",
+      "user_id": "2giwb3yBmUZwB1CBMF9VXcvxAw8bRYCK",
+      "organization_id": "3f146278cd1d4f11ac0d6d53"
+    }
+  }
+}

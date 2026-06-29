@@ -1,0 +1,24 @@
+{
+  "extends": "@repo/typescript-config/react-library.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./src/*"],
+      "~/components/ui/*": ["./src/_shadcn/*"],
+      "~/packages/ai/*": ["./src/packages/ai/*"],
+      "@repo/ui/shadcn/*": ["./src/shadcn/*"],
+      "@repo/ui/components/*": ["./src/components/*"],
+      "@repo/ui/lib/*": ["./src/lib/*"],
+      "@repo/ui/hooks/*": ["./src/hooks/*"],
+      "@repo/ui/editor/*": ["./src/components/editor/*"]
+    }
+  },
+  "include": ["src"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/components/ai",
+    "src/packages/ai",
+    "src/components/shadcn-studio"
+  ]
+}

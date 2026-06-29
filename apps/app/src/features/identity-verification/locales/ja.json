@@ -1,0 +1,19 @@
+{
+  "title": "本人確認 (KCB 携帯電話)",
+  "description": "KCB携帯電話本人確認を実際の認証ポップアップで実行します。",
+  "note": "ポップアップで携帯電話の本人確認を完了すると、結果がこの画面に表示されます。",
+  "consentLabel": "本人確認のための個人情報の収集・利用に同意します。",
+  "formTitle": "新しい携帯電話番号で\n本人認証を行います",
+  "formPhoneLabel": "携帯電話番号",
+  "formPhonePlaceholder": "携帯電話番号を入力",
+  "formRrnLabel": "住民登録番号の前7桁",
+  "formBirthPlaceholder": "生年月日6桁",
+  "formNameLabel": "氏名",
+  "formNamePlaceholder": "ホン・ギルドン",
+  "formCarrierSkt": "SKT",
+  "formCarrierKt": "KT",
+  "formCarrierLgu": "LGU+",
+  "formCarrierMvnoSkt": "SKT 格安SIM",
+  "formCarrierMvnoKt": "KT 格安SIM",
+  "formCarrierMvnoLgu": "LGU+ 格安SIM"
+}

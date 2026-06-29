@@ -1,0 +1,58 @@
+<h2>주요 사용자는 누구인가요?</h2>
+<p class="subtitle">같은 "현지화" 기능이라도 누가 쓰느냐에 따라 UI가 완전히 달라집니다</p>
+
+<div class="section">
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px;">
+    <div style="background: #1a1a2e; border-radius: 12px; padding: 20px; color: white;">
+      <div style="font-size: 32px; margin-bottom: 8px;">✍️</div>
+      <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">시나리오 작가</div>
+      <div style="font-size: 12px; color: #a0a0b0; line-height: 1.5;">
+        자기 작품을 직접 번역하거나<br>
+        AI에게 번역을 맡기고 검수하는 사람.<br>
+        1인 작가가 다국어 출시하는 시나리오.
+      </div>
+    </div>
+    <div style="background: #1a1a2e; border-radius: 12px; padding: 20px; color: white;">
+      <div style="font-size: 32px; margin-bottom: 8px;">🌐</div>
+      <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">전문 번역가</div>
+      <div style="font-size: 12px; color: #a0a0b0; line-height: 1.5;">
+        게임 로컬라이제이션 전문가.<br>
+        CAT 도구(memoQ, Trados) 경험.<br>
+        용어 일관성, TM, 맥락이 중요.
+      </div>
+    </div>
+    <div style="background: #1a1a2e; border-radius: 12px; padding: 20px; color: white;">
+      <div style="font-size: 32px; margin-bottom: 8px;">📊</div>
+      <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">현지화 PM</div>
+      <div style="font-size: 12px; color: #a0a0b0; line-height: 1.5;">
+        번역 진행률 관리, 번역가 배정,<br>
+        마감일 추적, 품질 검수 승인.<br>
+        대시보드와 통계가 핵심.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>작가 중심 (1인 작가가 직접)</h3>
+      <p>작가 본인이 AI로 번역하고 검수. 단순한 워크플로우, "번역 시작" 한 번이면 끝. 전문 도구 느낌보다 창작 도구 느낌.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>번역가 중심 (전문가 협업)</h3>
+      <p>전문 번역가가 작업할 수 있는 CAT 도구 수준의 에디터. 용어집, 번역 메모리, 맥락 패널. 팀 협업 워크플로우.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>둘 다 (작가 + 번역가 하이브리드)</h3>
+      <p>작가는 AI로 초벌 번역 → 번역가가 검수/수정. 두 페르소나 모두 지원하되, 작가 경험이 1순위.</p>
+    </div>
+  </div>
+</div>

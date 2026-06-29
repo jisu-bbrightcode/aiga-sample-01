@@ -1,0 +1,60 @@
+<h2>구현 레이어 — 어디에 만들 것인가?</h2>
+<p class="subtitle">엔진(WebGL Canvas) vs 앱(React DOM) vs 하이브리드</p>
+
+<div class="cards">
+  <div class="card" data-choice="engine" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>A. 전부 엔진 (Canvas/WebGL)</h3>
+      <p>메뉴, 태그, 아바타 모두 Canvas2D/WebGL로 렌더링. 엔진 template 시스템 확장.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>100만 노드에서도 일관된 성능</li>
+          <li>줌/팬 시 메뉴가 자연스럽게 따라감</li>
+          <li>엔진 독립성 유지 (React 없이 동작)</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>메뉴/드롭다운을 Canvas로 만드는 건 복잡</li>
+          <li>접근성(a11y) 직접 구현 필요</li>
+          <li>텍스트 입력 = WebGL 텍스트 에디터 필요</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>B. 하이브리드 (추천)</h3>
+      <p><strong>노드 카드 = 엔진(Canvas)</strong>에서 렌더. <strong>메뉴/팝업 = React DOM 오버레이</strong>로 띄움.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>노드 렌더링 성능 유지 (엔진)</li>
+          <li>메뉴는 DOM이라 구현 쉽고 접근성 좋음</li>
+          <li>shadcn 컴포넌트 재활용 가능</li>
+          <li>tldraw, Figma가 쓰는 검증된 패턴</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Canvas↔DOM 좌표 변환 필요</li>
+          <li>줌 레벨에 따른 위치 계산</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="dom" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>C. 전부 React DOM</h3>
+      <p>노드 자체를 React 컴포넌트로 렌더. 메뉴도 DOM.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>구현 가장 빠름</li>
+          <li>shadcn 풀 활용</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>100만 노드 60fps 불가능</li>
+          <li>엔진 존재 이유가 사라짐</li>
+          <li>React Flow랑 차이 없음</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+</div>

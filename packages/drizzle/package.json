@@ -1,0 +1,39 @@
+{
+  "name": "@repo/drizzle",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./utils": "./src/utils/index.ts",
+    "./schema": "./src/schema/index.ts",
+    "./types": "./src/utils/types.ts"
+  },
+  "scripts": {
+    "lint": "node ../../scripts/biome-changed.mjs lint .",
+    "check-types": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/scripts/db-migrate.ts",
+    "db:migrate:kit": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:reset": "npx tsx src/scripts/db-reset.ts && drizzle-kit push --force && npx tsx src/scripts/db-seed-profiles.ts",
+    "db:seed:profiles": "npx tsx src/scripts/db-seed-profiles.ts",
+    "db:seed:payment": "npx tsx src/seed/payment-catalog.ts",
+    "db:seed:lore-a4": "tsx scripts/seed-lore-a4.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "@nestjs/common": "^11.0.1",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.38.4",
+    "fflate": "^0.8.2",
+    "postgres": "^3.4.8"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "drizzle-kit": "^0.31.8",
+    "typescript": "^5.9.2"
+  }
+}

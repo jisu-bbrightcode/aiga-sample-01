@@ -1,0 +1,61 @@
+---
+description: Frontend Development Rules (React, TanStack, UI)
+globs: apps/app/**/*.tsx, apps/app/**/*.ts, packages/ui/**/*.tsx
+alwaysApply: false
+---
+
+# Frontend Development Rules
+
+When working on frontend code (React, Vite, TanStack Router), YOU MUST READ and FOLLOW these documents:
+
+1. **Coding Standards**: `.claude/rules/frontend/naming-structure.md`, `.claude/rules/frontend/data-component.md`, `.claude/rules/frontend/base-ui.md`
+2. **UI Principles**: `.claude/rules/frontend/ui-philosophy.md`, `.claude/rules/frontend/ui-spacing-layout.md`, `.claude/rules/frontend/ui-typography-color.md`, `.claude/rules/frontend/ui-states-rules.md`
+3. **Routing**: `docs/architecture/05-client-routing.md`
+
+## Client Feature Location
+
+Client Feature 코드는 `apps/app/src/features/{name}/`에 위치합니다.
+
+## packages/ui Structure
+
+```
+packages/ui/src/
+├── components/           # 단일 기능 컴포넌트 (Button, Card, Feature, FeatureHeader, FeatureContents)
+├── blocks/               # 컴포넌트 묶음 템플릿 (SignInForm, PricingTable)
+└── layouts/              # Application Shell 레이아웃 (SidebarLayout, DashboardLayout)
+```
+
+## Feature Types
+
+- **Page Feature**: 독립 페이지 구성, 라우트 보유 (blog, product, order)
+- **Widget Feature**: 다른 Feature에 임베드, 라우트 없음 (reaction, comment, bookmark)
+
+## Page Component Pattern
+
+페이지 컴포넌트는 Feature 컴포넌트 패턴을 따릅니다:
+
+```tsx
+import { Feature, FeatureHeader, FeatureContents } from "@repo/ui";
+
+function BlogListPage() {
+  return (
+    <Feature>
+      <FeatureHeader title="블로그" actions={<Button>새 글 작성</Button>} />
+      <FeatureContents>
+        <BlogList />
+      </FeatureContents>
+    </Feature>
+  );
+}
+```
+
+## Key Principles (Company Convention)
+
+- **Naming**: Use **kebab-case** for files/directories (e.g., `use-blog-list.ts`).
+- **Types**: Use `PascalCase`. For entity models clashing with components, use `I` prefix or `Type` suffix.
+- **Component**: Use Named Export (`export function Component()`).
+- **Structure**: Group components (1-depth) if related (3+ items). Use `index.ts` for public exports.
+- **API**: Use **tRPC Hooks** wrapped in custom hooks (e.g., `use-blog-mutations`).
+- **Styling**: Use Tailwind CSS and `cn()` utility.
+- **State**: Use Jotai for client state, TanStack Query (via tRPC) for server state.
+- **Import**: Use `@features/{name}` to import from other Features in the same App.

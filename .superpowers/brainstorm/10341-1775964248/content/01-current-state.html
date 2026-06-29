@@ -1,0 +1,78 @@
+<h2>현지화 기능 — 현재 상태 & 디자인 방향</h2>
+<p class="subtitle">이미 구현된 것과 아직 부족한 것을 확인하고, 다음 단계를 결정합니다</p>
+
+<div class="section">
+  <h3>현재 구현된 것</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px;">
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px;">
+      <div style="font-weight: 600; color: #166534; margin-bottom: 4px;">오버뷰 (대시보드)</div>
+      <div style="font-size: 13px; color: #4ade80;">언어 목록 + 진행률 바 + 사전 테이블</div>
+    </div>
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px;">
+      <div style="font-weight: 600; color: #166534; margin-bottom: 4px;">세계관 번역</div>
+      <div style="font-size: 13px; color: #4ade80;">세계/캐릭터/장소/세력/코덱스 엔티티별 번역 행</div>
+    </div>
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px;">
+      <div style="font-weight: 600; color: #166534; margin-bottom: 4px;">캔버스 번역</div>
+      <div style="font-size: 13px; color: #4ade80;">씬/대화/분기 노드별 번역 행</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>문제점 / 개선 여지</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+      <div style="font-weight: 600; color: #991b1b; margin-bottom: 4px;">1. UI 완성도</div>
+      <div style="font-size: 13px; color: #dc2626;">shadcn 기본 컴포넌트로 급조. 디자인 시스템 미반영. Flotter 톤 부재</div>
+    </div>
+    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+      <div style="font-weight: 600; color: #991b1b; margin-bottom: 4px;">2. 번역 에디터 UX</div>
+      <div style="font-size: 13px; color: #dc2626;">원문↔번역 병렬 편집 경험 부족. 맥락 없이 텍스트만 보임</div>
+    </div>
+    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+      <div style="font-weight: 600; color: #991b1b; margin-bottom: 4px;">3. 작업 흐름 불명확</div>
+      <div style="font-size: 13px; color: #dc2626;">번역가가 "다음에 뭘 해야 하지?"를 알 수 없음. 우선순위/필터 부족</div>
+    </div>
+    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+      <div style="font-weight: 600; color: #991b1b; margin-bottom: 4px;">4. AI 번역 통합</div>
+      <div style="font-size: 13px; color: #dc2626;">AI 번역 버튼은 있으나 실제 동작 없음. UX 미설계</div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px;">
+  <h3>이번 디자인의 초점은?</h3>
+  <p class="subtitle">어느 부분에 집중해서 디자인할까요?</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>전체 리디자인 (Full Redesign)</h3>
+      <p>오버뷰 + 번역 목록 + 에디터 + 사전 — 모든 화면을 Flotter 디자인 시스템에 맞춰 재설계. 가장 큰 범위.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>번역 에디터 집중 (Editor-First)</h3>
+      <p>번역가가 실제로 작업하는 에디터 화면에 집중. 원문↔번역 병렬 편집, 맥락 패널, AI 어시스트. 핵심 UX만 깊게.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>대시보드 + 워크플로우 (PM 관점)</h3>
+      <p>현지화 PM이 진행률을 추적하고 AI 번역을 관리하는 대시보드 중심. 번역가 배정, 마감일, 품질 지표 등.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>다른 방향이 있어요</h3>
+      <p>위 옵션 외에 다른 초점이 있으면 터미널에서 알려주세요.</p>
+    </div>
+  </div>
+</div>

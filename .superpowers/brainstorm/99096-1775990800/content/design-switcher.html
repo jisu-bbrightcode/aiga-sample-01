@@ -1,0 +1,123 @@
+<h2>디자인 2/3 — 프로젝트 스위처 드롭다운</h2>
+<p class="subtitle">사이드바 상단에서 프로젝트 전환 + "모든 프로젝트 보기"</p>
+
+<div class="split">
+  <!-- 닫힌 상태 -->
+  <div class="mockup">
+    <div class="mockup-header">닫힌 상태 — 사이드바 상단</div>
+    <div class="mockup-body" style="min-height:400px; background:#0a0a12; padding:0;">
+      <div style="width:240px; background:#111120; min-height:400px; border-right:1px solid #1e1e32;">
+
+        <!-- Project Switcher (Closed) -->
+        <div style="padding:12px 16px; border-bottom:1px solid #1e1e32; cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:28px; height:28px; background:linear-gradient(135deg, #1a1a3e, #2a1a3e); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:14px;">🏰</div>
+            <div>
+              <div style="color:#fff; font-size:13px; font-weight:500;">아르카디아 연대기</div>
+              <div style="color:#555; font-size:11px;">판타지 RPG</div>
+            </div>
+          </div>
+          <div style="color:#555; font-size:10px;">⌃</div>
+        </div>
+
+        <!-- Search -->
+        <div style="padding:12px 16px;">
+          <div style="padding:8px 10px; background:#1a1a2e; border-radius:6px; color:#555; font-size:12px;">🔍 검색 (⌘K)</div>
+        </div>
+
+        <!-- Nav -->
+        <div style="padding:0 8px;">
+          <div style="padding:6px 8px; color:#555; font-size:11px; text-transform:uppercase; margin-top:8px;">초안</div>
+          <div style="padding:8px 12px; border-radius:6px; color:#ccc; font-size:13px;">📝 초안</div>
+
+          <div style="padding:6px 8px; color:#555; font-size:11px; text-transform:uppercase; margin-top:16px;">세계관</div>
+          <div style="padding:8px 12px; background:#1e1e32; border-radius:6px; color:#fff; font-size:13px;">🌍 세계</div>
+          <div style="padding:8px 12px; border-radius:6px; color:#ccc; font-size:13px;">👤 캐릭터</div>
+          <div style="padding:8px 12px; border-radius:6px; color:#ccc; font-size:13px;">📍 장소</div>
+          <div style="padding:8px 12px; border-radius:6px; color:#ccc; font-size:13px;">⚔️ 세력</div>
+        </div>
+
+        <!-- Bottom: Settings -->
+        <div style="position:absolute; bottom:0; left:0; width:240px; padding:12px 16px; border-top:1px solid #1e1e32;">
+          <div style="padding:8px 12px; border-radius:6px; color:#888; font-size:13px; cursor:pointer;">⚙️ 프로젝트 설정</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 열린 상태 -->
+  <div class="mockup">
+    <div class="mockup-header">열린 상태 — 드롭다운 펼침</div>
+    <div class="mockup-body" style="min-height:400px; background:#0a0a12; padding:0; position:relative;">
+      <div style="width:240px; background:#111120; min-height:400px; border-right:1px solid #1e1e32;">
+
+        <!-- Project Switcher (Open) -->
+        <div style="padding:12px 16px; border-bottom:1px solid #1e1e32; cursor:pointer; display:flex; align-items:center; justify-content:space-between; background:#1a1a30;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:28px; height:28px; background:linear-gradient(135deg, #1a1a3e, #2a1a3e); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:14px;">🏰</div>
+            <div>
+              <div style="color:#fff; font-size:13px; font-weight:500;">아르카디아 연대기</div>
+              <div style="color:#555; font-size:11px;">판타지 RPG</div>
+            </div>
+          </div>
+          <div style="color:#888; font-size:10px;">⌃</div>
+        </div>
+
+        <!-- Dropdown Popover -->
+        <div style="margin:4px 8px; background:#1a1a30; border:1px solid #2a2a42; border-radius:8px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.5);">
+
+          <!-- Search in dropdown -->
+          <div style="padding:8px 12px; border-bottom:1px solid #2a2a42;">
+            <div style="padding:6px 8px; background:#12121f; border-radius:4px; color:#555; font-size:12px;">🔍 프로젝트 검색...</div>
+          </div>
+
+          <!-- Project List -->
+          <div style="padding:4px;">
+            <div style="padding:8px 12px; border-radius:6px; display:flex; align-items:center; gap:10px; background:#252545; cursor:pointer;">
+              <div style="width:24px; height:24px; background:linear-gradient(135deg, #1a1a3e, #2a1a3e); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:12px;">🏰</div>
+              <div>
+                <div style="color:#fff; font-size:12px; font-weight:500;">아르카디아 연대기</div>
+                <div style="color:#555; font-size:10px;">판타지 RPG</div>
+              </div>
+              <div style="margin-left:auto; color:#6366f1; font-size:10px;">✓</div>
+            </div>
+
+            <div style="padding:8px 12px; border-radius:6px; display:flex; align-items:center; gap:10px; cursor:pointer; margin-top:2px;">
+              <div style="width:24px; height:24px; background:linear-gradient(135deg, #1a2a1a, #1a3a2a); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:12px;">🎭</div>
+              <div>
+                <div style="color:#ccc; font-size:12px; font-weight:500;">인터랙티브 드라마</div>
+                <div style="color:#555; font-size:10px;">선택형 스릴러</div>
+              </div>
+            </div>
+
+            <div style="padding:8px 12px; border-radius:6px; display:flex; align-items:center; gap:10px; cursor:pointer; margin-top:2px;">
+              <div style="width:24px; height:24px; background:linear-gradient(135deg, #2a1a1a, #3a1a1a); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:12px;">⚔️</div>
+              <div>
+                <div style="color:#ccc; font-size:12px; font-weight:500;">다크 소울 모드</div>
+                <div style="color:#555; font-size:10px;">하드코어 RPG</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="padding:8px 12px; border-top:1px solid #2a2a42;">
+            <div style="padding:6px 8px; border-radius:4px; color:#6366f1; font-size:12px; cursor:pointer; text-align:center;">
+              모든 프로젝트 보기 →
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:16px; padding:16px; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); border-radius:8px;">
+  <div style="color:#a5b4fc; font-weight:600; margin-bottom:8px;">핵심 동작</div>
+  <ul style="color:#ccc; font-size:13px; margin:0; padding-left:20px; line-height:1.8;">
+    <li><strong>닫힌 상태</strong>: 현재 프로젝트 아이콘 + 이름 + 설명. 클릭하면 드롭다운 펼침</li>
+    <li><strong>드롭다운</strong>: 프로젝트 검색 + 최근 프로젝트 목록 + 현재 프로젝트 ✓ 표시</li>
+    <li><strong>프로젝트 클릭</strong>: 해당 프로젝트의 <code>/p/:id/lore</code>로 즉시 이동</li>
+    <li><strong>"모든 프로젝트 보기"</strong>: 대시보드(<code>/</code>)로 이동</li>
+    <li><strong>사이드바 하단</strong>: ⚙️ 프로젝트 설정 링크 → <code>/p/:id/settings</code></li>
+  </ul>
+</div>

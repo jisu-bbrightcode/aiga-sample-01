@@ -1,0 +1,88 @@
+<h2>디자인 1/3 — 대시보드 (사이드바 없음)</h2>
+<p class="subtitle">미니멀 전체 너비 레이아웃 — Vercel/Linear 스타일</p>
+
+<div class="mockup">
+  <div class="mockup-header">대시보드 — <code>/</code></div>
+  <div class="mockup-body" style="min-height:450px; background:#0a0a12; padding:0;">
+
+    <!-- Top Header -->
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid #1a1a2e;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="width:28px; height:28px; background:linear-gradient(135deg, #6366f1, #8b5cf6); border-radius:6px;"></div>
+        <span style="color:#fff; font-weight:600; font-size:15px;">Flotter</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div style="padding:6px 12px; background:#1a1a2e; border-radius:6px; color:#666; font-size:12px;">⌘K</div>
+        <div style="padding:6px 12px; background:#1a1a2e; border-radius:6px; color:#888; font-size:13px;">⚙️</div>
+        <div style="width:32px; height:32px; background:#333; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#888; font-size:12px;">DK</div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div style="max-width:960px; margin:0 auto; padding:40px 32px;">
+
+      <!-- Title Row -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+        <div>
+          <div style="color:#fff; font-size:20px; font-weight:600;">프로젝트</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <div style="padding:8px 12px; background:#1a1a2e; border-radius:6px; color:#888; font-size:13px;">🔍 검색...</div>
+          <div style="padding:8px 16px; background:#6366f1; border-radius:6px; color:#fff; font-size:13px; font-weight:500;">+ 새 프로젝트</div>
+        </div>
+      </div>
+
+      <!-- Project Grid -->
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+
+        <!-- Project Card 1 -->
+        <div style="background:#12121f; border:1px solid #1e1e32; border-radius:10px; overflow:hidden; cursor:pointer;">
+          <div style="height:100px; background:linear-gradient(135deg, #1a1a3e, #2a1a3e); display:flex; align-items:center; justify-content:center;">
+            <span style="font-size:32px;">🏰</span>
+          </div>
+          <div style="padding:16px;">
+            <div style="color:#fff; font-weight:500; font-size:14px; margin-bottom:4px;">아르카디아 연대기</div>
+            <div style="color:#666; font-size:12px; margin-bottom:12px;">판타지 RPG 시나리오 — 10만 분기</div>
+            <div style="display:flex; gap:8px;">
+              <span style="padding:2px 8px; background:#1a1a2e; border-radius:4px; color:#888; font-size:11px;">세계 12</span>
+              <span style="padding:2px 8px; background:#1a1a2e; border-radius:4px; color:#888; font-size:11px;">캐릭터 48</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Project Card 2 -->
+        <div style="background:#12121f; border:1px solid #1e1e32; border-radius:10px; overflow:hidden; cursor:pointer;">
+          <div style="height:100px; background:linear-gradient(135deg, #1a2a1a, #1a3a2a); display:flex; align-items:center; justify-content:center;">
+            <span style="font-size:32px;">🎭</span>
+          </div>
+          <div style="padding:16px;">
+            <div style="color:#fff; font-weight:500; font-size:14px; margin-bottom:4px;">인터랙티브 드라마</div>
+            <div style="color:#666; font-size:12px; margin-bottom:12px;">선택형 스릴러 — 3만 장면</div>
+            <div style="display:flex; gap:8px;">
+              <span style="padding:2px 8px; background:#1a1a2e; border-radius:4px; color:#888; font-size:11px;">세계 3</span>
+              <span style="padding:2px 8px; background:#1a1a2e; border-radius:4px; color:#888; font-size:11px;">캐릭터 24</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Project Card 3 (Empty) -->
+        <div style="background:#0d0d18; border:1px dashed #2a2a3e; border-radius:10px; display:flex; align-items:center; justify-content:center; min-height:180px; cursor:pointer;">
+          <div style="text-align:center; color:#555;">
+            <div style="font-size:24px; margin-bottom:8px;">+</div>
+            <div style="font-size:13px;">새 프로젝트</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:16px; padding:16px; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); border-radius:8px;">
+  <div style="color:#a5b4fc; font-weight:600; margin-bottom:8px;">핵심 변경</div>
+  <ul style="color:#ccc; font-size:13px; margin:0; padding-left:20px; line-height:1.8;">
+    <li>사이드바 완전 제거 → 전체 너비</li>
+    <li>상단 헤더: 로고 + 커맨드 팔레트(⌘K) + 설정 + 유저 아바타</li>
+    <li>콘텐츠 영역: max-width 960px, 중앙 정렬</li>
+    <li>프로젝트 카드: 썸네일 + 이름 + 설명 + 통계 배지</li>
+  </ul>
+</div>

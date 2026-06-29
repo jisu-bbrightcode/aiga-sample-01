@@ -1,0 +1,498 @@
+{
+  "$meta": {
+    "source": "Origo Design System (.fig)",
+    "files": [
+      "Document_Page_Dashboard",
+      "Project_Management_Dashboard",
+      "Task_Management_Landing_Page",
+      "Timeline_Page_Project_Management_Dashboard"
+    ],
+    "generated": "static — regenerate via `npm run build` in design-system/scripts",
+    "fonts": [
+      "Inter",
+      "SF UI Display",
+      "Manrope"
+    ]
+  },
+  "color": {
+    "neutral": {
+      "0": {
+        "value": "#FFFFFF",
+        "type": "color"
+      },
+      "100": {
+        "value": "#F6F8FA",
+        "type": "color"
+      },
+      "200": {
+        "value": "#E2E4E9",
+        "type": "color"
+      },
+      "300": {
+        "value": "#CDD0D5",
+        "type": "color"
+      },
+      "400": {
+        "value": "#868C98",
+        "type": "color"
+      },
+      "500": {
+        "value": "#525866",
+        "type": "color"
+      },
+      "900": {
+        "value": "#0A0D14",
+        "type": "color"
+      }
+    },
+    "bg": {
+      "weak-100": {
+        "value": "#F6F8FA",
+        "type": "color"
+      },
+      "white-0": {
+        "value": "#FFFFFF",
+        "type": "color"
+      },
+      "soft-200": {
+        "value": "#E2E4E9",
+        "type": "color"
+      }
+    },
+    "icon": {
+      "disabled-300": {
+        "value": "#CDD0D5",
+        "type": "color"
+      },
+      "soft-400": {
+        "value": "#868C98",
+        "type": "color"
+      },
+      "sub-500": {
+        "value": "#525866",
+        "type": "color"
+      },
+      "strong-900": {
+        "value": "#0A0D14",
+        "type": "color"
+      }
+    },
+    "text": {
+      "main-900": {
+        "value": "#0A0D14",
+        "type": "color"
+      },
+      "soft-400": {
+        "value": "#868C98",
+        "type": "color"
+      },
+      "sub-500": {
+        "value": "#525866",
+        "type": "color"
+      },
+      "white-0": {
+        "value": "#FFFFFF",
+        "type": "color"
+      }
+    },
+    "stroke": {
+      "strong-900": {
+        "value": "#0A0D14",
+        "type": "color"
+      },
+      "white-0": {
+        "value": "#FFFFFF",
+        "type": "color"
+      },
+      "sub-300": {
+        "value": "#CDD0D5",
+        "type": "color"
+      },
+      "soft-200": {
+        "value": "#E2E4E9",
+        "type": "color"
+      }
+    },
+    "green": {
+      "lighter": {
+        "value": "#EFFAF6",
+        "type": "color"
+      },
+      "base": {
+        "value": "#38C793",
+        "type": "color"
+      },
+      "dark": {
+        "value": "#2D9F75",
+        "type": "color"
+      },
+      "darker": {
+        "value": "#176448",
+        "type": "color"
+      }
+    },
+    "teal": {
+      "lighter": {
+        "value": "#EBFAFF",
+        "type": "color"
+      }
+    },
+    "red": {
+      "base": {
+        "value": "#DF1C41",
+        "type": "color"
+      },
+      "lighter": {
+        "value": "#FDEDF0",
+        "type": "color"
+      }
+    },
+    "Secondary": {
+      "400": {
+        "value": "#6C7278",
+        "type": "color"
+      }
+    },
+    "Primary": {
+      "800": {
+        "value": "#0F5D66",
+        "type": "color"
+      }
+    }
+  },
+  "palette": {
+    "#706F7F": 452,
+    "#292D32": 371,
+    "#FFFFFF": 355,
+    "#1B1A1C": 200,
+    "#F6F6F6": 200,
+    "#231F20": 174,
+    "#D9D9D9": 121,
+    "#6457F9": 84,
+    "#525062": 75,
+    "#A2A1A7": 71,
+    "#E5E5E5": 53,
+    "#1E1D26": 46,
+    "#000000": 43,
+    "#FAFAFA": 42,
+    "#0EA5E9": 35,
+    "#F5FCFF": 33,
+    "#E6E3FF": 25,
+    "#F4F3FF": 21,
+    "#ECFDF5": 20,
+    "#4B4B4B": 17,
+    "#D946EF": 13,
+    "#FEF4FF": 12,
+    "#7B61FF": 11,
+    "#667085": 10,
+    "#DADADA": 10,
+    "#C4C4C4": 10,
+    "#737373": 10,
+    "#059669": 10,
+    "#344054": 9,
+    "#10B981": 9,
+    "#FFFBEB": 8,
+    "#92400E": 8,
+    "#E4FFF6": 8,
+    "#666D80": 7,
+    "#FFF1F2": 7,
+    "#9F1239": 7,
+    "#F0F9FF": 7,
+    "#075985": 7,
+    "#F1F2F4": 6,
+    "#687588": 6
+  },
+  "typography": [
+    {
+      "family": "Inter",
+      "weight": "Medium",
+      "size": 56,
+      "lineHeight": "100%",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 4
+    },
+    {
+      "family": "Inter",
+      "weight": "Medium",
+      "size": 40,
+      "lineHeight": "100%",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 6
+    },
+    {
+      "family": "Inter",
+      "weight": "Bold",
+      "size": 30,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 8
+    },
+    {
+      "family": "Inter",
+      "weight": "Medium",
+      "size": 24,
+      "lineHeight": "1.3",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 5
+    },
+    {
+      "family": "SF UI Display",
+      "weight": "Medium",
+      "size": 24,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 3
+    },
+    {
+      "family": "Inter",
+      "weight": "Medium",
+      "size": 20,
+      "lineHeight": "1.3",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 13
+    },
+    {
+      "family": "SF UI Display",
+      "weight": "Regular",
+      "size": 20,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 3
+    },
+    {
+      "family": "SF UI Display",
+      "weight": "Medium",
+      "size": 20,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 1
+    },
+    {
+      "family": "Inter",
+      "weight": "Regular",
+      "size": 20,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 1
+    },
+    {
+      "family": "SF UI Display",
+      "weight": "Medium",
+      "size": 18,
+      "lineHeight": "1.4",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 3
+    },
+    {
+      "family": "Inter",
+      "weight": "Medium",
+      "size": 18,
+      "lineHeight": "1.4",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 3
+    },
+    {
+      "family": "Manrope",
+      "weight": "Bold",
+      "size": 18,
+      "lineHeight": "1.4",
+      "letterSpacing": 0.2,
+      "case": "UPPER",
+      "uses": 1
+    },
+    {
+      "family": "SF UI Display",
+      "weight": "Regular",
+      "size": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 75
+    },
+    {
+      "family": "SF UI Display",
+      "weight": "Medium",
+      "size": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 71
+    },
+    {
+      "family": "Inter",
+      "weight": "Regular",
+      "size": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 61
+    },
+    {
+      "family": "Inter",
+      "weight": "Medium",
+      "size": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 56
+    },
+    {
+      "family": "Manrope",
+      "weight": "ExtraBold",
+      "size": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0.2,
+      "case": "UPPER",
+      "uses": 1
+    },
+    {
+      "family": "SF UI Display",
+      "weight": "Regular",
+      "size": 14,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 123
+    },
+    {
+      "family": "Inter",
+      "weight": "Regular",
+      "size": 14,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 69
+    },
+    {
+      "family": "SF UI Display",
+      "weight": "Medium",
+      "size": 14,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 43
+    },
+    {
+      "family": "Inter",
+      "weight": "Medium",
+      "size": 14,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 32
+    },
+    {
+      "family": "Manrope",
+      "weight": "ExtraBold",
+      "size": 14,
+      "lineHeight": "1.5",
+      "letterSpacing": 0.2,
+      "case": "UPPER",
+      "uses": 1
+    },
+    {
+      "family": "Inter",
+      "weight": "Regular",
+      "size": 12,
+      "lineHeight": "100%",
+      "letterSpacing": 3,
+      "case": "ORIGINAL",
+      "uses": 78
+    },
+    {
+      "family": "SF UI Display",
+      "weight": "Regular",
+      "size": 12,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 60
+    },
+    {
+      "family": "SF UI Display",
+      "weight": "Medium",
+      "size": 12,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 3
+    },
+    {
+      "family": "Inter",
+      "weight": "Medium",
+      "size": 12,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 3
+    },
+    {
+      "family": "Manrope",
+      "weight": "ExtraBold",
+      "size": 12,
+      "lineHeight": "1.5",
+      "letterSpacing": 0.4,
+      "case": "UPPER",
+      "uses": 1
+    },
+    {
+      "family": "Manrope",
+      "weight": "ExtraBold",
+      "size": 10,
+      "lineHeight": "1.5",
+      "letterSpacing": 0.4,
+      "case": "UPPER",
+      "uses": 1
+    },
+    {
+      "family": "SF UI Display",
+      "weight": "Medium",
+      "size": 8,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 30
+    },
+    {
+      "family": "Inter",
+      "weight": "Medium",
+      "size": 8,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "case": "ORIGINAL",
+      "uses": 19
+    }
+  ],
+  "shadow": {
+    "shadow-1": "0px 1px 1px 0px #E5E5E5",
+    "shadow-2": "0px 1px 1px 0px #D0CCFF",
+    "shadow-3": "0px 1px 2px 0px #00000067",
+    "shadow-4": "0px 1px 2px 0px #0000004C",
+    "shadow-5": "0px 0px 1px 0px #FFFFFF",
+    "shadow-6": "0px 1px 2px 0px #1018280D",
+    "shadow-7": "0px 2px 4px 0px #1B1C1D0A",
+    "shadow-8": "0px 1px 2px 0px #E4E5E73D",
+    "shadow-9": "0px 12px 24px 0px #868C981F"
+  },
+  "gradient": {
+    "gradient-1": "linear-gradient(58deg, #E4E1FF 0%, #D4ECFF 100%)",
+    "gradient-2": "linear-gradient(27deg, #EAEAEA 0%, #C4C4C4 100%)",
+    "gradient-3": "linear-gradient(0deg, #5BD230 0%, #068B03 100%)",
+    "gradient-4": "linear-gradient(0deg, #FFFFFF24 0%, #FFFFFF00 63%)",
+    "gradient-5": "linear-gradient(270deg, #FFFFFF00 0%, #FFFFFF91 31%, #FFFFFF 69%)",
+    "gradient-6": "linear-gradient(11deg, #FFFFFF00 0%, #FFFFFFCC 31%, #FFFFFFEA 46%, #FFFFFF 57%)",
+    "gradient-7": "linear-gradient(11deg, #FFFFFF1A 0%, #FFFFFFCC 47%, #FFFFFFEA 56%, #FFFFFF 70%)",
+    "gradient-8": "linear-gradient(0deg, #FFFFFF00 0%, #FFFFFF 100%)"
+  }
+}

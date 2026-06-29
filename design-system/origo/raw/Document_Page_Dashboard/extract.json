@@ -1,0 +1,379 @@
+{
+  "stats": {
+    "nodes": 1558,
+    "frames": 540,
+    "instances": 131,
+    "symbols": 54,
+    "variables": 0,
+    "shadows": 6,
+    "gradients": 2,
+    "images": 12
+  },
+  "variables": [],
+  "colors": [
+    {
+      "hex": "#706F7F",
+      "count": 195
+    },
+    {
+      "hex": "#231F20",
+      "count": 174
+    },
+    {
+      "hex": "#FFFFFF",
+      "count": 115
+    },
+    {
+      "hex": "#1B1A1C",
+      "count": 83
+    },
+    {
+      "hex": "#292D32",
+      "count": 60
+    },
+    {
+      "hex": "#D9D9D9",
+      "count": 57
+    },
+    {
+      "hex": "#F6F6F6",
+      "count": 56
+    },
+    {
+      "hex": "#6457F9",
+      "count": 28
+    },
+    {
+      "hex": "#A2A1A7",
+      "count": 22
+    },
+    {
+      "hex": "#E6E3FF",
+      "count": 22
+    },
+    {
+      "hex": "#F5FCFF",
+      "count": 18
+    },
+    {
+      "hex": "#0EA5E9",
+      "count": 18
+    },
+    {
+      "hex": "#FAFAFA",
+      "count": 14
+    },
+    {
+      "hex": "#667085",
+      "count": 10
+    },
+    {
+      "hex": "#DADADA",
+      "count": 10
+    },
+    {
+      "hex": "#344054",
+      "count": 9
+    },
+    {
+      "hex": "#000000",
+      "count": 6
+    },
+    {
+      "hex": "#0D1C2E",
+      "count": 5
+    },
+    {
+      "hex": "#C4C4C4",
+      "count": 4
+    },
+    {
+      "hex": "#737373",
+      "count": 4
+    },
+    {
+      "hex": "#FEF4FF",
+      "count": 4
+    },
+    {
+      "hex": "#D946EF",
+      "count": 4
+    },
+    {
+      "hex": "#D0D5DD",
+      "count": 1
+    },
+    {
+      "hex": "#64748B",
+      "count": 1
+    },
+    {
+      "hex": "#7B61FF",
+      "count": 1
+    },
+    {
+      "hex": "#4B4B4B",
+      "count": 1
+    }
+  ],
+  "shadows": [
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 1,
+      "spread": 0,
+      "color": "#E5E5E5",
+      "inset": false,
+      "css": "0px 1px 1px 0px #E5E5E5",
+      "count": 12
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 2,
+      "spread": 0,
+      "color": "#00000067",
+      "inset": false,
+      "css": "0px 1px 2px 0px #00000067",
+      "count": 3
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 1,
+      "spread": 0,
+      "color": "#D0CCFF",
+      "inset": false,
+      "css": "0px 1px 1px 0px #D0CCFF",
+      "count": 2
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 2,
+      "spread": 0,
+      "color": "#1018280D",
+      "inset": false,
+      "css": "0px 1px 2px 0px #1018280D",
+      "count": 1
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 2,
+      "spread": 0,
+      "color": "#0000004C",
+      "inset": false,
+      "css": "0px 1px 2px 0px #0000004C",
+      "count": 1
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "blur": 1,
+      "spread": 0,
+      "color": "#FFFFFF",
+      "inset": false,
+      "css": "0px 0px 1px 0px #FFFFFF",
+      "count": 1
+    }
+  ],
+  "gradients": [
+    {
+      "type": "GRADIENT_LINEAR",
+      "angle": 27,
+      "stops": [
+        {
+          "color": "#EAEAEA",
+          "position": 0
+        },
+        {
+          "color": "#C4C4C4",
+          "position": 1
+        }
+      ],
+      "css": "linear-gradient(27deg, #EAEAEA 0%, #C4C4C4 100%)",
+      "count": 2
+    },
+    {
+      "type": "GRADIENT_LINEAR",
+      "angle": 0,
+      "stops": [
+        {
+          "color": "#5BD230",
+          "position": 0
+        },
+        {
+          "color": "#068B03",
+          "position": 1
+        }
+      ],
+      "css": "linear-gradient(0deg, #5BD230 0%, #068B03 100%)",
+      "count": 1
+    }
+  ],
+  "typography": [
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 60
+    },
+    {
+      "family": "Inter",
+      "style": "Regular",
+      "fontSize": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 56
+    },
+    {
+      "family": "Inter",
+      "style": "Regular",
+      "fontSize": 14,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 54
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 14,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 30
+    },
+    {
+      "family": "Inter",
+      "style": "Regular",
+      "fontSize": 12,
+      "lineHeight": "100%",
+      "letterSpacing": 3,
+      "textCase": "ORIGINAL",
+      "count": 23
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 8,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 22
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 18,
+      "lineHeight": "1.4",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 2
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 24,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 2
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 12,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 2
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 20,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 1
+    }
+  ],
+  "fonts": [
+    "SF UI Display",
+    "Inter"
+  ],
+  "components": [
+    "Icon/Outline/cloud-upload",
+    "Icon/Color/Base",
+    "Icon/Outline/pie-chart",
+    "Icon/Outline/settings",
+    "Icon/Outline/question-mark-circle",
+    "Icon/Outline/log-out",
+    "Icon/Outline/sun",
+    "Icon/Outline/grid",
+    "Icon/Outline/layout",
+    "Icon/Outline/credit-card",
+    "Icon/Outline/swap",
+    "Icon/Outline/bell",
+    "Icon/Outline/chevron-down",
+    "Icon/Outline/search",
+    "Icon/Outline/share",
+    "Icon/Outline/calendar",
+    "Icon/Outline/plus",
+    "Icon/Outline/edit",
+    "Icon/Outline/arrow-ios-down",
+    "Icon/Outline/diagonal-arrow-right-up",
+    "Icon/Outline/plus",
+    "Icon/Fill/archive",
+    "Icon/Outline/shopping-bag",
+    "Icon/Outline/home",
+    "Icon/Outline/shopping-cart",
+    "vuesax/outline/arrow-left",
+    "vuesax/bold/arrow-down",
+    "vuesax/outline/home",
+    "vuesax/bold/task",
+    "vuesax/outline/document",
+    "vuesax/outline/folder",
+    "vuesax/outline/document-text",
+    "vuesax/outline/people",
+    "vuesax/outline/folder-2",
+    "vuesax/outline/profile-add",
+    "vuesax/outline/message-question",
+    "vuesax/outline/search-normal",
+    "vuesax/outline/notification",
+    "vuesax/outline/arrow-down",
+    "vuesax/outline/add",
+    "vuesax/outline/filter",
+    "vuesax/outline/arrow-3",
+    "vuesax/outline/arrow-down",
+    "vuesax/outline/gallery",
+    "vuesax/bold/folder-2",
+    "Interaction=Hover",
+    "Interaction=Drag",
+    "Interaction=Text field",
+    "Interaction=Move",
+    "Interaction=Add",
+    "Interaction=Disabled",
+    "vuesax/bold/magic-star",
+    "vuesax/outline/close-circle",
+    "vuesax/outline/clock"
+  ],
+  "variantProps": {
+    "Interaction": 6
+  },
+  "meta": {
+    "fileName": "Origo - Document Page Dashboard",
+    "render": {
+      "x": -20232,
+      "y": -93302,
+      "width": 2976,
+      "height": 1024
+    }
+  }
+}

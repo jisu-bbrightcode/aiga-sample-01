@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# Biome lint: staged 파일 중 error만 차단
+#
+# 우회: git commit --no-verify (긴급 상황만. 남용 금지)
+# Biome 설정: biome.json
+
+pnpm exec biome lint --staged --diagnostic-level=error --no-errors-on-unmatched
+
+# Forbid inline disable of safety-critical oxlint rules
+# (product-builder/no-raw-sql-query, product-builder/no-schema-outside-drizzle).
+# These rules MUST NOT be bypassed per line/file — if a new exception is
+# legitimately needed, expand ALLOWED_PATTERNS in the rule source.
+node "$(git rev-parse --show-toplevel)/scripts/forbid-rule-disable.mjs"
+
+# --- main 직접 commit 차단 (main 에서 직접 작업 금지) ---
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [ "$BRANCH" = "main" ]; then
+  echo ""
+  echo "⛔ main 직접 commit 차단 — main 에서 직접 작업 금지."
+  echo "   develop(또는 feature) 브랜치로 전환 후 작업하고 PR 로 main 에 머지하세요."
+  exit 1
+fi

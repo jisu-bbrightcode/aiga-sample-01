@@ -1,0 +1,21 @@
+{
+  "type": "refund.created",
+  "timestamp": "2026-04-26T08:00:00.000000Z",
+  "data": {
+    "created_at": "2026-04-26T08:00:00.000000Z",
+    "modified_at": "2026-04-26T08:00:00.000000Z",
+    "id": "00000000-0000-0000-0000-0000refund001",
+    "metadata": {},
+    "status": "succeeded",
+    "reason": "customer_request",
+    "amount": 1999,
+    "tax_amount": 182,
+    "currency": "usd",
+    "organization_id": "c3bbd923-b869-4d78-8b23-1613887f2096",
+    "order_id": "4dc3eddd-64c2-4891-8acb-9c7c6ff16732",
+    "subscription_id": "d88f49da-6f38-4451-be37-2ff6dc1ebf09",
+    "customer_id": "a27d47ed-0150-4ea4-83d8-ba545ebeb045",
+    "revoke_benefits": false,
+    "dispute": null
+  }
+}

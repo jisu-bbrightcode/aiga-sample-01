@@ -1,0 +1,87 @@
+<h2>현재 상태 — 프로젝트 네비게이션 문제</h2>
+<p class="subtitle">CEO가 지적한 3가지 UX 문제를 정리했습니다</p>
+
+<div class="section">
+  <h3>문제 1: 메인 대시보드에 불필요한 사이드바</h3>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">현재 — 메인 대시보드 (<code>/</code>)</div>
+      <div class="mockup-body" style="display:flex; min-height:300px;">
+        <div style="width:240px; background:#1a1a2e; color:#888; padding:16px; font-size:13px; border-right:1px solid #333;">
+          <div style="margin-bottom:24px; color:#fff; font-weight:600;">Flotter</div>
+          <div style="margin-bottom:12px; padding:8px; background:#252540; border-radius:6px;">🔍 검색 (⌘K)</div>
+          <div style="color:#666; font-size:12px; margin-top:16px;">← 이 사이드바가<br/>대시보드에서 의미 없음</div>
+        </div>
+        <div style="flex:1; padding:24px; background:#0f0f1a;">
+          <div style="color:#fff; font-size:20px; margin-bottom:16px;">내 프로젝트 <span style="color:#666; font-size:14px;">3개</span></div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+            <div style="background:#1a1a2e; border-radius:8px; padding:16px; color:#ccc; font-size:13px;">
+              <div style="font-weight:500; color:#fff; margin-bottom:8px;">프로젝트 A</div>
+              <div>RPG 시나리오</div>
+            </div>
+            <div style="background:#1a1a2e; border-radius:8px; padding:16px; color:#ccc; font-size:13px;">
+              <div style="font-weight:500; color:#fff; margin-bottom:8px;">프로젝트 B</div>
+              <div>인터랙티브 드라마</div>
+            </div>
+            <div style="background:#1a1a2e; border-radius:8px; padding:16px; color:#ccc; font-size:13px; border:1px dashed #444; display:flex; align-items:center; justify-content:center;">
+              + 새 프로젝트
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>문제 2: 프로젝트 워크스페이스에서 프로젝트 전환 불가</h3>
+  <div class="mockup">
+    <div class="mockup-header">현재 — 프로젝트 워크스페이스 (<code>/p/:id/lore</code>)</div>
+    <div class="mockup-body" style="display:flex; min-height:300px;">
+      <div style="width:240px; background:#1a1a2e; color:#ccc; padding:16px; font-size:13px; border-right:1px solid #333;">
+        <div style="margin-bottom:16px; color:#fff; font-weight:600;">🌍 프로젝트 A</div>
+        <div style="margin-bottom:12px; padding:8px; background:#252540; border-radius:6px; font-size:12px;">🔍 검색 (⌘K)</div>
+        <div style="margin-top:16px;">
+          <div style="padding:6px 8px; color:#888; font-size:11px; text-transform:uppercase;">초안</div>
+          <div style="padding:6px 8px; border-radius:4px;">📝 초안</div>
+        </div>
+        <div style="margin-top:12px;">
+          <div style="padding:6px 8px; color:#888; font-size:11px; text-transform:uppercase;">세계관</div>
+          <div style="padding:6px 8px; background:#252540; border-radius:4px; color:#fff;">🌍 세계</div>
+          <div style="padding:6px 8px; border-radius:4px;">👤 캐릭터</div>
+          <div style="padding:6px 8px; border-radius:4px;">📍 장소</div>
+          <div style="padding:6px 8px; border-radius:4px;">⚔️ 세력</div>
+        </div>
+        <div style="margin-top:24px; padding:12px; background:#2a1a1a; border-radius:6px; border:1px solid #ff4444; color:#ff6666; font-size:11px;">
+          ❌ 다른 프로젝트로 전환 불가<br/>
+          ❌ 대시보드 복귀 버튼 없음<br/>
+          ❌ 프로젝트 설정 없음
+        </div>
+      </div>
+      <div style="flex:1; padding:24px; background:#0f0f1a;">
+        <div style="color:#fff; font-size:18px; margin-bottom:16px;">세계</div>
+        <div style="color:#888;">세계 목록이 여기에 표시됩니다...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>문제 3: 프로젝트 설정 페이지 부재</h3>
+  <div style="padding:20px; background:rgba(255,170,0,0.1); border:1px solid rgba(255,170,0,0.3); border-radius:8px;">
+    <div style="color:#ffaa00; font-weight:600; margin-bottom:8px;">⚠️ 현재 존재하는 설정</div>
+    <ul style="color:#ccc; font-size:13px; margin:0; padding-left:20px;">
+      <li><code>/settings/account</code> — 계정 설정 (사용자 전역)</li>
+      <li><code>/settings/appearance</code> — 외관 설정 (사용자 전역)</li>
+      <li><code>/settings/notifications</code> — 알림 설정</li>
+      <li><code>/settings/organization</code> — 조직 설정</li>
+    </ul>
+    <div style="color:#ff6666; font-weight:600; margin-top:12px;">❌ 프로젝트별 설정 없음</div>
+    <ul style="color:#ccc; font-size:13px; margin:0; padding-left:20px;">
+      <li>프로젝트 이름/설명 수정</li>
+      <li>프로젝트 삭제</li>
+      <li>AI 모드 선택 (Powered/Safety)</li>
+      <li>멤버 관리 (향후)</li>
+    </ul>
+  </div>
+</div>

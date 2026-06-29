@@ -1,0 +1,52 @@
+# graphify extraction noise filters
+# Goal: keep architecture/source graph useful, drop generated/temp/test-heavy inputs.
+
+# Build outputs / caches
+**/dist/**
+**/build/**
+**/out/**
+**/coverage/**
+**/.turbo/**
+**/.next/**
+**/.vercel/**
+**/node_modules/**
+
+# Test / benchmark / QA harness
+**/__tests__/**
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+**/*.bench.ts
+**/*.bench.tsx
+**/e2e/**
+
+# Local temp / debug artifacts
+apps/graph-engine-playground/tmp/**
+apps/graph-engine-playground/apps/**
+logs/**
+log/**
+state.json
+*.png
+
+# Diagnostic / one-off scripts
+apps/graph-engine-playground/scripts/**
+packages/graph-engine/scripts/**
+packages/cli/tsup.config.bundled_*.mjs
+
+# Planning / retros / operational docs that bloat graph but add little code-nav value
+docs/_archive/**
+docs/superpowers/**
+docs/plans/**
+docs/specs/**
+docs/community/**
+docs/growth/**
+docs/writer-guides/**
+docs/guides/**
+docs/retros/**
+docs/flotter-hq/**
+planning/**
+_bmad/**
+.planning/**
+.obsidian/**
+.gstack/**

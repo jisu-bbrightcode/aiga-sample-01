@@ -1,0 +1,34 @@
+---
+description: Backend Development Rules (NestJS, Drizzle, tRPC)
+globs: apps/server/**/*.ts, packages/core/**/*.ts
+alwaysApply: false
+---
+
+# Backend Development Rules
+
+When working on backend code (NestJS, Drizzle, tRPC), YOU MUST READ and FOLLOW these documents:
+
+1. **Coding Standards**: `.claude/rules/backend/naming-dto.md`, `.claude/rules/backend/swagger.md`, `.claude/rules/backend/drizzle.md`
+2. **API Design**: `docs/architecture/04-api-strategy.md`
+3. **Error Handling**: `docs/architecture/08-error-handling.md`
+
+## Server Feature Location
+
+Server Feature 코드는 `packages/features/{name}/server/`에 위치합니다.
+
+**Import 방식:**
+```typescript
+import { BlogModule } from '@repo/features/blog/server';
+import { BlogService } from '@repo/features/blog/server';
+```
+
+## Key Principles (Company Convention)
+
+- **Naming**: Use **kebab-case** for files (e.g., `blog.module.ts`, `create-post.dto.ts`).
+- **Module**: Follow the Feature Module pattern.
+- **Service Layer**: All business logic must reside in Services.
+- **Drizzle ORM**: Use `db.query` for reads. All feature tables/enums MUST use `{feature}_{entity}` prefix (e.g., `board_boards`, `blog_posts`). Core tables (`profiles`, `files`) have no prefix.
+- **tRPC**: Expose procedures via `router`. Use Zod for input validation.
+- **DTO**: Use `create-zod-dto` for DTOs.
+- **Import**: Use `@repo/features/{name}/server` to import from other Server Features.
+

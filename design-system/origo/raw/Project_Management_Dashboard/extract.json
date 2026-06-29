@@ -1,0 +1,680 @@
+{
+  "stats": {
+    "nodes": 1113,
+    "frames": 392,
+    "instances": 52,
+    "symbols": 98,
+    "variables": 34,
+    "shadows": 5,
+    "gradients": 1,
+    "images": 11
+  },
+  "variables": [
+    {
+      "name": "neutral/100",
+      "type": "COLOR",
+      "value": "#F6F8FA",
+      "aliasOf": null
+    },
+    {
+      "name": "bg/weak-100",
+      "type": "COLOR",
+      "value": "#F6F8FA",
+      "aliasOf": "neutral/100"
+    },
+    {
+      "name": "neutral/0",
+      "type": "COLOR",
+      "value": "#FFFFFF",
+      "aliasOf": null
+    },
+    {
+      "name": "bg/white-0",
+      "type": "COLOR",
+      "value": "#FFFFFF",
+      "aliasOf": "neutral/0"
+    },
+    {
+      "name": "neutral/300",
+      "type": "COLOR",
+      "value": "#CDD0D5",
+      "aliasOf": null
+    },
+    {
+      "name": "icon/disabled-300",
+      "type": "COLOR",
+      "value": "#CDD0D5",
+      "aliasOf": "neutral/300"
+    },
+    {
+      "name": "neutral/900",
+      "type": "COLOR",
+      "value": "#0A0D14",
+      "aliasOf": null
+    },
+    {
+      "name": "text/main-900",
+      "type": "COLOR",
+      "value": "#0A0D14",
+      "aliasOf": "neutral/900"
+    },
+    {
+      "name": "neutral/400",
+      "type": "COLOR",
+      "value": "#868C98",
+      "aliasOf": null
+    },
+    {
+      "name": "text/soft-400",
+      "type": "COLOR",
+      "value": "#868C98",
+      "aliasOf": "neutral/400"
+    },
+    {
+      "name": "text/soft-400",
+      "type": "COLOR",
+      "value": "#868C98",
+      "aliasOf": "neutral/400"
+    },
+    {
+      "name": "icon/soft-400",
+      "type": "COLOR",
+      "value": "#868C98",
+      "aliasOf": "neutral/400"
+    },
+    {
+      "name": "stroke/strong-900",
+      "type": "COLOR",
+      "value": "#0A0D14",
+      "aliasOf": "neutral/900"
+    },
+    {
+      "name": "neutral/500",
+      "type": "COLOR",
+      "value": "#525866",
+      "aliasOf": null
+    },
+    {
+      "name": "text/sub-500",
+      "type": "COLOR",
+      "value": "#525866",
+      "aliasOf": "neutral/500"
+    },
+    {
+      "name": "icon/sub-500",
+      "type": "COLOR",
+      "value": "#525866",
+      "aliasOf": "neutral/500"
+    },
+    {
+      "name": "green/lighter",
+      "type": "COLOR",
+      "value": "#EFFAF6",
+      "aliasOf": null
+    },
+    {
+      "name": "teal/lighter",
+      "type": "COLOR",
+      "value": "#EBFAFF",
+      "aliasOf": null
+    },
+    {
+      "name": "neutral/200",
+      "type": "COLOR",
+      "value": "#E2E4E9",
+      "aliasOf": null
+    },
+    {
+      "name": "bg/soft-200",
+      "type": "COLOR",
+      "value": "#E2E4E9",
+      "aliasOf": "neutral/200"
+    },
+    {
+      "name": "bg/white-0",
+      "type": "COLOR",
+      "value": "#FFFFFF",
+      "aliasOf": "neutral/0"
+    },
+    {
+      "name": "stroke/white-0",
+      "type": "COLOR",
+      "value": "#FFFFFF",
+      "aliasOf": "neutral/0"
+    },
+    {
+      "name": "stroke/sub-300",
+      "type": "COLOR",
+      "value": "#CDD0D5",
+      "aliasOf": "neutral/300"
+    },
+    {
+      "name": "green/base",
+      "type": "COLOR",
+      "value": "#38C793",
+      "aliasOf": null
+    },
+    {
+      "name": "red/base",
+      "type": "COLOR",
+      "value": "#DF1C41",
+      "aliasOf": null
+    },
+    {
+      "name": "Secondary/400",
+      "type": "COLOR",
+      "value": "#6C7278",
+      "aliasOf": null
+    },
+    {
+      "name": "stroke/soft-200",
+      "type": "COLOR",
+      "value": "#E2E4E9",
+      "aliasOf": "neutral/200"
+    },
+    {
+      "name": "stroke/white-0",
+      "type": "COLOR",
+      "value": "#FFFFFF",
+      "aliasOf": "neutral/0"
+    },
+    {
+      "name": "icon/strong-900",
+      "type": "COLOR",
+      "value": "#0A0D14",
+      "aliasOf": "neutral/900"
+    },
+    {
+      "name": "red/lighter",
+      "type": "COLOR",
+      "value": "#FDEDF0",
+      "aliasOf": null
+    },
+    {
+      "name": "green/dark",
+      "type": "COLOR",
+      "value": "#2D9F75",
+      "aliasOf": null
+    },
+    {
+      "name": "green/darker",
+      "type": "COLOR",
+      "value": "#176448",
+      "aliasOf": null
+    },
+    {
+      "name": "Primary/800",
+      "type": "COLOR",
+      "value": "#0F5D66",
+      "aliasOf": null
+    },
+    {
+      "name": "text/white-0",
+      "type": "COLOR",
+      "value": "#FFFFFF",
+      "aliasOf": "neutral/0"
+    }
+  ],
+  "colors": [
+    {
+      "hex": "#292D32",
+      "count": 159
+    },
+    {
+      "hex": "#706F7F",
+      "count": 71
+    },
+    {
+      "hex": "#FFFFFF",
+      "count": 42
+    },
+    {
+      "hex": "#F6F6F6",
+      "count": 38
+    },
+    {
+      "hex": "#000000",
+      "count": 25
+    },
+    {
+      "hex": "#A2A1A7",
+      "count": 24
+    },
+    {
+      "hex": "#525062",
+      "count": 24
+    },
+    {
+      "hex": "#1B1A1C",
+      "count": 23
+    },
+    {
+      "hex": "#D9D9D9",
+      "count": 17
+    },
+    {
+      "hex": "#ECFDF5",
+      "count": 14
+    },
+    {
+      "hex": "#FAFAFA",
+      "count": 13
+    },
+    {
+      "hex": "#6457F9",
+      "count": 10
+    },
+    {
+      "hex": "#7B61FF",
+      "count": 8
+    },
+    {
+      "hex": "#059669",
+      "count": 7
+    },
+    {
+      "hex": "#F1F2F4",
+      "count": 6
+    },
+    {
+      "hex": "#687588",
+      "count": 6
+    },
+    {
+      "hex": "#F4F3FF",
+      "count": 6
+    },
+    {
+      "hex": "#0EA5E9",
+      "count": 5
+    },
+    {
+      "hex": "#F5FCFF",
+      "count": 4
+    },
+    {
+      "hex": "#D946EF",
+      "count": 3
+    },
+    {
+      "hex": "#10B981",
+      "count": 3
+    },
+    {
+      "hex": "#666D80",
+      "count": 3
+    },
+    {
+      "hex": "#FFFBEB",
+      "count": 3
+    },
+    {
+      "hex": "#92400E",
+      "count": 3
+    },
+    {
+      "hex": "#E4FFF6",
+      "count": 2
+    },
+    {
+      "hex": "#737373",
+      "count": 2
+    },
+    {
+      "hex": "#FFF1F2",
+      "count": 2
+    },
+    {
+      "hex": "#9F1239",
+      "count": 2
+    },
+    {
+      "hex": "#F0F9FF",
+      "count": 2
+    },
+    {
+      "hex": "#075985",
+      "count": 2
+    },
+    {
+      "hex": "#E8E9FF",
+      "count": 2
+    },
+    {
+      "hex": "#FEF4FF",
+      "count": 2
+    },
+    {
+      "hex": "#232D37",
+      "count": 1
+    },
+    {
+      "hex": "#E6E3FF",
+      "count": 1
+    }
+  ],
+  "shadows": [
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 1,
+      "spread": 0,
+      "color": "#E5E5E5",
+      "inset": false,
+      "css": "0px 1px 1px 0px #E5E5E5",
+      "count": 9
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "blur": 4,
+      "spread": 0,
+      "color": "#1B1C1D0A",
+      "inset": false,
+      "css": "0px 2px 4px 0px #1B1C1D0A",
+      "count": 1
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 2,
+      "spread": 0,
+      "color": "#E4E5E73D",
+      "inset": false,
+      "css": "0px 1px 2px 0px #E4E5E73D",
+      "count": 1
+    },
+    {
+      "x": 0,
+      "y": 12,
+      "blur": 24,
+      "spread": 0,
+      "color": "#868C981F",
+      "inset": false,
+      "css": "0px 12px 24px 0px #868C981F",
+      "count": 1
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 1,
+      "spread": 0,
+      "color": "#D0CCFF",
+      "inset": false,
+      "css": "0px 1px 1px 0px #D0CCFF",
+      "count": 1
+    }
+  ],
+  "gradients": [
+    {
+      "type": "GRADIENT_LINEAR",
+      "angle": 0,
+      "stops": [
+        {
+          "color": "#FFFFFF24",
+          "position": 0
+        },
+        {
+          "color": "#FFFFFF00",
+          "position": 0.63
+        }
+      ],
+      "css": "linear-gradient(0deg, #FFFFFF24 0%, #FFFFFF00 63%)",
+      "count": 1
+    }
+  ],
+  "typography": [
+    {
+      "family": "Inter",
+      "style": "Regular",
+      "fontSize": 12,
+      "lineHeight": "100%",
+      "letterSpacing": 3,
+      "textCase": "ORIGINAL",
+      "count": 55
+    },
+    {
+      "family": "Inter",
+      "style": "Regular",
+      "fontSize": 14,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 15
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 14,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 13
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 11
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 8,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 8
+    },
+    {
+      "family": "Inter",
+      "style": "Regular",
+      "fontSize": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 5
+    },
+    {
+      "family": "Manrope",
+      "style": "Bold",
+      "fontSize": 18,
+      "lineHeight": "1.4",
+      "letterSpacing": 0.2,
+      "textCase": "UPPER",
+      "count": 1
+    },
+    {
+      "family": "Manrope",
+      "style": "ExtraBold",
+      "fontSize": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0.2,
+      "textCase": "UPPER",
+      "count": 1
+    },
+    {
+      "family": "Manrope",
+      "style": "ExtraBold",
+      "fontSize": 14,
+      "lineHeight": "1.5",
+      "letterSpacing": 0.2,
+      "textCase": "UPPER",
+      "count": 1
+    },
+    {
+      "family": "Manrope",
+      "style": "ExtraBold",
+      "fontSize": 12,
+      "lineHeight": "1.5",
+      "letterSpacing": 0.4,
+      "textCase": "UPPER",
+      "count": 1
+    },
+    {
+      "family": "Manrope",
+      "style": "ExtraBold",
+      "fontSize": 10,
+      "lineHeight": "1.5",
+      "letterSpacing": 0.4,
+      "textCase": "UPPER",
+      "count": 1
+    },
+    {
+      "family": "Inter",
+      "style": "Regular",
+      "fontSize": 20,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 1
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 18,
+      "lineHeight": "1.4",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 1
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 24,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 1
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Medium",
+      "fontSize": 12,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 1
+    }
+  ],
+  "fonts": [
+    "Inter",
+    "SF UI Display",
+    "Manrope"
+  ],
+  "components": [
+    "menu",
+    "layout-sidebar-right-expand",
+    "search",
+    "chevron-down",
+    "home",
+    "users",
+    "clipboard-text",
+    "file-dollar",
+    "database",
+    "notebook",
+    "category-2",
+    "plus",
+    "diamond",
+    "settings-2",
+    "help-square",
+    "moon",
+    "Property 1=56px",
+    "Property 1=48px",
+    "Property 1=40px",
+    "Property 1=32px",
+    "Property 1=24px",
+    "Property 1=56px",
+    "Property 1=48px",
+    "Property 1=40px",
+    "Property 1=32px",
+    "Property 1=24px",
+    "Property 1=56px",
+    "Property 1=48px",
+    "Property 1=40px",
+    "Property 1=32px",
+    "Property 1=24px",
+    "Property 1=56px",
+    "Property 1=48px",
+    "Property 1=40px",
+    "Property 1=32px",
+    "Property 1=24px",
+    "Property 1=56px",
+    "Property 1=48px",
+    "Property 1=40px",
+    "Property 1=32px",
+    "Property 1=24px",
+    "mail",
+    "notification",
+    "calendar",
+    "Property 1=linear",
+    "Property 1=bold",
+    "Property 1=outline",
+    "Property 1=twotone",
+    "Property 1=bulk",
+    "Property 1=broken",
+    "Property 1=linear",
+    "Property 1=bold",
+    "Property 1=outline",
+    "Property 1=twotone",
+    "Property 1=bulk",
+    "Property 1=broken",
+    "arrow-up-right",
+    "Property 1=linear",
+    "Property 1=bold",
+    "Property 1=outline",
+    "Property 1=twotone",
+    "Property 1=bulk",
+    "Property 1=broken",
+    "calendar-due",
+    "filter",
+    "selector",
+    "edit",
+    "info-circle-filled",
+    "vuesax/outline/add",
+    "vuesax/outline/edit",
+    "vuesax/outline/arrow-left",
+    "vuesax/outline/share",
+    "vuesax/outline/category",
+    "vuesax/outline/star",
+    "vuesax/bold/arrow-down",
+    "vuesax/outline/home",
+    "vuesax/bold/task",
+    "vuesax/outline/document",
+    "vuesax/outline/folder",
+    "vuesax/outline/document-text",
+    "vuesax/outline/people",
+    "vuesax/outline/folder-2",
+    "vuesax/outline/profile-add",
+    "vuesax/outline/message-question",
+    "vuesax/outline/buildings",
+    "vuesax/outline/search-normal",
+    "vuesax/outline/notification",
+    "vuesax/outline/arrow-down",
+    "vuesax/outline/clipboard-text",
+    "vuesax/outline/kanban",
+    "vuesax/outline/document-text",
+    "vuesax/outline/calendar",
+    "vuesax/outline/message-2",
+    "vuesax/outline/filter",
+    "vuesax/outline/arrow-3",
+    "vuesax/outline/arrow-down",
+    "vuesax/outline/calendar",
+    "vuesax/outline/message"
+  ],
+  "variantProps": {
+    "Property 1": 43
+  },
+  "meta": {
+    "fileName": "Origo - Project Management Dashboard",
+    "render": {
+      "x": -20620,
+      "y": -84078,
+      "width": 1440,
+      "height": 1024
+    }
+  }
+}

@@ -1,0 +1,52 @@
+---
+description: Database Schema & Drizzle ORM Rules
+globs: **/schema/*.ts, drizzle.config.ts
+alwaysApply: false
+---
+
+# Database Schema Rules
+
+When modifying database schemas or Drizzle configuration, YOU MUST READ:
+
+1. **Schema Architecture**: `docs/architecture/03-database-schema.md`
+2. **Drizzle Rules**: `.claude/rules/backend/drizzle.md`
+
+## Key Principles
+
+- **Location**: Feature schemas in `packages/drizzle/src/schema/features/{name}/index.ts`
+- **Naming Convention**:
+
+| 항목              | 스타일                   | 예시                                    |
+| :---------------- | :----------------------- | :-------------------------------------- |
+| File              | `kebab-case`             | `index.ts` (feature 디렉토리)            |
+| Table Variable    | `camelCase`              | `blogPosts`                             |
+| DB Table Name     | `{feature}_{entity}`     | `blog_posts`, `blog_blogs` (메인 테이블) |
+| DB Enum Name      | `{feature}_{name}`       | `blog_post_status`, `community_type`    |
+| DB Column Name    | `snake_case`             | `created_at`, `is_published`            |
+| Column Variable   | `camelCase`              | `createdAt`, `isPublished`              |
+| Index Name        | `idx_{table}_{column}`   | `idx_blog_posts_author`                 |
+
+### Feature Prefix 규칙 (필수)
+
+- Feature 스키마의 **모든** 테이블/enum은 `{feature}_` prefix 필수
+- 메인 테이블도 예외 없음: `board_boards` (O), `boards` (X)
+- Core 스키마(`profiles`, `files`, `roles` 등)는 prefix 없음
+
+## Example
+
+```typescript
+// packages/drizzle/src/schema/features/blog/index.ts
+export const blogStatusEnum = pgEnum("blog_post_status", ["draft", "published"]);
+
+export const blogs = pgTable("blog_blogs", {         // 메인 테이블도 prefix 필수
+  ...baseColumns(),
+  name: varchar("name", { length: 100 }).notNull(),
+});
+
+export const blogPosts = pgTable("blog_posts", {
+  ...baseColumns(),
+  title: varchar("title", { length: 200 }).notNull(),
+  isPublished: boolean("is_published").default(false),  // DB: snake_case
+  createdAt: timestamp("created_at").defaultNow(),      // DB: snake_case
+});
+```

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>번역 에디터 — 상세 목업</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Geist", "Pretendard Variable", system-ui, sans-serif; background: #f5f4f0; color: #333; }
+  .app-shell { display: flex; height: 100vh; }
+
+  .sidebar { width: 220px; background: #fafaf8; border-right: 1px solid #e8e5df; padding: 16px 12px; flex-shrink: 0; font-size: 13px; }
+  .sidebar-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 10px; padding: 0 8px; }
+  .sidebar-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px; color: #666; cursor: pointer; margin-bottom: 2px; }
+  .sidebar-item.active { background: #e8e5df; color: #333; font-weight: 600; }
+  .sidebar-divider { border-top: 1px solid #e8e5df; margin: 8px 0; }
+  .sidebar-item.muted { color: #aaa; font-size: 12px; }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Editor header */
+  .editor-header { padding: 14px 24px; border-bottom: 1px solid #e8e5df; display: flex; align-items: center; gap: 12px; background: #fafaf8; }
+  .back-btn { font-size: 13px; color: #888; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; }
+  .back-btn:hover { background: #f0efea; color: #333; }
+  .editor-breadcrumb { font-size: 13px; color: #999; }
+  .editor-breadcrumb strong { color: #333; font-weight: 600; }
+  .editor-lang-pair { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .lang-badge { padding: 3px 10px; border-radius: 5px; font-weight: 600; font-size: 11px; }
+  .lang-source { background: #f0efea; color: #666; }
+  .lang-target { background: #dbeafe; color: #2563eb; }
+  .lang-arrow { color: #ccc; }
+  .editor-status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #999; margin-left: 16px; }
+  .autosave-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
+
+  /* Editor toolbar */
+  .editor-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 24px; border-bottom: 1px solid #f0efea; }
+  .nav-btn { padding: 5px 12px; border-radius: 6px; font-size: 11px; color: #888; background: #f5f4f0; border: 1px solid #e5e5e0; cursor: pointer; }
+  .nav-btn:hover { background: #e8e5df; }
+  .progress-info { margin-left: auto; font-size: 12px; color: #999; display: flex; align-items: center; gap: 8px; }
+  .progress-mini { width: 120px; height: 4px; background: #f0efea; border-radius: 2px; overflow: hidden; }
+  .progress-mini-fill { height: 100%; background: #f59e0b; border-radius: 2px; }
+  .ai-translate-btn { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; background: #2563eb; color: white; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+
+  /* Split editor */
+  .editor-split { flex: 1; display: flex; overflow: hidden; }
+
+  /* Source panel */
+  .source-panel { flex: 1; border-right: 1px solid #e8e5df; display: flex; flex-direction: column; overflow: hidden; }
+  .panel-header { padding: 12px 20px; border-bottom: 1px solid #f0efea; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #999; background: #fdfcfa; }
+  .panel-content { flex: 1; overflow-y: auto; padding: 20px; }
+
+  /* Translation panel */
+  .target-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fafcff; }
+  .target-panel .panel-header { color: #2563eb; background: #f5f8ff; }
+  .target-panel .panel-content { padding: 20px; }
+
+  /* Text blocks */
+  .text-block { margin-bottom: 20px; }
+  .text-block-label { font-size: 11px; font-weight: 600; color: #bbb; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .text-block-content { font-size: 14px; line-height: 1.8; color: #444; background: #f8f7f4; padding: 14px 16px; border-radius: 8px; border: 1px solid #e8e5df; }
+  .text-block-content.editable { background: #f8faff; border-color: #bfdbfe; color: #333; cursor: text; }
+  .text-block-content.editable:focus-within { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+
+  /* Character dialogue style */
+  .dialogue-line { padding: 8px 0; border-bottom: 1px solid #f0efea; }
+  .dialogue-line:last-child { border-bottom: none; }
+  .dialogue-speaker { font-size: 11px; font-weight: 600; color: #be185d; margin-bottom: 2px; }
+  .dialogue-text { font-size: 14px; line-height: 1.7; color: #444; }
+  .dialogue-line.editable .dialogue-text { color: #333; }
+
+  /* Glossary sidebar */
+  .glossary-panel { width: 240px; border-left: 1px solid #e8e5df; background: #fafaf8; display: flex; flex-direction: column; overflow: hidden; }
+  .glossary-panel .panel-header { border-bottom: 1px solid #e8e5df; }
+  .glossary-list { flex: 1; overflow-y: auto; padding: 12px; }
+  .glossary-item { padding: 8px 10px; border-radius: 6px; margin-bottom: 4px; font-size: 12px; }
+  .glossary-item:hover { background: #f0efea; }
+  .glossary-term { font-weight: 600; color: #333; margin-bottom: 2px; }
+  .glossary-trans { color: #2563eb; }
+  .glossary-def { color: #aaa; font-size: 11px; margin-top: 2px; }
+
+  /* Bottom bar */
+  .editor-footer { display: flex; align-items: center; gap: 12px; padding: 8px 24px; background: #fafaf8; border-top: 1px solid #e8e5df; font-size: 12px; color: #999; }
+  .char-count { font-variant-numeric: tabular-nums; }
+  .status-badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+  .status-progress { background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="sidebar">
+    <div class="sidebar-label">현지화</div>
+    <div class="sidebar-item"><span>📊</span> 대시보드</div>
+    <div class="sidebar-item active"><span>🎬</span> 캔버스 번역</div>
+    <div class="sidebar-item"><span>📖</span> 세계관 번역</div>
+    <div class="sidebar-item"><span>📚</span> 용어 사전</div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-item muted"><span>⚙️</span> 언어 설정</div>
+  </div>
+
+  <div class="main">
+    <!-- Editor header -->
+    <div class="editor-header">
+      <div class="back-btn">← 목록</div>
+      <div class="editor-breadcrumb">챕터 1: 시작의 땅 › 씬 3 › <strong>프롤로그 — 잠에서 깨어나다</strong></div>
+      <div class="editor-lang-pair">
+        <span class="lang-badge lang-source">KO</span>
+        <span class="lang-arrow">→</span>
+        <span class="lang-badge lang-target">EN</span>
+      </div>
+      <div class="editor-status">
+        <span class="autosave-dot"></span>
+        자동 저장됨
+      </div>
+    </div>
+
+    <!-- Editor toolbar -->
+    <div class="editor-toolbar">
+      <button class="nav-btn">← 이전 노드</button>
+      <button class="nav-btn">다음 노드 →</button>
+      <div class="progress-info">
+        <span>3 / 42 씬</span>
+        <div class="progress-mini"><div class="progress-mini-fill" style="width: 7%;"></div></div>
+      </div>
+      <button class="ai-translate-btn">✨ AI 번역</button>
+    </div>
+
+    <!-- Split editor -->
+    <div class="editor-split">
+      <!-- Source (read-only) -->
+      <div class="source-panel">
+        <div class="panel-header">원문 (한국어)</div>
+        <div class="panel-content">
+          <div class="text-block">
+            <div class="text-block-label">씬 제목</div>
+            <div class="text-block-content">프롤로그 — 잠에서 깨어나다</div>
+          </div>
+
+          <div class="text-block">
+            <div class="text-block-label">나레이션</div>
+            <div class="text-block-content">
+              차가운 바람이 창문 틈으로 스며들었다. 낯선 천장이 눈에 들어왔다.<br><br>
+              머리가 무거웠다. 기억이 안개처럼 흐릿했다. 마지막으로 기억나는 건 — 붉은 빛, 비명, 그리고 떨어지는 감각.<br><br>
+              몸을 일으키자 오래된 나무 침대가 삐걱거렸다. 작은 방 안에 약초 냄새가 가득했다.
+            </div>
+          </div>
+
+          <div class="text-block">
+            <div class="text-block-label">대사</div>
+            <div style="background: #f8f7f4; padding: 14px 16px; border-radius: 8px; border: 1px solid #e8e5df;">
+              <div class="dialogue-line">
+                <div class="dialogue-speaker">에리아</div>
+                <div class="dialogue-text">정신이 드셨군요. 여긴 아르테미아 변경의 작은 마을입니다.</div>
+              </div>
+              <div class="dialogue-line">
+                <div class="dialogue-speaker">카엘</div>
+                <div class="dialogue-text">여기가... 어디지? 마지막으로 기억나는 건...</div>
+              </div>
+              <div class="dialogue-line">
+                <div class="dialogue-speaker">에리아</div>
+                <div class="dialogue-text">무리하지 마세요. 사흘 동안 의식이 없었어요. 숲에서 쓰러진 채 발견됐습니다.</div>
+              </div>
+              <div class="dialogue-line">
+                <div class="dialogue-speaker">카엘</div>
+                <div class="dialogue-text">이 검은... 제 거였나요?</div>
+              </div>
+              <div class="dialogue-line">
+                <div class="dialogue-speaker">에리아</div>
+                <div class="dialogue-text">쓰러질 때 꼭 쥐고 계셨어요. 놓지 않으려는 것 같았습니다.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-block">
+            <div class="text-block-label">선택지</div>
+            <div class="text-block-content">
+              1. 고마워요, 여기서 좀 더 쉴게요<br>
+              2. 당장 떠나야 해요. 뭔가... 급한 일이 있었던 것 같아요
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Target (editable) -->
+      <div class="target-panel">
+        <div class="panel-header">번역 (English)</div>
+        <div class="panel-content">
+          <div class="text-block">
+            <div class="text-block-label">Scene Title</div>
+            <div class="text-block-content editable">Prologue — Awakening</div>
+          </div>
+
+          <div class="text-block">
+            <div class="text-block-label">Narration</div>
+            <div class="text-block-content editable">
+              A cold wind seeped through the window cracks. An unfamiliar ceiling filled his vision.<br><br>
+              His head felt heavy. Memories were hazy, like fog. The last thing he remembered — a red light, screams, and the sensation of falling.<br><br>
+              As he sat up, the old wooden bed creaked beneath him. The small room was filled with the scent of herbs.
+            </div>
+          </div>
+
+          <div class="text-block">
+            <div class="text-block-label">Dialogue</div>
+            <div style="background: #f8faff; padding: 14px 16px; border-radius: 8px; border: 1px solid #bfdbfe;">
+              <div class="dialogue-line editable">
+                <div class="dialogue-speaker">Eria</div>
+                <div class="dialogue-text">You're awake. This is a small village on the border of Artemia.</div>
+              </div>
+              <div class="dialogue-line editable">
+                <div class="dialogue-speaker">Kael</div>
+                <div class="dialogue-text">Where... am I? The last thing I remember is...</div>
+              </div>
+              <div class="dialogue-line editable">
+                <div class="dialogue-speaker">Eria</div>
+                <div class="dialogue-text">Don't push yourself. You were unconscious for three days. We found you collapsed in the forest.</div>
+              </div>
+              <div class="dialogue-line editable">
+                <div class="dialogue-speaker">Kael</div>
+                <div class="dialogue-text">This sword... was it mine?</div>
+              </div>
+              <div class="dialogue-line editable">
+                <div class="dialogue-speaker">Eria</div>
+                <div class="dialogue-text">You were clutching it when you fell. It seemed like you didn't want to let go.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-block">
+            <div class="text-block-label">Choices</div>
+            <div class="text-block-content editable">
+              1. Thank you, I'll rest here a little longer<br>
+              2. I need to leave now. I think... something urgent was happening
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Glossary reference -->
+      <div class="glossary-panel">
+        <div class="panel-header">📚 관련 용어</div>
+        <div class="glossary-list">
+          <div class="glossary-item">
+            <div class="glossary-term">아르테미아</div>
+            <div class="glossary-trans">→ Artemia</div>
+            <div class="glossary-def">태초의 마법이 깃든 대륙</div>
+          </div>
+          <div class="glossary-item">
+            <div class="glossary-term">카엘</div>
+            <div class="glossary-trans">→ Kael</div>
+            <div class="glossary-def">잃어버린 왕국의 마지막 검사</div>
+          </div>
+          <div class="glossary-item">
+            <div class="glossary-term">에리아</div>
+            <div class="glossary-trans">→ Eria</div>
+            <div class="glossary-def">변경 마을의 약초사</div>
+          </div>
+          <div class="glossary-item">
+            <div class="glossary-term">변경</div>
+            <div class="glossary-trans">→ The Frontier</div>
+            <div class="glossary-def">왕국의 영향력이 미치지 않는 외곽</div>
+          </div>
+          <div class="glossary-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e8e5df;">
+            <div style="font-size: 11px; color: #aaa;">본문에서 감지된 용어 4개</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="editor-footer">
+      <span class="status-badge status-progress">진행중</span>
+      <span class="char-count">원문 312자 · 번역 298자</span>
+      <span style="margin-left: auto;">Ctrl+S 저장 · ← → 이전/다음 노드</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

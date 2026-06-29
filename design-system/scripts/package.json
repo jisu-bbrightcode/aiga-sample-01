@@ -1,0 +1,14 @@
+{
+  "name": "origo-fig-extract",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Origo .fig 디자인시스템 오프라인 추출기 (kiwi 디코드)",
+  "scripts": {
+    "extract": "node fig-extract.mjs",
+    "build": "node build-standard.mjs"
+  },
+  "dependencies": {
+    "kiwi-schema": "^0.5.0"
+  }
+}

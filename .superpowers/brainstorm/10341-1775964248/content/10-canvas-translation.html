@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>캔버스 번역 — 상세 목업</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Geist", "Pretendard Variable", system-ui, sans-serif; background: #f5f4f0; color: #333; }
+
+  .app-shell { display: flex; height: 100vh; }
+
+  /* Sidebar */
+  .sidebar { width: 220px; background: #fafaf8; border-right: 1px solid #e8e5df; padding: 16px 12px; flex-shrink: 0; }
+  .sidebar-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 10px; padding: 0 8px; }
+  .sidebar-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px; font-size: 13px; color: #666; cursor: pointer; margin-bottom: 2px; }
+  .sidebar-item:hover { background: #f0efea; }
+  .sidebar-item.active { background: #e8e5df; color: #333; font-weight: 600; }
+  .sidebar-item .icon { font-size: 14px; }
+  .sidebar-divider { border-top: 1px solid #e8e5df; margin: 8px 0; }
+  .sidebar-item.muted { color: #aaa; font-size: 12px; }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Header */
+  .page-header { padding: 20px 24px 0; }
+  .page-title { font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
+  .page-subtitle { font-size: 13px; color: #999; }
+
+  /* Toolbar */
+  .toolbar { display: flex; align-items: center; gap: 10px; padding: 16px 24px; border-bottom: 1px solid #e8e5df; }
+  .lang-tabs { display: flex; gap: 2px; background: #f0efea; border-radius: 8px; padding: 3px; }
+  .lang-tab { padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; color: #888; cursor: pointer; }
+  .lang-tab.active { background: white; color: #333; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .filter-group { display: flex; gap: 6px; margin-left: 8px; }
+  .filter-btn { padding: 5px 12px; border-radius: 6px; font-size: 11px; color: #888; background: #f5f4f0; border: 1px solid #e5e5e0; cursor: pointer; }
+  .filter-btn.active { background: #333; color: white; border-color: #333; }
+  .search-box { margin-left: auto; display: flex; align-items: center; gap: 6px; background: #f5f4f0; border: 1px solid #e5e5e0; border-radius: 8px; padding: 5px 12px; font-size: 12px; color: #888; width: 200px; }
+  .action-btn { margin-left: 8px; padding: 6px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; background: #2563eb; color: white; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .action-btn:hover { background: #1d4ed8; }
+
+  /* Content list */
+  .content-area { flex: 1; overflow-y: auto; padding: 0; }
+
+  /* Canvas group */
+  .canvas-group { border-bottom: 1px solid #f0efea; }
+  .canvas-group-header { display: flex; align-items: center; gap: 10px; padding: 12px 24px; background: #fafaf8; cursor: pointer; }
+  .canvas-group-header:hover { background: #f5f4f0; }
+  .expand-icon { font-size: 10px; color: #ccc; width: 16px; }
+  .canvas-name { font-size: 13px; font-weight: 600; color: #333; }
+  .canvas-stats { font-size: 11px; color: #999; margin-left: 8px; }
+  .canvas-progress { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .progress-bar { width: 80px; height: 4px; background: #e8e5df; border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; }
+  .progress-fill.high { background: #22c55e; }
+  .progress-fill.mid { background: #f59e0b; }
+  .progress-fill.low { background: #ef4444; }
+  .progress-pct { font-size: 11px; color: #999; width: 32px; text-align: right; font-variant-numeric: tabular-nums; }
+  .canvas-ai-btn { font-size: 11px; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 5px; padding: 3px 10px; cursor: pointer; }
+
+  /* Node rows */
+  .node-list { }
+  .node-row { display: flex; align-items: center; padding: 10px 24px 10px 56px; border-bottom: 1px solid #f5f4f0; font-size: 13px; }
+  .node-row:hover { background: #fafaf8; }
+  .node-type-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 500; margin-right: 10px; flex-shrink: 0; width: 52px; text-align: center; }
+  .badge-scene { background: #e0e7ff; color: #4338ca; }
+  .badge-dialogue { background: #fce7f3; color: #be185d; }
+  .badge-branch { background: #fef3c7; color: #92400e; }
+  .badge-narration { background: #d1fae5; color: #065f46; }
+  .node-source { flex: 1; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .node-source .field-label { color: #bbb; font-size: 11px; margin-right: 4px; }
+  .node-translation { flex: 1; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; padding-left: 16px; border-left: 1px solid #f0efea; }
+  .node-translation.empty { color: #ccc; font-style: italic; }
+  .node-status { width: 72px; text-align: center; flex-shrink: 0; margin-left: 12px; }
+  .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .status-text { font-size: 11px; color: #999; }
+  .dot-done { background: #22c55e; }
+  .dot-progress { background: #f59e0b; }
+  .dot-pending { background: #d4d4d4; }
+
+  /* Summary bar */
+  .summary-bar { display: flex; align-items: center; gap: 16px; padding: 10px 24px; background: #fafaf8; border-top: 1px solid #e8e5df; font-size: 12px; color: #999; }
+  .summary-stat { display: flex; align-items: center; gap: 4px; }
+  .summary-stat .dot { width: 6px; height: 6px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-label">현지화</div>
+    <div class="sidebar-item">
+      <span class="icon">📊</span> 대시보드
+    </div>
+    <div class="sidebar-item active">
+      <span class="icon">🎬</span> 캔버스 번역
+    </div>
+    <div class="sidebar-item">
+      <span class="icon">📖</span> 세계관 번역
+    </div>
+    <div class="sidebar-item">
+      <span class="icon">📚</span> 용어 사전
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-item muted">
+      <span class="icon">⚙️</span> 언어 설정
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="page-header">
+      <div class="page-title">캔버스 번역</div>
+      <div class="page-subtitle">게임 출시에 필요한 스토리 노드 번역</div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="lang-tabs">
+        <div class="lang-tab active">EN</div>
+        <div class="lang-tab">JA</div>
+        <div class="lang-tab">ZH</div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-btn active">전체</div>
+        <div class="filter-btn">미번역</div>
+        <div class="filter-btn">진행중</div>
+        <div class="filter-btn">완료</div>
+      </div>
+      <div class="search-box">
+        🔍 검색...
+      </div>
+      <button class="action-btn">
+        ✨ AI 일괄 번역
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="content-area">
+      <!-- Canvas 1: Expanded -->
+      <div class="canvas-group">
+        <div class="canvas-group-header">
+          <span class="expand-icon">▼</span>
+          <span class="canvas-name">챕터 1: 시작의 땅</span>
+          <span class="canvas-stats">257개 문자열</span>
+          <div class="canvas-progress">
+            <div class="progress-bar"><div class="progress-fill mid" style="width: 62%;"></div></div>
+            <span class="progress-pct">62%</span>
+          </div>
+          <button class="canvas-ai-btn">✨ AI 번역</button>
+        </div>
+        <div class="node-list">
+          <div class="node-row">
+            <span class="node-type-badge badge-scene">씬</span>
+            <div class="node-source"><span class="field-label">제목</span>프롤로그 — 잠에서 깨어나다</div>
+            <div class="node-translation">Prologue — Awakening</div>
+            <div class="node-status"><span class="status-dot dot-done"></span><span class="status-text">완료</span></div>
+          </div>
+          <div class="node-row">
+            <span class="node-type-badge badge-dialogue">대사</span>
+            <div class="node-source"><span class="field-label">대사</span>여기가... 어디지? 마지막으로 기억나는 건...</div>
+            <div class="node-translation">Where... am I? The last thing I remember is...</div>
+            <div class="node-status"><span class="status-dot dot-done"></span><span class="status-text">완료</span></div>
+          </div>
+          <div class="node-row">
+            <span class="node-type-badge badge-dialogue">대사</span>
+            <div class="node-source"><span class="field-label">대사</span>정신이 드셨군요. 여긴 아르테미아 변경의 작은 마을입니다.</div>
+            <div class="node-translation">You're awake. This is a small village on the border of Artemia.</div>
+            <div class="node-status"><span class="status-dot dot-progress"></span><span class="status-text">검수중</span></div>
+          </div>
+          <div class="node-row">
+            <span class="node-type-badge badge-branch">분기</span>
+            <div class="node-source"><span class="field-label">선택지</span>고마워요, 여기서 좀 더 쉴게요 / 당장 떠나야 해요</div>
+            <div class="node-translation empty">미번역</div>
+            <div class="node-status"><span class="status-dot dot-pending"></span><span class="status-text">미번역</span></div>
+          </div>
+          <div class="node-row">
+            <span class="node-type-badge badge-narration">나레이션</span>
+            <div class="node-source"><span class="field-label">본문</span>차가운 바람이 창문 틈으로 스며들었다. 낯선 천장이 눈에 들어왔다.</div>
+            <div class="node-translation empty">미번역</div>
+            <div class="node-status"><span class="status-dot dot-pending"></span><span class="status-text">미번역</span></div>
+          </div>
+          <div class="node-row">
+            <span class="node-type-badge badge-dialogue">대사</span>
+            <div class="node-source"><span class="field-label">대사</span>이 검은... 제 거였나요?</div>
+            <div class="node-translation">This sword... was it mine?</div>
+            <div class="node-status"><span class="status-dot dot-done"></span><span class="status-text">완료</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Canvas 2: Collapsed -->
+      <div class="canvas-group">
+        <div class="canvas-group-header">
+          <span class="expand-icon">▶</span>
+          <span class="canvas-name">챕터 2: 어둠의 숲</span>
+          <span class="canvas-stats">346개 문자열</span>
+          <div class="canvas-progress">
+            <div class="progress-bar"><div class="progress-fill low" style="width: 12%;"></div></div>
+            <span class="progress-pct">12%</span>
+          </div>
+          <button class="canvas-ai-btn">✨ AI 번역</button>
+        </div>
+      </div>
+
+      <!-- Canvas 3: Collapsed -->
+      <div class="canvas-group">
+        <div class="canvas-group-header">
+          <span class="expand-icon">▶</span>
+          <span class="canvas-name">챕터 3: 왕국의 그림자</span>
+          <span class="canvas-stats">445개 문자열</span>
+          <div class="canvas-progress">
+            <div class="progress-bar"><div class="progress-fill low" style="width: 0%;"></div></div>
+            <span class="progress-pct">0%</span>
+          </div>
+          <button class="canvas-ai-btn">✨ AI 번역</button>
+        </div>
+      </div>
+
+      <!-- Canvas 4: Collapsed -->
+      <div class="canvas-group">
+        <div class="canvas-group-header">
+          <span class="expand-icon">▶</span>
+          <span class="canvas-name">사이드 퀘스트: 잃어버린 검</span>
+          <span class="canvas-stats">89개 문자열</span>
+          <div class="canvas-progress">
+            <div class="progress-bar"><div class="progress-fill high" style="width: 100%;"></div></div>
+            <span class="progress-pct">100%</span>
+          </div>
+          <button class="canvas-ai-btn" style="opacity: 0.3;">완료</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-bar">
+      <span>English 전체:</span>
+      <div class="summary-stat"><div class="dot" style="background: #22c55e;"></div> 완료 412</div>
+      <div class="summary-stat"><div class="dot" style="background: #f59e0b;"></div> 검수중 38</div>
+      <div class="summary-stat"><div class="dot" style="background: #d4d4d4;"></div> 미번역 687</div>
+      <span style="margin-left: auto; font-variant-numeric: tabular-nums;">1,137개 중 412개 완료 (36%)</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

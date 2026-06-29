@@ -1,0 +1,143 @@
+<h2>번역 에디터 레이아웃</h2>
+<p class="subtitle">엔티티(캐릭터/세계/장소)를 선택한 후, 번역을 어떻게 편집할까요?</p>
+
+<div class="cards">
+  <!-- Option A: Side-by-side -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: #fafaf8; border-radius: 8px; padding: 16px; font-size: 12px;">
+        <div style="display: flex; gap: 2px; margin-bottom: 12px;">
+          <div style="background: #e8e4df; border-radius: 4px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: #666;">KO → EN</div>
+          <div style="margin-left: auto; background: #dbeafe; border-radius: 4px; padding: 4px 8px; font-size: 10px; color: #2563eb;">AI 번역</div>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <!-- Left: Source -->
+          <div style="flex: 1; border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden;">
+            <div style="background: #f5f4f0; padding: 6px 10px; font-size: 10px; color: #999; border-bottom: 1px solid #e5e5e5;">원문 (한국어)</div>
+            <div style="padding: 10px; line-height: 1.6; color: #333;">
+              <div style="font-weight: 600; margin-bottom: 4px;">이름</div>
+              <div style="color: #666; background: #f9f9f6; padding: 6px 8px; border-radius: 4px;">아르테미아</div>
+              <div style="font-weight: 600; margin-top: 10px; margin-bottom: 4px;">설명</div>
+              <div style="color: #666; background: #f9f9f6; padding: 6px 8px; border-radius: 4px;">태초의 마법이 깃든 대륙. 다섯 왕국이 균형을 이루며...</div>
+            </div>
+          </div>
+          <!-- Right: Translation -->
+          <div style="flex: 1; border: 1px solid #dbeafe; border-radius: 6px; overflow: hidden;">
+            <div style="background: #eff6ff; padding: 6px 10px; font-size: 10px; color: #2563eb; border-bottom: 1px solid #dbeafe;">번역 (English)</div>
+            <div style="padding: 10px; line-height: 1.6; color: #333;">
+              <div style="font-weight: 600; margin-bottom: 4px;">Name</div>
+              <div style="background: #f0f9ff; padding: 6px 8px; border-radius: 4px; border: 1px solid #bfdbfe;">Artemia</div>
+              <div style="font-weight: 600; margin-top: 10px; margin-bottom: 4px;">Description</div>
+              <div style="background: #f0f9ff; padding: 6px 8px; border-radius: 4px; border: 1px solid #bfdbfe;">A continent where primordial magic resides. Five kingdoms maintain balance...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 좌우 분할 (Side-by-Side)</h3>
+      <p>원문 좌측 / 번역 우측. 업계 표준. 필드(이름/설명/본문)별로 1:1 매핑. 한 엔티티의 한 언어를 집중 편집.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Inline table -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: #fafaf8; border-radius: 8px; padding: 16px; font-size: 12px;">
+        <div style="margin-bottom: 12px; display: flex; gap: 6px;">
+          <div style="background: #e8e4df; border-radius: 4px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: #666;">아르테미아 — 세계</div>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <thead>
+            <tr style="border-bottom: 1px solid #e5e5e5;">
+              <th style="text-align: left; padding: 6px 8px; color: #999; width: 60px;">필드</th>
+              <th style="text-align: left; padding: 6px 8px; color: #999;">원문 (KO)</th>
+              <th style="text-align: left; padding: 6px 8px; color: #2563eb;">EN</th>
+              <th style="text-align: left; padding: 6px 8px; color: #dc2626;">JA</th>
+              <th style="text-align: left; padding: 6px 8px; color: #16a34a;">ZH</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 8px; font-weight: 500; color: #888;">이름</td>
+              <td style="padding: 8px; color: #333;">아르테미아</td>
+              <td style="padding: 8px;"><span style="background: #f0f9ff; padding: 2px 6px; border-radius: 3px; border: 1px solid #bfdbfe;">Artemia</span></td>
+              <td style="padding: 8px;"><span style="background: #fef2f2; padding: 2px 6px; border-radius: 3px; border: 1px solid #fecaca;">アルテミア</span></td>
+              <td style="padding: 8px; color: #ccc;">—</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f0f0f0; background: #fafafa;">
+              <td style="padding: 8px; font-weight: 500; color: #888;">설명</td>
+              <td style="padding: 8px; color: #333;">태초의 마법이 깃든...</td>
+              <td style="padding: 8px;"><span style="background: #f0f9ff; padding: 2px 6px; border-radius: 3px; border: 1px solid #bfdbfe;">A continent where...</span></td>
+              <td style="padding: 8px; color: #ccc;">—</td>
+              <td style="padding: 8px; color: #ccc;">—</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: 500; color: #888;">본문</td>
+              <td style="padding: 8px; color: #333;">아르테미아는 다섯...</td>
+              <td style="padding: 8px;"><span style="background: #f0f9ff; padding: 2px 6px; border-radius: 3px; border: 1px solid #bfdbfe;">Artemia is five...</span></td>
+              <td style="padding: 8px; color: #ccc;">—</td>
+              <td style="padding: 8px; color: #ccc;">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 다국어 테이블 (Multi-Language Grid)</h3>
+      <p>한 엔티티의 모든 필드 × 모든 언어를 테이블로. 인라인 편집. 번역 누락을 한눈에 파악. 스프레드시트 느낌.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Stacked cards -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: #fafaf8; border-radius: 8px; padding: 16px; font-size: 12px;">
+        <div style="margin-bottom: 12px; display: flex; gap: 6px;">
+          <div style="background: #e8e4df; border-radius: 4px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: #666;">아르테미아 — 세계</div>
+          <div style="margin-left: auto; font-size: 10px; color: #999;">3/9 완료</div>
+        </div>
+        <!-- Field card: 이름 -->
+        <div style="border: 1px solid #e5e5e5; border-radius: 8px; margin-bottom: 8px; overflow: hidden;">
+          <div style="background: #f5f4f0; padding: 8px 12px; font-size: 11px; display: flex; justify-content: space-between;">
+            <span style="font-weight: 600; color: #666;">이름</span>
+            <span style="color: #999;">아르테미아</span>
+          </div>
+          <div style="padding: 8px 12px; display: flex; gap: 8px;">
+            <div style="flex: 1; background: #f0f9ff; border-radius: 4px; padding: 6px 8px; font-size: 11px; border: 1px solid #bfdbfe;">
+              <span style="color: #2563eb; font-size: 9px;">EN</span> Artemia
+            </div>
+            <div style="flex: 1; background: #fef2f2; border-radius: 4px; padding: 6px 8px; font-size: 11px; border: 1px solid #fecaca;">
+              <span style="color: #dc2626; font-size: 9px;">JA</span> アルテミア
+            </div>
+            <div style="flex: 1; background: #f5f5f5; border-radius: 4px; padding: 6px 8px; font-size: 11px; border: 1px dashed #ddd; color: #ccc;">
+              <span style="font-size: 9px;">ZH</span> 미번역
+            </div>
+          </div>
+        </div>
+        <!-- Field card: 설명 -->
+        <div style="border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden;">
+          <div style="background: #f5f4f0; padding: 8px 12px; font-size: 11px; display: flex; justify-content: space-between;">
+            <span style="font-weight: 600; color: #666;">설명</span>
+            <span style="color: #999;">태초의 마법이 깃든 대륙...</span>
+          </div>
+          <div style="padding: 8px 12px; display: flex; gap: 8px;">
+            <div style="flex: 1; background: #f0f9ff; border-radius: 4px; padding: 6px 8px; font-size: 11px; border: 1px solid #bfdbfe;">
+              <span style="color: #2563eb; font-size: 9px;">EN</span> A continent where...
+            </div>
+            <div style="flex: 1; background: #f5f5f5; border-radius: 4px; padding: 6px 8px; font-size: 11px; border: 1px dashed #ddd; color: #ccc;">
+              <span style="font-size: 9px;">JA</span> 미번역
+            </div>
+            <div style="flex: 1; background: #f5f5f5; border-radius: 4px; padding: 6px 8px; font-size: 11px; border: 1px dashed #ddd; color: #ccc;">
+              <span style="font-size: 9px;">ZH</span> 미번역
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. 필드 카드 (Stacked Cards)</h3>
+      <p>각 필드가 하나의 카드. 카드 안에 모든 언어 번역이 나란히. 모바일 친화적. 필드별 맥락이 명확. 클릭하면 확장 편집.</p>
+    </div>
+  </div>
+</div>

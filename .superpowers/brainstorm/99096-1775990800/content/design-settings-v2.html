@@ -1,0 +1,86 @@
+<h2>디자인 3/3 (v2) — 프로젝트 설정 페이지</h2>
+<p class="subtitle">사이드바 헤더 영역 제거, "워크스페이스로 돌아가기"만</p>
+
+<div class="mockup">
+  <div class="mockup-header">프로젝트 설정 — 일반 (MVP)</div>
+  <div class="mockup-body" style="min-height:500px; background:#0a0a12; padding:0; display:flex;">
+
+    <!-- Sidebar -->
+    <div style="width:240px; background:#111120; min-height:500px; border-right:1px solid #1e1e32; flex-shrink:0; display:flex; flex-direction:column;">
+
+      <!-- Settings Sub-nav (no logo area) -->
+      <div style="flex:1; overflow-y:auto; padding:12px 8px;">
+        <div style="padding:8px 12px; border-radius:6px; color:#888; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px;">
+          ← <span>워크스페이스로 돌아가기</span>
+        </div>
+
+        <div style="padding:6px 8px; color:#555; font-size:11px; text-transform:uppercase; margin-top:16px;">프로젝트 설정</div>
+        <div style="padding:8px 12px; background:#1e1e32; border-radius:6px; color:#fff; font-size:13px;">📋 일반</div>
+        <div style="padding:8px 12px; border-radius:6px; color:#888; font-size:13px; cursor:not-allowed; opacity:0.5;">🤖 AI 모드 <span style="font-size:10px; color:#555;">Phase 2</span></div>
+        <div style="padding:8px 12px; border-radius:6px; color:#888; font-size:13px; cursor:not-allowed; opacity:0.5;">👥 멤버 <span style="font-size:10px; color:#555;">Phase 2</span></div>
+      </div>
+    </div>
+
+    <!-- Main Content: Settings Form -->
+    <div style="flex:1; display:flex; flex-direction:column;">
+      <div style="max-width:640px; padding:40px 48px;">
+
+        <!-- Page Title -->
+        <div style="margin-bottom:32px;">
+          <div style="color:#fff; font-size:20px; font-weight:600; margin-bottom:4px;">일반 설정</div>
+          <div style="color:#666; font-size:13px;">프로젝트의 기본 정보를 관리합니다</div>
+        </div>
+
+        <!-- Project Icon -->
+        <div style="margin-bottom:28px;">
+          <div style="color:#ccc; font-size:13px; font-weight:500; margin-bottom:8px;">프로젝트 아이콘</div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:48px; height:48px; background:linear-gradient(135deg, #1a1a3e, #2a1a3e); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:24px; cursor:pointer; border:1px solid #2a2a42;">🏰</div>
+            <div style="color:#666; font-size:12px;">클릭하여 아이콘 변경</div>
+          </div>
+        </div>
+
+        <!-- Project Name -->
+        <div style="margin-bottom:28px;">
+          <div style="color:#ccc; font-size:13px; font-weight:500; margin-bottom:8px;">프로젝트 이름</div>
+          <div style="padding:10px 12px; background:#12121f; border:1px solid #2a2a42; border-radius:8px; color:#fff; font-size:14px;">아르카디아 연대기</div>
+        </div>
+
+        <!-- Description -->
+        <div style="margin-bottom:28px;">
+          <div style="color:#ccc; font-size:13px; font-weight:500; margin-bottom:8px;">설명</div>
+          <div style="padding:10px 12px; background:#12121f; border:1px solid #2a2a42; border-radius:8px; color:#888; font-size:14px; min-height:60px;">판타지 RPG 시나리오 — 10만 분기</div>
+        </div>
+
+        <!-- Thumbnail -->
+        <div style="margin-bottom:28px;">
+          <div style="color:#ccc; font-size:13px; font-weight:500; margin-bottom:8px;">썸네일</div>
+          <div style="width:200px; height:120px; background:#12121f; border:1px dashed #2a2a42; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#555; font-size:12px; cursor:pointer;">
+            + 이미지 업로드
+          </div>
+        </div>
+
+        <!-- Save -->
+        <div style="padding-top:16px; border-top:1px solid #1e1e32;">
+          <div style="display:inline-block; padding:10px 24px; background:#6366f1; border-radius:8px; color:#fff; font-size:13px; font-weight:500; cursor:pointer;">저장</div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div style="margin-top:48px; padding:20px; background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.2); border-radius:10px;">
+          <div style="color:#ef4444; font-size:14px; font-weight:600; margin-bottom:4px;">위험 영역</div>
+          <div style="color:#888; font-size:13px; margin-bottom:16px;">이 작업은 되돌릴 수 없습니다</div>
+          <div style="display:inline-block; padding:8px 16px; background:transparent; border:1px solid #ef4444; border-radius:6px; color:#ef4444; font-size:13px; cursor:pointer;">프로젝트 삭제</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:16px; padding:16px; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); border-radius:8px;">
+  <div style="color:#a5b4fc; font-weight:600; margin-bottom:8px;">변경점</div>
+  <ul style="color:#ccc; font-size:13px; margin:0; padding-left:20px; line-height:1.8;">
+    <li>사이드바 상단 로고/프로젝트 스위처 영역 <strong>제거</strong></li>
+    <li><strong>"← 워크스페이스로 돌아가기"</strong>가 사이드바 최상단</li>
+    <li>그 아래 설정 서브 메뉴 (일반 / AI 모드 / 멤버)</li>
+  </ul>
+</div>

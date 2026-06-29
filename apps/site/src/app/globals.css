@@ -1,0 +1,7 @@
+@import "@repo/ui/styles";
+
+/* Tailwind v4 content sources. This app and @repo/ui live outside Tailwind's
+   default scan roots (the latter is a symlinked workspace package), so declare
+   them explicitly. Paths are relative to this file. */
+@source "../**/*.{ts,tsx}";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";

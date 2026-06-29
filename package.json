@@ -1,0 +1,99 @@
+{
+  "name": "product-builder",
+  "version": "0.1.0",
+  "private": true,
+  "pnpm": {
+    "overrides": {
+      "esbuild": "^0.25.0"
+    },
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@duckdb/node-api",
+      "better-sqlite3",
+      "sharp"
+    ],
+    "peerDependencyRules": {
+      "ignoreMissing": [
+        "prisma",
+        "@prisma/client",
+        "@prisma/extension-accelerate"
+      ]
+    }
+  },
+  "scripts": {
+    "api:codegen": "pnpm --filter server openapi:dump && pnpm --filter @repo/api-client exec openapi-typescript openapi.json -o src/generated/paths.ts",
+    "api:verify": "pnpm api:codegen && git diff --exit-code packages/api-client/src/generated/paths.ts",
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "node scripts/biome-changed.mjs lint .",
+    "lint:changed": "node scripts/biome-changed.mjs lint .",
+    "lint:staged": "biome lint --staged . --no-errors-on-unmatched",
+    "lint:oxlint": "node scripts/oxlint-changed.mjs .",
+    "copycheck": "node scripts/jscpd-changed.mjs .",
+    "copycheck:changed": "node scripts/jscpd-changed.mjs .",
+    "check": "node scripts/biome-changed.mjs check .",
+    "check:changed": "node scripts/biome-changed.mjs check .",
+    "check:ci": "node scripts/biome-changed.mjs ci .",
+    "format": "node scripts/biome-changed.mjs format .",
+    "format:check": "node scripts/biome-changed.mjs format:check .",
+    "check-types": "turbo run check-types",
+    "db:branch:new": "node scripts/neon-branch.mjs create",
+    "db:branch:rm": "node scripts/neon-branch.mjs delete",
+    "db:branch:url": "node scripts/neon-branch.mjs url",
+    "e2e:branch": "bash scripts/e2e-against-branch.sh",
+    "verify:vercel-gate": "node scripts/verify-vercel-deploy-gate.mjs",
+    "db:raw-sql:audit": "node scripts/audit-raw-sql.mjs",
+    "db:raw-sql:inventory": "node scripts/audit-raw-sql.mjs --write",
+    "db:generate": "pnpm --filter @repo/drizzle db:generate",
+    "db:migrate": "pnpm --filter @repo/drizzle db:migrate",
+    "db:push": "pnpm --filter @repo/drizzle db:push",
+    "db:studio": "pnpm --filter @repo/drizzle db:studio",
+    "db:seed:demo": "node scripts/seed-demo.mjs",
+    "prepare": "husky",
+    "test": "turbo run test",
+    "test:auth": "pnpm run test:auth:core && pnpm run test:auth:email && pnpm run test:auth:app",
+    "test:auth:core": "tsx --test packages/core/auth/magic-link-sender.test.ts packages/core/auth/organization-invitation-sender.test.ts packages/core/auth/password-reset-url.test.ts packages/core/auth/password-reset-sender.test.ts packages/core/auth/password-changed-sender.test.ts packages/core/auth/error-codes.test.ts packages/core/auth/origins.test.ts packages/core/auth/jwt-payload.test.ts packages/core/env/local-env.test.ts packages/drizzle/src/schema/core/better-auth.test.ts",
+    "test:auth:email": "pnpm --filter @repo/features run test:auth",
+    "test:auth:app": "pnpm --filter app run test:auth",
+    "test:server:deploy": "tsx --test apps/server/src/config/env.test.ts apps/server/src/config/local-env.test.ts && pnpm --filter @repo/features exec jest payment/config/payment.config.spec.ts --runInBand && pnpm --filter @repo/features exec tsx --test common/__tests__/provider-feature-env.node.ts message-sending/__tests__/solapi.config.node.ts && pnpm --filter server test -- payment-feature.spec.ts message-sending-feature.spec.ts --runInBand && node --test apps/server/scripts/vercel-output.test.mjs",
+    "test:cov": "turbo run test:cov",
+    "i18n:detect": "tsx scripts/i18n/detect-hardcoded.ts",
+    "i18n:translate": "tsx scripts/i18n/translate.ts",
+    "i18n:verify": "tsx scripts/i18n/verify-keys.ts",
+    "i18n:test": "tsx --test scripts/i18n/__tests__/detect.test.ts scripts/i18n/__tests__/verify.test.ts scripts/i18n/__tests__/translate.test.ts",
+    "deploy:check": "pnpm run test:auth && pnpm run test:server:deploy && pnpm --filter server build && pnpm --filter app exec vite build",
+    "deploy:build:app": "pnpm run test:auth && pnpm --filter app exec vite build",
+    "deploy:build:server": "pnpm run test:auth && pnpm run test:server:deploy && pnpm --filter server build",
+    "release": "semantic-release",
+    "release:dry": "semantic-release --dry-run"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.12",
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.4.1",
+    "@oxlint/plugins": "^1.66.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^10.0.1",
+    "dotenv": "^17.2.3",
+    "drizzle-kit": "^0.30.5",
+    "husky": "^9.1.7",
+    "jscpd": "^4.2.3",
+    "oxlint": "^1.66.0",
+    "oxlint-tsgolint": "^0.23.0",
+    "semantic-release": "^25.0.3",
+    "tsx": "^4.21.0",
+    "turbo": "^2.7.4",
+    "typescript": "5.9.2"
+  },
+  "packageManager": "pnpm@11.1.1",
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "better-auth": "^1.5.5",
+    "drizzle-orm": "^0.38.4",
+    "jose": "^6.2.1"
+  }
+}

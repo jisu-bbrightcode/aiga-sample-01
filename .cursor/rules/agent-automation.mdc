@@ -1,0 +1,19 @@
+---
+description: Agent Automation Checklist & Instructions
+globs: agent-checklist.md
+alwaysApply: true
+---
+
+# Agent Automation Rules
+
+When you are asked to "Install a feature", "Create a feature", or "Connect a feature":
+
+YOU MUST FOLLOW the checklist in:
+`docs/guides/agent-checklist.md`
+
+## Core Instructions
+
+1. **Read the Checklist First**: Before touching any code, read the checklist file.
+2. **Step-by-Step**: Execute tasks sequentially.
+3. **Verification**: Run `pnpm build` and `pnpm db:push` after completion.
+4. **Paths**: Use paths defined in `docs/architecture/11-project-template.md`.

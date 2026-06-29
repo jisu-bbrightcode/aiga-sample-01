@@ -1,0 +1,30 @@
+name: oxlint-safety-rules
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Enforce the two data-safety oxlint rules at the repo gate:
+#   - product-builder/no-raw-sql-query      (every SQL goes through drizzle)
+#   - product-builder/no-schema-outside-drizzle (PostgreSQL tables live in @repo/drizzle only)
+#
+# These rules are also enforced by `.oxlintrc.json` rules: "error" entries, but
+# this workflow ensures CI fails even if a contributor edits the local config
+# during their PR.
+
+jobs:
+  oxlint:
+    name: Oxlint — safety rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Run oxlint with safety rules forced to error
+        run: pnpm exec oxlint -c .github/oxlint-safety.json

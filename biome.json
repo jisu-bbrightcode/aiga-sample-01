@@ -1,0 +1,470 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.12/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/.next",
+      "!**/.turbo",
+      "!**/build",
+      "!**/coverage",
+      "!**/out",
+      "!**/docs/_archive",
+      "!**/_bmad",
+      "!**/graphify-out",
+      "!**/raw",
+      "!**/.claude/worktrees",
+      "!**/packages/api-client/src/generated/paths.ts",
+      "!**/packages/drizzle/src/schema/migrations",
+      "!**/src/generated",
+      "!**/*.css",
+      "!**/*.html",
+      "!**/apps/app/e2e"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "useEditorconfig": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    },
+    "globals": [
+      "jest",
+      "describe",
+      "it",
+      "test",
+      "expect",
+      "beforeAll",
+      "beforeEach",
+      "afterAll",
+      "afterEach"
+    ],
+    "formatter": {
+      "quoteStyle": "double",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always",
+      "bracketSpacing": true,
+      "bracketSameLine": false
+    }
+  },
+  "json": {
+    "formatter": {
+      "trailingCommas": "none"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": { "maxAllowedComplexity": 15 }
+        },
+        "noExcessiveLinesPerFunction": {
+          "level": "warn",
+          "options": { "maxLines": 60, "skipIifes": true }
+        },
+        "useMaxParams": {
+          "level": "error",
+          "options": { "max": 4 }
+        },
+        "noForEach": "warn",
+        "useLiteralKeys": "error",
+        "noBannedTypes": "error",
+        "noStaticOnlyClass": "error",
+        "noUselessCatch": "error",
+        "noUselessConstructor": "error",
+        "noUselessContinue": "error",
+        "noUselessRename": "error",
+        "noUselessSwitchCase": "error",
+        "noUselessTernary": "error",
+        "useFlatMap": "error",
+        "useOptionalChain": "error",
+        "useRegexLiterals": "error",
+        "useArrowFunction": "error"
+      },
+
+      "style": {
+        "noNegationElse": "error",
+        "noNestedTernary": "error",
+        "noNonNullAssertion": "error",
+        "noParameterAssign": "error",
+        "noUselessElse": "error",
+        "useConst": "error",
+        "useSelfClosingElements": "error",
+        "useShorthandFunctionType": "error",
+        "useTemplate": "error",
+        "useNodejsImportProtocol": "error",
+        "noInferrableTypes": "error",
+        "useAsConstAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useEnumInitializers": "error",
+        "useExponentiationOperator": "error",
+        "useImportType": "error",
+        "useExportType": "error",
+        "useConsistentArrayType": { "level": "error", "options": { "syntax": "shorthand" } },
+        "useConsistentTypeDefinitions": { "level": "warn", "options": { "style": "interface" } },
+
+        "noRestrictedImports": {
+          "level": "warn",
+          "options": {
+            "paths": {
+              "react": {
+                "importNames": ["useMemo", "useCallback", "memo"],
+                "message": "이 프로젝트는 React Compiler를 사용. useMemo/useCallback/memo는 자동 메모이제이션되므로 수동 작성 금지. 기존 코드 점진 제거 중 — 편집 시마다 제거 권장. 0건 도달하면 error로 승격. 규칙: .claude/rules/frontend/react-component.md §1"
+              }
+            }
+          }
+        }
+      },
+
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noArrayIndexKey": "error",
+        "noConsole": {
+          "level": "warn",
+          "options": { "allow": ["error", "warn", "info"] }
+        },
+        "noDebugger": "error",
+        "noDoubleEquals": "error",
+        "noEmptyBlockStatements": "warn",
+        "noFallthroughSwitchClause": "error",
+        "noImplicitAnyLet": "error",
+        "noMisleadingCharacterClass": "error",
+        "noShadowRestrictedNames": "error",
+        "noUnsafeNegation": "error",
+        "useAwait": "error",
+        "useDefaultSwitchClauseLast": "error",
+        "useGetterReturn": "error",
+        "useIsArray": "error"
+      },
+
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error",
+        "noUnusedFunctionParameters": "warn",
+        "useExhaustiveDependencies": "error",
+        "useHookAtTopLevel": "error",
+        "noChildrenProp": "error",
+        "noConstAssign": "error",
+        "noEmptyPattern": "error",
+        "noInvalidUseBeforeDeclaration": "error",
+        "noPrecisionLoss": "error",
+        "noSelfAssign": "error",
+        "noSwitchDeclarations": "error",
+        "noUndeclaredVariables": "error",
+        "noUnreachable": "error",
+        "noUnreachableSuper": "error"
+      },
+
+      "performance": {
+        "noAccumulatingSpread": "warn",
+        "noDelete": "error"
+      },
+
+      "security": {
+        "noDangerouslySetInnerHtml": "warn",
+        "noDangerouslySetInnerHtmlWithChildren": "error"
+      },
+
+      "a11y": {
+        "recommended": false,
+        "noSvgWithoutTitle": "off",
+        "useButtonType": "warn",
+        "useValidAnchor": "warn",
+        "useAnchorContent": "warn",
+        "useAltText": "warn",
+        "useHtmlLang": "warn",
+        "useSemanticElements": "off",
+        "useKeyWithClickEvents": "off",
+        "noStaticElementInteractions": "off",
+        "useMediaCaption": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": [".pi/extensions/**"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveLinesPerFunction": "off",
+            "noExcessiveCognitiveComplexity": "off",
+            "useMaxParams": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/server/src/**",
+        "packages/features/**",
+        "packages/core/nestjs/**",
+        "packages/core/logger/nestjs/**",
+        "packages/core/error/**",
+        "packages/drizzle/src/database.module.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "**/*.spec.mjs",
+        "**/__tests__/**",
+        "**/__test-utils__/**",
+        "**/e2e/**"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "warn",
+            "noConsole": "off",
+            "noNonNullAssertedOptionalChain": "warn"
+          },
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off",
+            "noExcessiveLinesPerFunction": "off",
+            "useMaxParams": "off"
+          },
+          "style": {
+            "noNonNullAssertion": "warn",
+            "noParameterAssign": "warn",
+            "noNestedTernary": "warn"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/*.bench.ts",
+        "**/__benchmarks__/**",
+        "**/scripts/**",
+        "**/tools/**",
+        "packages/oxlint-plugin/**"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          },
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off",
+            "noExcessiveLinesPerFunction": "off"
+          },
+          "style": {
+            "noNestedTernary": "warn"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/admin/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNestedTernary": "warn",
+            "noNonNullAssertion": "warn"
+          },
+          "suspicious": {
+            "noArrayIndexKey": "warn",
+            "noExplicitAny": "warn",
+            "useAwait": "warn"
+          },
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "warn",
+            "noBannedTypes": "warn"
+          },
+          "correctness": {
+            "noInnerDeclarations": "off",
+            "noEmptyPattern": "warn",
+            "useExhaustiveDependencies": "warn",
+            "useHookAtTopLevel": "warn"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/app/src/pages/gallery/**", "apps/app/src/pages/settings/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noArrayIndexKey": "off",
+            "noExplicitAny": "warn"
+          },
+          "style": {
+            "noNestedTernary": "off",
+            "noNonNullAssertion": "warn",
+            "noParameterAssign": "warn"
+          },
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off",
+            "noExcessiveLinesPerFunction": "off",
+            "useMaxParams": "off",
+            "noBannedTypes": "off"
+          },
+          "correctness": {
+            "useExhaustiveDependencies": "warn",
+            "noEmptyPattern": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/app/src/features/localization/pages/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noArrayIndexKey": "off",
+            "noExplicitAny": "warn"
+          },
+          "style": {
+            "noNestedTernary": "off",
+            "noNonNullAssertion": "warn",
+            "noParameterAssign": "warn"
+          },
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off",
+            "noExcessiveLinesPerFunction": "off",
+            "useMaxParams": "off",
+            "noBannedTypes": "off"
+          },
+          "correctness": {
+            "useExhaustiveDependencies": "warn",
+            "noEmptyPattern": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/app/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNestedTernary": "warn",
+            "noNonNullAssertion": "warn"
+          },
+          "suspicious": {
+            "noArrayIndexKey": "warn",
+            "noExplicitAny": "warn",
+            "useAwait": "warn",
+            "noShadowRestrictedNames": "warn"
+          },
+          "complexity": {
+            "noBannedTypes": "warn",
+            "useMaxParams": "warn"
+          },
+          "correctness": {
+            "noInnerDeclarations": "off",
+            "noEmptyPattern": "warn",
+            "useExhaustiveDependencies": "warn",
+            "useHookAtTopLevel": "warn"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/features/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNestedTernary": "warn",
+            "noNonNullAssertion": "warn",
+            "useDefaultParameterLast": "warn"
+          },
+          "suspicious": {
+            "noExplicitAny": "warn",
+            "useAwait": "warn"
+          },
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "warn",
+            "useMaxParams": "warn"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/payment/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNestedTernary": "warn",
+            "noNonNullAssertion": "warn"
+          },
+          "suspicious": {
+            "noArrayIndexKey": "warn",
+            "noExplicitAny": "warn",
+            "useAwait": "warn"
+          },
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "warn",
+            "useMaxParams": "warn"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/ui/src/_shadcn/**",
+        "packages/ui/src/components/shadcn-studio/**",
+        "packages/ui/src/components/ai/**",
+        "packages/ui/src/components/calendars/**",
+        "packages/ui/src/components/chat/**",
+        "packages/ui/src/components/editor/**",
+        "packages/ui/src/components/ui/**",
+        "packages/ui/src/hooks/**",
+        "packages/ui/src/templates/**"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noArrayIndexKey": "off",
+            "noExplicitAny": "warn"
+          },
+          "style": {
+            "noNestedTernary": "off",
+            "noNonNullAssertion": "warn",
+            "noParameterAssign": "warn"
+          },
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off",
+            "noExcessiveLinesPerFunction": "off",
+            "useMaxParams": "off"
+          },
+          "correctness": {
+            "useExhaustiveDependencies": "warn"
+          }
+        }
+      }
+    }
+  ]
+}

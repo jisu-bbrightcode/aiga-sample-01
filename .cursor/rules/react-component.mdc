@@ -1,0 +1,39 @@
+---
+description: React 컴포넌트 생성 및 수정 시 적용되는 필수 규칙
+globs: **/*.tsx
+alwaysApply: false
+---
+
+# React Component Generation Rules
+
+컴포넌트 생성 또는 수정 요청을 받았을 때, **반드시** 이 규칙을 먼저 확인하고 따라야 합니다.
+
+## 1. 템플릿 필수 사용
+
+새로운 컴포넌트를 작성할 때는 **반드시** 아래 템플릿 파일을 읽고, 해당 구조를 그대로 유지해야 합니다.
+- **Template File**: `.cursor/templates/react-component.tsx`
+
+**절대** 임의의 주석 스타일이나 구조를 사용하지 마십시오.
+
+## 2. 작성 단계 (Step-by-Step)
+
+1.  **Read Template**: `.cursor/templates/react-component.tsx` 내용을 읽습니다.
+2.  **Define Props**: `interface Props`를 가장 먼저 정의합니다. (Props가 없어도 빈 인터페이스 선언)
+3.  **Implement**: `export function`으로 컴포넌트를 작성합니다.
+    - `cn()` 유틸리티를 사용하여 `className`을 병합합니다.
+    - 내부에 `function`을 정의하지 않습니다. (하단 `Components` 섹션으로 분리)
+4.  **Sections**: 필요한 경우, 파일 하단에 정해진 주석 섹션을 추가합니다.
+    - `Constants`, `Components`, `Hooks`, `Types`
+
+## 3. UI 및 스타일 규칙 (Critical)
+
+- **Color**: `ui-typography-color.md`에 정의되지 않은 하드코딩된 색상(예: `text-emerald-500`)은 **사용 금지**입니다.
+    - 대신: Semantic Color(`text-green-600`, `text-destructive`) 또는 Tailwind Token을 사용하십시오.
+- **Components**: 가능한 `shadcn/ui` 컴포넌트(`@repo/ui/shadcn/*`)를 우선 사용하십시오.
+
+## 4. 검증
+
+코드를 출력하기 전에 다음을 스스로 점검하십시오.
+- [ ] 주석 스타일이 템플릿과 100% 일치하는가?
+- [ ] `interface Props`가 상단에 위치하는가?
+- [ ] 하드코딩된 헥사코드나 임의의 Tailwind 색상이 없는가?

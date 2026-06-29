@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  auth-deploy-gate:
+    name: Auth deploy gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Auth tests and deploy builds
+        run: pnpm run deploy:check
+
+  release:
+    needs: auth-deploy-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Capture latest release before semantic-release
+        id: release-before
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""')"
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm exec semantic-release
+
+      - name: Dispatch Electron Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIOUS_TAG: ${{ steps.release-before.outputs.tag }}
+        run: |
+          set -euo pipefail
+          latest_tag="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""')"
+          if [ -z "$latest_tag" ] || [ "$latest_tag" = "$PREVIOUS_TAG" ]; then
+            echo "No new GitHub Release was published; skipping Electron Release dispatch."
+            exit 0
+          fi
+
+          version="${latest_tag#v}"
+          gh workflow run electron-release.yml --ref main -f version="$version"
+          echo "Dispatched Electron Release for $latest_tag."

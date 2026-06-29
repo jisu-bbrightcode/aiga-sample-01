@@ -1,0 +1,142 @@
+{
+  "type": "subscription.updated",
+  "timestamp": "2026-04-26T06:19:38.699584Z",
+  "data": {
+    "created_at": "2026-04-26T06:19:38.348325Z",
+    "modified_at": null,
+    "id": "d88f49da-6f38-4451-be37-2ff6dc1ebf09",
+    "amount": 1999,
+    "currency": "usd",
+    "recurring_interval": "month",
+    "recurring_interval_count": 1,
+    "status": "active",
+    "current_period_start": "2026-04-26T06:19:38.339825Z",
+    "current_period_end": "2026-05-26T06:19:38.339825Z",
+    "trial_start": null,
+    "trial_end": null,
+    "cancel_at_period_end": false,
+    "canceled_at": null,
+    "started_at": "2026-04-26T06:19:38.339825Z",
+    "ends_at": null,
+    "ended_at": null,
+    "customer_id": "a27d47ed-0150-4ea4-83d8-ba545ebeb045",
+    "product_id": "9f38c8e4-d920-4e11-818b-d337a2105b24",
+    "discount_id": null,
+    "checkout_id": "076d5ee7-f9ce-4802-ab40-d9b91e961887",
+    "seats": null,
+    "customer_cancellation_reason": null,
+    "customer_cancellation_comment": null,
+    "price_id": "844c89a8-c0d6-48b8-9e65-d1ade18d0e14",
+    "metadata": {
+      "kind": "subscription",
+      "plan_id": "35f52750-4425-4b8b-ba65-ef63014322fd",
+      "user_id": "2giwb3yBmUZwB1CBMF9VXcvxAw8bRYCK",
+      "organization_id": "3f146278cd1d4f11ac0d6d53"
+    },
+    "custom_field_data": {},
+    "customer": {
+      "id": "a27d47ed-0150-4ea4-83d8-ba545ebeb045",
+      "created_at": "2026-04-26T06:18:08.050511Z",
+      "modified_at": "2026-04-26T06:19:34.913167Z",
+      "metadata": {},
+      "external_id": null,
+      "email": "bright@example.com",
+      "email_verified": false,
+      "type": "individual",
+      "name": "BBRIGHTCODE",
+      "billing_address": {
+        "line1": "386, Gimpohangang 8-ro",
+        "line2": null,
+        "postal_code": "10071",
+        "city": "Gyeonggi-do",
+        "state": null,
+        "country": "KR"
+      },
+      "tax_id": null,
+      "locale": "en",
+      "organization_id": "c3bbd923-b869-4d78-8b23-1613887f2096",
+      "deleted_at": null,
+      "avatar_url": "https://img.logo.dev/example.com?size=64&retina=true&token=pk_F9AlCmtZTqK_Ky1UDqCs9Q&fallback=404"
+    },
+    "user_id": "a27d47ed-0150-4ea4-83d8-ba545ebeb045",
+    "user": {
+      "id": "a27d47ed-0150-4ea4-83d8-ba545ebeb045",
+      "email": "bright@example.com",
+      "public_name": "B",
+      "avatar_url": null,
+      "github_username": null
+    },
+    "product": {
+      "id": "9f38c8e4-d920-4e11-818b-d337a2105b24",
+      "created_at": "2026-04-25T15:24:09.174446Z",
+      "modified_at": null,
+      "trial_interval": null,
+      "trial_interval_count": null,
+      "name": "Pro · Monthly",
+      "description": "Pro plan, monthly billing",
+      "visibility": "public",
+      "recurring_interval": "month",
+      "recurring_interval_count": 1,
+      "is_recurring": true,
+      "is_archived": false,
+      "organization_id": "c3bbd923-b869-4d78-8b23-1613887f2096",
+      "metadata": {
+        "kind": "plan",
+        "slug": "pro_monthly",
+        "cycle": "monthly"
+      },
+      "prices": [
+        {
+          "created_at": "2026-04-25T15:24:09.183015Z",
+          "modified_at": null,
+          "id": "844c89a8-c0d6-48b8-9e65-d1ade18d0e14",
+          "source": "catalog",
+          "amount_type": "fixed",
+          "price_currency": "usd",
+          "tax_behavior": null,
+          "is_archived": false,
+          "product_id": "9f38c8e4-d920-4e11-818b-d337a2105b24",
+          "type": "recurring",
+          "recurring_interval": "month",
+          "price_amount": 1999
+        }
+      ],
+      "benefits": [],
+      "medias": [],
+      "attached_custom_fields": []
+    },
+    "discount": null,
+    "price": {
+      "created_at": "2026-04-25T15:24:09.183015Z",
+      "modified_at": null,
+      "id": "844c89a8-c0d6-48b8-9e65-d1ade18d0e14",
+      "source": "catalog",
+      "amount_type": "fixed",
+      "price_currency": "usd",
+      "tax_behavior": null,
+      "is_archived": false,
+      "product_id": "9f38c8e4-d920-4e11-818b-d337a2105b24",
+      "type": "recurring",
+      "recurring_interval": "month",
+      "price_amount": 1999
+    },
+    "prices": [
+      {
+        "created_at": "2026-04-25T15:24:09.183015Z",
+        "modified_at": null,
+        "id": "844c89a8-c0d6-48b8-9e65-d1ade18d0e14",
+        "source": "catalog",
+        "amount_type": "fixed",
+        "price_currency": "usd",
+        "tax_behavior": null,
+        "is_archived": false,
+        "product_id": "9f38c8e4-d920-4e11-818b-d337a2105b24",
+        "type": "recurring",
+        "recurring_interval": "month",
+        "price_amount": 1999
+      }
+    ],
+    "meters": [],
+    "pending_update": null
+  }
+}

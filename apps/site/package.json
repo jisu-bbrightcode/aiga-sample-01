@@ -1,0 +1,35 @@
+{
+  "name": "site",
+  "version": "0.0.0",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "next dev --port 3004",
+    "build": "next build",
+    "start": "next start --port 3004",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@repo/api-client": "workspace:^",
+    "@repo/core": "workspace:^",
+    "@repo/ui": "workspace:^",
+    "@tanstack/react-query": "^5.66.5",
+    "better-auth": "*",
+    "jotai": "^2.12.3",
+    "lucide-react": "^0.511.0",
+    "next": "^16.2.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:^",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "5.9.2"
+  }
+}

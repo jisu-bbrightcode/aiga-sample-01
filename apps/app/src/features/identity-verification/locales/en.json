@@ -1,0 +1,19 @@
+{
+  "title": "Identity Verification (KCB Mobile)",
+  "description": "Run KCB mobile-phone identity verification in the real verification popup.",
+  "note": "Complete phone verification in the popup and the result will appear on this screen.",
+  "consentLabel": "I agree to the collection and use of personal information for identity verification.",
+  "formTitle": "Verify with your\nnew phone number",
+  "formPhoneLabel": "Mobile number",
+  "formPhonePlaceholder": "Enter mobile number",
+  "formRrnLabel": "First 7 digits of resident number",
+  "formBirthPlaceholder": "Date of birth (6 digits)",
+  "formNameLabel": "Name",
+  "formNamePlaceholder": "Hong Gil-dong",
+  "formCarrierSkt": "SKT",
+  "formCarrierKt": "KT",
+  "formCarrierLgu": "LGU+",
+  "formCarrierMvnoSkt": "SKT MVNO",
+  "formCarrierMvnoKt": "KT MVNO",
+  "formCarrierMvnoLgu": "LGU+ MVNO"
+}

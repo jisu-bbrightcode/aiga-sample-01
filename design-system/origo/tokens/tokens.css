@@ -1,0 +1,56 @@
+/* Origo Design System — tokens.css (AUTO-GENERATED, do not edit by hand) */
+/* regenerate: design-system/scripts `npm run build` */
+:root {
+  --neutral-0: #FFFFFF;
+  --neutral-100: #F6F8FA;
+  --neutral-200: #E2E4E9;
+  --neutral-300: #CDD0D5;
+  --neutral-400: #868C98;
+  --neutral-500: #525866;
+  --neutral-900: #0A0D14;
+  --bg-weak-100: #F6F8FA;
+  --bg-white-0: #FFFFFF;
+  --bg-soft-200: #E2E4E9;
+  --icon-disabled-300: #CDD0D5;
+  --icon-soft-400: #868C98;
+  --icon-sub-500: #525866;
+  --icon-strong-900: #0A0D14;
+  --text-main-900: #0A0D14;
+  --text-soft-400: #868C98;
+  --text-sub-500: #525866;
+  --text-white-0: #FFFFFF;
+  --stroke-strong-900: #0A0D14;
+  --stroke-white-0: #FFFFFF;
+  --stroke-sub-300: #CDD0D5;
+  --stroke-soft-200: #E2E4E9;
+  --green-lighter: #EFFAF6;
+  --green-base: #38C793;
+  --green-dark: #2D9F75;
+  --green-darker: #176448;
+  --teal-lighter: #EBFAFF;
+  --red-base: #DF1C41;
+  --red-lighter: #FDEDF0;
+  --Secondary-400: #6C7278;
+  --Primary-800: #0F5D66;
+}
+
+/* effects: 그림자 + 그래디언트 (빈도순 번호; gradient angle은 best-effort) */
+:root {
+  --shadow-1: 0px 1px 1px 0px #E5E5E5;
+  --shadow-2: 0px 1px 1px 0px #D0CCFF;
+  --shadow-3: 0px 1px 2px 0px #00000067;
+  --shadow-4: 0px 1px 2px 0px #0000004C;
+  --shadow-5: 0px 0px 1px 0px #FFFFFF;
+  --shadow-6: 0px 1px 2px 0px #1018280D;
+  --shadow-7: 0px 2px 4px 0px #1B1C1D0A;
+  --shadow-8: 0px 1px 2px 0px #E4E5E73D;
+  --shadow-9: 0px 12px 24px 0px #868C981F;
+  --gradient-1: linear-gradient(58deg, #E4E1FF 0%, #D4ECFF 100%);
+  --gradient-2: linear-gradient(27deg, #EAEAEA 0%, #C4C4C4 100%);
+  --gradient-3: linear-gradient(0deg, #5BD230 0%, #068B03 100%);
+  --gradient-4: linear-gradient(0deg, #FFFFFF24 0%, #FFFFFF00 63%);
+  --gradient-5: linear-gradient(270deg, #FFFFFF00 0%, #FFFFFF91 31%, #FFFFFF 69%);
+  --gradient-6: linear-gradient(11deg, #FFFFFF00 0%, #FFFFFFCC 31%, #FFFFFFEA 46%, #FFFFFF 57%);
+  --gradient-7: linear-gradient(11deg, #FFFFFF1A 0%, #FFFFFFCC 47%, #FFFFFFEA 56%, #FFFFFF 70%);
+  --gradient-8: linear-gradient(0deg, #FFFFFF00 0%, #FFFFFF 100%);
+}

@@ -1,0 +1,100 @@
+/* ─────────────────────────────────────────────────────────────
+ * Product Builder Type Scale — absolute, base 14px
+ *
+ * 절대값 스케일. 상대 calc 사용 금지 (이전 `calc(var(--text-base-size) - 1px)`
+ * 방식은 --text-xs == --text-sm 로 위계가 붕괴됐었다).
+ *
+ * 사다리는 Tailwind 검증된 비율을 한 칸 내려 앵커한다:
+ *   Product Builder base(14) = Tailwind text-sm, Product Builder lg(16) = Tailwind base, ...
+ *
+ * 유저 text-size 설정(`<html data-text-size>`, apps/app .../use-text-size.ts)
+ * 은 --fs-* 레벨 변수를 레벨별 절대값으로 덮어써 유지한다 (calc 없음).
+ *
+ * @theme inline 이므로 text-* 유틸은 `font-size: var(--fs-*)` 로 인라인되고,
+ * --fs-* 가 data-text-size 에 따라 캐스케이드된다.
+ * line-height 는 토큰에 묶지 않는다 (기존과 동일 — leading-* 유틸로 별도 제어).
+ * ───────────────────────────────────────────────────────────── */
+
+@theme inline {
+  --text-2xs: var(--fs-2xs);
+  --text-xs: var(--fs-xs);
+  --text-sm: var(--fs-sm);
+  --text-base: var(--fs-base);
+  --text-lg: var(--fs-lg);
+  --text-xl: var(--fs-xl);
+  --text-2xl: var(--fs-2xl);
+  --text-3xl: var(--fs-3xl);
+  --text-4xl: var(--fs-4xl);
+  --text-5xl: var(--fs-5xl);
+  --text-6xl: var(--fs-6xl);
+  --text-7xl: var(--fs-7xl);
+
+  /* Document editor body scale (base 15px) */
+  --text-editor-sm: var(--fs-editor-sm);
+  --text-editor-base: var(--fs-editor-base);
+  --text-editor-lg: var(--fs-editor-lg);
+  --text-editor-xlg: var(--fs-editor-xlg);
+}
+
+/* 기본 (data-text-size 없음 = "sm" 프리셋) */
+:root {
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 20px;
+  --fs-3xl: 24px;
+  --fs-4xl: 30px;
+  --fs-5xl: 36px;
+  --fs-6xl: 48px;
+  --fs-7xl: 60px;
+
+  --fs-editor-sm: 14px;
+  --fs-editor-base: 15px;
+  --fs-editor-lg: 16px;
+  --fs-editor-xlg: 17px;
+}
+
+/* "보통" — 각 단계 +1px */
+:root[data-text-size="md"] {
+  --fs-2xs: 12px;
+  --fs-xs: 13px;
+  --fs-sm: 14px;
+  --fs-base: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 19px;
+  --fs-2xl: 21px;
+  --fs-3xl: 25px;
+  --fs-4xl: 31px;
+  --fs-5xl: 37px;
+  --fs-6xl: 49px;
+  --fs-7xl: 61px;
+
+  --fs-editor-sm: 15px;
+  --fs-editor-base: 16px;
+  --fs-editor-lg: 17px;
+  --fs-editor-xlg: 18px;
+}
+
+/* "크게" — 각 단계 +2px */
+:root[data-text-size="lg"] {
+  --fs-2xs: 13px;
+  --fs-xs: 14px;
+  --fs-sm: 15px;
+  --fs-base: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 20px;
+  --fs-2xl: 22px;
+  --fs-3xl: 26px;
+  --fs-4xl: 32px;
+  --fs-5xl: 38px;
+  --fs-6xl: 50px;
+  --fs-7xl: 62px;
+
+  --fs-editor-sm: 16px;
+  --fs-editor-base: 17px;
+  --fs-editor-lg: 18px;
+  --fs-editor-xlg: 19px;
+}

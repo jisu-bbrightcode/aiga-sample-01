@@ -1,0 +1,13 @@
+{
+  "Product Builder": { "en": "Product Builder", "ja": "Product Builder", "zh": "Product Builder" },
+  "스토리": { "en": "Story", "ja": "ストーリー", "zh": "故事" },
+  "캔버스": { "en": "Canvas", "ja": "キャンバス", "zh": "画布" },
+  "캐릭터": { "en": "Character", "ja": "キャラクター", "zh": "角色" },
+  "장소": { "en": "Location", "ja": "場所", "zh": "地点" },
+  "세계": { "en": "World", "ja": "世界", "zh": "世界" },
+  "세력": { "en": "Faction", "ja": "勢力", "zh": "势力" },
+  "분기": { "en": "Branch", "ja": "分岐", "zh": "分支" },
+  "퀘스트": { "en": "Quest", "ja": "クエスト", "zh": "任务" },
+  "워크스페이스": { "en": "Workspace", "ja": "ワークスペース", "zh": "工作空间" },
+  "프로젝트": { "en": "Project", "ja": "プロジェクト", "zh": "项目" }
+}

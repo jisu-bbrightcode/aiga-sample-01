@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2022",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+      "@repo/features/*": ["../../packages/features/*"],
+      "@repo/core/auth/server": ["../../packages/core/auth/server.ts"],
+      "@repo/drizzle": ["../../packages/drizzle/src/index.ts"],
+      "@repo/drizzle/schema": ["../../packages/drizzle/src/schema/index.ts"],
+      "@repo/drizzle/utils": ["../../packages/drizzle/src/utils/index.ts"],
+      "@repo/drizzle/types": ["../../packages/drizzle/src/utils/types.ts"],
+      "@repo/shared/*": ["../../packages/shared/*"]
+    },
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false,
+    "jsx": "react-jsx"
+  }
+}

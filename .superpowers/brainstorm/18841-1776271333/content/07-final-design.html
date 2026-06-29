@@ -1,0 +1,158 @@
+<h2>Story Node 고도화 — 최종 디자인 요약</h2>
+<p class="subtitle">확정된 결정사항 전체 정리. 이대로 스펙 문서화 진행합니다.</p>
+
+<!-- Final collapsed + expanded side by side -->
+<div class="mockup" style="max-width:740px; margin:0 auto;">
+  <div class="mockup-header">최종 카드: 접힌 (기본) → 펼친 (확장)</div>
+  <div class="mockup-body" style="padding:32px; background:#111120; display:flex; gap:32px; align-items:flex-start; justify-content:center;">
+
+    <!-- Collapsed -->
+    <div style="text-align:center;">
+      <div style="font-size:10px; color:#555; margin-bottom:8px;">기본 (접힌)</div>
+      <div style="width:260px; background:#1e1e2e; border:1px solid #2a2a3e; border-radius:10px; font-family:system-ui; color:#e0e0e0;">
+        <div style="padding:12px 14px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="color:#555; font-size:10px;">&#x25B8;</span>
+            <span style="font-size:11px; color:#a78bfa; font-weight:600;">ACT 2 / SCENE 3</span>
+          </div>
+          <span style="color:#555; font-size:13px;">&#x22EF;</span>
+        </div>
+        <div style="padding:0 14px; font-size:14px; font-weight:700; line-height:1.3;">왕국의 몰락을 목격하다</div>
+        <div style="padding:8px 14px 10px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; gap:4px; align-items:center;">
+            <span style="font-size:10px; padding:2px 6px; background:#2a3a2a; border-radius:4px; color:#6ee7b7;">완료</span>
+            <span style="font-size:10px; padding:2px 6px; background:#2a2a3e; border-radius:4px; color:#8b8ba0;">분기점</span>
+            <span style="font-size:10px; padding:2px 6px; background:#2d2520; border-radius:4px; color:#e8a87c;">긴장</span>
+            <span style="font-size:10px; color:#555;">+2</span>
+          </div>
+          <span style="font-size:10px; color:#555;">3 분기</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div style="color:#555; font-size:20px; align-self:center; padding-top:30px;">&#x2192;</div>
+
+    <!-- Expanded -->
+    <div style="text-align:center;">
+      <div style="font-size:10px; color:#555; margin-bottom:8px;">펼친 (클릭/호버 1초)</div>
+      <div style="width:300px; background:#1e1e2e; border:1px solid #3a3a5e; border-radius:12px; font-family:system-ui; color:#e0e0e0; box-shadow:0 4px 20px rgba(100,80,200,0.08);">
+        <div style="padding:14px 16px 0; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="color:#a78bfa; font-size:10px;">&#x25BE;</span>
+            <span style="font-size:11px; color:#a78bfa; font-weight:600;">ACT 2 / SCENE 3</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:10px; padding:2px 8px; background:#2a3a2a; border-radius:4px; color:#6ee7b7;">완료</span>
+            <span style="color:#555; font-size:14px;">&#x22EF;</span>
+          </div>
+        </div>
+        <div style="padding:8px 16px 0; font-size:15px; font-weight:700; line-height:1.35;">왕국의 몰락을 목격하다</div>
+        <div style="padding:6px 16px; font-size:13px; color:#777; line-height:1.6;">엘리아 공주가 성벽 위에서 적군의 진격을 바라보는 장면. 플레이어의 선택에 따라 3가지 분기로 나뉜다. 성문을 열어 항복하거나, 비밀 통로로 탈출하거나, 최후의 방어전을 선택.</div>
+        <div style="padding:6px 16px; display:flex; gap:6px; flex-wrap:wrap;">
+          <span style="font-size:11px; padding:3px 8px; background:#2a2a3e; border-radius:6px; color:#8b8ba0;">분기점</span>
+          <span style="font-size:11px; padding:3px 8px; background:#2d2520; border-radius:6px; color:#e8a87c;">긴장</span>
+          <span style="font-size:11px; padding:3px 8px; background:#1e2040; border-radius:6px; color:#a78bfa;">엘리아</span>
+          <span style="font-size:11px; padding:3px 8px; background:#1e2040; border-radius:6px; color:#a78bfa;">카이런</span>
+          <span style="font-size:11px; padding:3px 8px; background:#2a2a2a; border-radius:6px; color:#999;">보이스 녹음</span>
+        </div>
+        <div style="margin:6px 16px 0; border-top:1px solid #222;"></div>
+        <div style="padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex;">
+            <div style="width:20px; height:20px; border-radius:50%; background:#4a4a6a; border:2px solid #1e1e2e; display:flex; align-items:center; justify-content:center; font-size:8px; color:#ccc;">E</div>
+            <div style="width:20px; height:20px; border-radius:50%; background:#6a4a6a; border:2px solid #1e1e2e; margin-left:-5px; display:flex; align-items:center; justify-content:center; font-size:8px; color:#ccc;">K</div>
+          </div>
+          <div style="display:flex; gap:14px; font-size:11px; color:#555;">
+            <span>3 분기</span>
+            <span>12 대사</span>
+            <span>340 단어</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Decision summary -->
+<div style="margin-top:32px;">
+  <h3>확정 사항</h3>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px;">
+
+    <div style="background:#1a1a2e; border:1px solid #2a2a3e; border-radius:10px; padding:16px;">
+      <div style="font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:10px;">구현 레이어</div>
+      <div style="font-size:12px; color:#999; line-height:1.8;">
+        노드 카드 = <span style="color:#e0e0e0;">엔진 (Canvas/WebGL)</span><br/>
+        메뉴/팝업 = <span style="color:#e0e0e0;">React DOM 오버레이</span><br/>
+        패턴 = <span style="color:#e0e0e0;">tldraw/Figma 하이브리드</span>
+      </div>
+    </div>
+
+    <div style="background:#1a1a2e; border:1px solid #2a2a3e; border-radius:10px; padding:16px;">
+      <div style="font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:10px;">카드 상태</div>
+      <div style="font-size:12px; color:#999; line-height:1.8;">
+        기본 = <span style="color:#e0e0e0;">Minimal (~100px)</span><br/>
+        펼침 = <span style="color:#e0e0e0;">Standard (~220px, 5~7줄)</span><br/>
+        상세 = <span style="color:#e0e0e0;">별도 패널에서 편집</span>
+      </div>
+    </div>
+
+    <div style="background:#1a1a2e; border:1px solid #2a2a3e; border-radius:10px; padding:16px;">
+      <div style="font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:10px;">펼치기 트리거</div>
+      <div style="font-size:12px; color:#999; line-height:1.8;">
+        헤더 클릭 = <span style="color:#e0e0e0;">토글</span><br/>
+        호버 1초 = <span style="color:#e0e0e0;">자동 펼침</span><br/>
+        chevron = <span style="color:#e0e0e0;">&#x25B8; 접힘 / &#x25BE; 펼침</span>
+      </div>
+    </div>
+
+    <div style="background:#1a1a2e; border:1px solid #2a2a3e; border-radius:10px; padding:16px;">
+      <div style="font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:10px;">기능 4종</div>
+      <div style="font-size:12px; color:#999; line-height:1.8;">
+        1. <span style="color:#e0e0e0;">&#x22EF; 컨텍스트 메뉴</span> (8개 액션)<br/>
+        2. <span style="color:#e0e0e0;">태그/칩</span> (4카테고리, 접힌:2개+N)<br/>
+        3. <span style="color:#e0e0e0;">캐릭터 아바타 스택</span><br/>
+        4. <span style="color:#e0e0e0;">상태 인디케이터</span> (완료/초안/검토중)
+      </div>
+    </div>
+
+    <div style="background:#1a1a2e; border:1px solid #2a2a3e; border-radius:10px; padding:16px;">
+      <div style="font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:10px;">메뉴 액션 (8개)</div>
+      <div style="font-size:12px; color:#999; line-height:1.8;">
+        편집 / 복제 / 연결 추가<br/>
+        색상 변경 / 태그 관리 / 캐릭터 배정<br/>
+        내보내기 / 삭제
+      </div>
+    </div>
+
+    <div style="background:#1a1a2e; border:1px solid #2a2a3e; border-radius:10px; padding:16px;">
+      <div style="font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:10px;">태그 카테고리</div>
+      <div style="font-size:12px; color:#999; line-height:1.8;">
+        <span style="color:#8b8ba0;">스토리 구조</span> (분기점, 컷씬, 엔딩...)<br/>
+        <span style="color:#e8a87c;">감정</span> (긴장, 슬픔, 유머...)<br/>
+        <span style="color:#a78bfa;">캐릭터</span> (엘리아, 카이런...)<br/>
+        <span style="color:#999;">커스텀</span> (작가 자유 생성)
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:24px;">
+  <p class="subtitle">이 디자인으로 스펙 문서를 작성할까요?</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>좋다, 스펙 작성 진행</h3>
+      <p>이대로 docs/superpowers/specs/에 문서화</p>
+    </div>
+  </div>
+  <div class="option" data-choice="revise" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>수정할 부분이 있다</h3>
+      <p>터미널에서 피드백 줄게</p>
+    </div>
+  </div>
+</div>

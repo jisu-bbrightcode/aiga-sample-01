@@ -1,0 +1,398 @@
+{
+  "stats": {
+    "nodes": 1257,
+    "frames": 490,
+    "instances": 91,
+    "symbols": 39,
+    "variables": 0,
+    "shadows": 5,
+    "gradients": 3,
+    "images": 0
+  },
+  "variables": [],
+  "colors": [
+    {
+      "hex": "#FFFFFF",
+      "count": 120
+    },
+    {
+      "hex": "#292D32",
+      "count": 119
+    },
+    {
+      "hex": "#706F7F",
+      "count": 119
+    },
+    {
+      "hex": "#1B1A1C",
+      "count": 86
+    },
+    {
+      "hex": "#E5E5E5",
+      "count": 53
+    },
+    {
+      "hex": "#525062",
+      "count": 42
+    },
+    {
+      "hex": "#F6F6F6",
+      "count": 38
+    },
+    {
+      "hex": "#6457F9",
+      "count": 29
+    },
+    {
+      "hex": "#D9D9D9",
+      "count": 25
+    },
+    {
+      "hex": "#A2A1A7",
+      "count": 24
+    },
+    {
+      "hex": "#F4F3FF",
+      "count": 13
+    },
+    {
+      "hex": "#FAFAFA",
+      "count": 12
+    },
+    {
+      "hex": "#F5FCFF",
+      "count": 9
+    },
+    {
+      "hex": "#0EA5E9",
+      "count": 9
+    },
+    {
+      "hex": "#000000",
+      "count": 6
+    },
+    {
+      "hex": "#ECFDF5",
+      "count": 6
+    },
+    {
+      "hex": "#FEF4FF",
+      "count": 5
+    },
+    {
+      "hex": "#D946EF",
+      "count": 5
+    },
+    {
+      "hex": "#E4FFF6",
+      "count": 4
+    },
+    {
+      "hex": "#10B981",
+      "count": 4
+    },
+    {
+      "hex": "#737373",
+      "count": 4
+    },
+    {
+      "hex": "#F0F9FF",
+      "count": 4
+    },
+    {
+      "hex": "#075985",
+      "count": 4
+    },
+    {
+      "hex": "#FFFBEB",
+      "count": 4
+    },
+    {
+      "hex": "#92400E",
+      "count": 4
+    },
+    {
+      "hex": "#FFF1F2",
+      "count": 4
+    },
+    {
+      "hex": "#9F1239",
+      "count": 4
+    },
+    {
+      "hex": "#C4C4C4",
+      "count": 3
+    },
+    {
+      "hex": "#4B4B4B",
+      "count": 3
+    },
+    {
+      "hex": "#059669",
+      "count": 3
+    },
+    {
+      "hex": "#666D80",
+      "count": 2
+    },
+    {
+      "hex": "#E6E3FF",
+      "count": 2
+    },
+    {
+      "hex": "#7B61FF",
+      "count": 1
+    }
+  ],
+  "shadows": [
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 1,
+      "spread": 0,
+      "color": "#E5E5E5",
+      "inset": false,
+      "css": "0px 1px 1px 0px #E5E5E5",
+      "count": 30
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 2,
+      "spread": 0,
+      "color": "#00000067",
+      "inset": false,
+      "css": "0px 1px 2px 0px #00000067",
+      "count": 3
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 1,
+      "spread": 0,
+      "color": "#D0CCFF",
+      "inset": false,
+      "css": "0px 1px 1px 0px #D0CCFF",
+      "count": 2
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "blur": 2,
+      "spread": 0,
+      "color": "#0000004C",
+      "inset": false,
+      "css": "0px 1px 2px 0px #0000004C",
+      "count": 1
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "blur": 1,
+      "spread": 0,
+      "color": "#FFFFFF",
+      "inset": false,
+      "css": "0px 0px 1px 0px #FFFFFF",
+      "count": 1
+    }
+  ],
+  "gradients": [
+    {
+      "type": "GRADIENT_LINEAR",
+      "angle": 27,
+      "stops": [
+        {
+          "color": "#EAEAEA",
+          "position": 0
+        },
+        {
+          "color": "#C4C4C4",
+          "position": 1
+        }
+      ],
+      "css": "linear-gradient(27deg, #EAEAEA 0%, #C4C4C4 100%)",
+      "count": 2
+    },
+    {
+      "type": "GRADIENT_LINEAR",
+      "angle": 0,
+      "stops": [
+        {
+          "color": "#FFFFFF24",
+          "position": 0
+        },
+        {
+          "color": "#FFFFFF00",
+          "position": 0.63
+        }
+      ],
+      "css": "linear-gradient(0deg, #FFFFFF24 0%, #FFFFFF00 63%)",
+      "count": 1
+    },
+    {
+      "type": "GRADIENT_LINEAR",
+      "angle": 0,
+      "stops": [
+        {
+          "color": "#5BD230",
+          "position": 0
+        },
+        {
+          "color": "#068B03",
+          "position": 1
+        }
+      ],
+      "css": "linear-gradient(0deg, #5BD230 0%, #068B03 100%)",
+      "count": 1
+    }
+  ],
+  "typography": [
+    {
+      "family": "SF UI Display",
+      "style": "Regular",
+      "fontSize": 14,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 86
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Regular",
+      "fontSize": 12,
+      "lineHeight": "100%",
+      "letterSpacing": 3,
+      "textCase": "ORIGINAL",
+      "count": 48
+    },
+    {
+      "family": "Inter",
+      "style": "Medium",
+      "fontSize": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 43
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Regular",
+      "fontSize": 16,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 38
+    },
+    {
+      "family": "Inter",
+      "style": "Medium",
+      "fontSize": 14,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 26
+    },
+    {
+      "family": "Inter",
+      "style": "Medium",
+      "fontSize": 8,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 18
+    },
+    {
+      "family": "SF UI Display",
+      "style": "Regular",
+      "fontSize": 20,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 2
+    },
+    {
+      "family": "Inter",
+      "style": "Medium",
+      "fontSize": 18,
+      "lineHeight": "1.4",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 2
+    },
+    {
+      "family": "Inter",
+      "style": "Medium",
+      "fontSize": 24,
+      "lineHeight": "1.55",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 2
+    },
+    {
+      "family": "Inter",
+      "style": "Medium",
+      "fontSize": 12,
+      "lineHeight": "1.5",
+      "letterSpacing": 0,
+      "textCase": "ORIGINAL",
+      "count": 2
+    }
+  ],
+  "fonts": [
+    "SF UI Display",
+    "Inter"
+  ],
+  "components": [
+    "vuesax/outline/add",
+    "vuesax/outline/edit",
+    "vuesax/outline/arrow-left",
+    "vuesax/outline/share",
+    "vuesax/outline/category",
+    "vuesax/outline/star",
+    "vuesax/bold/arrow-down",
+    "vuesax/outline/home",
+    "vuesax/bold/task",
+    "vuesax/outline/document",
+    "vuesax/outline/folder",
+    "vuesax/outline/document-text",
+    "vuesax/outline/people",
+    "vuesax/outline/folder-2",
+    "vuesax/outline/profile-add",
+    "vuesax/outline/message-question",
+    "vuesax/outline/buildings",
+    "vuesax/outline/search-normal",
+    "vuesax/outline/notification",
+    "vuesax/outline/arrow-down",
+    "vuesax/outline/clipboard-text",
+    "vuesax/outline/kanban",
+    "vuesax/outline/document-text",
+    "vuesax/outline/calendar",
+    "vuesax/outline/message-2",
+    "vuesax/outline/filter",
+    "vuesax/outline/arrow-3",
+    "vuesax/outline/arrow-down",
+    "vuesax/outline/calendar",
+    "vuesax/outline/message",
+    "vuesax/outline/arrow-left",
+    "vuesax/outline/arrow-right",
+    "Interaction=Hover",
+    "Interaction=Drag",
+    "Interaction=Text field",
+    "Interaction=Move",
+    "Interaction=Add",
+    "Interaction=Disabled",
+    "vuesax/outline/close-circle"
+  ],
+  "variantProps": {
+    "Interaction": 6
+  },
+  "meta": {
+    "fileName": "Origo - Timeline Page Project Management Dashboard",
+    "render": {
+      "x": -20559,
+      "y": -82497,
+      "width": 2967,
+      "height": 1024
+    }
+  }
+}

@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+
+# --- main 직접 push 차단 (develop → main 은 GitHub PR 머지로만) ---
+# pre-push stdin: <local_ref> <local_sha> <remote_ref> <remote_sha>
+# remote_ref == refs/heads/main 이면 차단. main 은 origin PR 머지로만 전진.
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main)
+      echo ""
+      echo "⛔ main 직접 push 차단 — develop → main 은 GitHub PR 머지로만 진행."
+      echo "   feature/develop 에 push 후 GitHub 에서 PR 생성하세요."
+      echo "   (의도적 차단. --no-verify 우회는 Claude/Codex hook 에서 별도 차단)"
+      exit 1
+      ;;
+  esac
+done

@@ -1,0 +1,63 @@
+<h2>콘텐츠 그루핑 — 50만 노드를 어떻게 묶을까?</h2>
+<p class="subtitle">세계관(~100개)은 타입별로 충분하지만, 캔버스 노드(10K~500K)는 계층이 필수</p>
+
+<div class="section">
+  <h3>세계관 — 이미 구조가 있음</h3>
+  <div style="background: #f8f8f6; border: 1px solid #e5e5e0; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; line-height: 2; color: #555;">
+    세계관<br>
+    &nbsp;&nbsp;├── 세계 (12)<br>
+    &nbsp;&nbsp;├── 캐릭터 (24)<br>
+    &nbsp;&nbsp;├── 장소 (8)<br>
+    &nbsp;&nbsp;├── 세력 (4)<br>
+    &nbsp;&nbsp;└── 코덱스 (6)
+  </div>
+  <div style="margin-top: 6px; font-size: 12px; color: #999;">→ 타입별 그루핑으로 충분. 최대 수백 개.</div>
+</div>
+
+<div class="section" style="margin-top: 20px;">
+  <h3>캔버스 — 여기가 문제</h3>
+  <p class="subtitle">현재 캔버스 노드에 어떤 계층 구조가 있나요?</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>캔버스 단위 (Canvas → Nodes)</h3>
+      <p>
+        <span style="color: #666;">프로젝트에 여러 캔버스가 있고, 각 캔버스 안에 노드들이 있다면:</span><br>
+        <code style="font-size: 12px; background: #f5f5f0; padding: 2px 6px; border-radius: 3px;">프로젝트 → 캔버스(챕터1, 챕터2...) → 노드들</code><br>
+        <span style="font-size: 12px; color: #999;">캔버스가 자연스러운 그루핑 단위. 챕터별로 번역 진행률 관리 가능.</span>
+      </p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>노드 타입 단위 (대화 / 나레이션 / 분기 / 조건)</h3>
+      <p>
+        <span style="color: #666;">캔버스 구분 없이, 노드 타입으로 그루핑:</span><br>
+        <code style="font-size: 12px; background: #f5f5f0; padding: 2px 6px; border-radius: 3px;">대화 노드 (30만) → 나레이션 (10만) → 분기 (5만) → ...</code><br>
+        <span style="font-size: 12px; color: #999;">같은 유형끼리 모아서 일괄 번역. 맥락은 약하지만 효율적.</span>
+      </p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>캔버스 + 노드 타입 (2단 계층)</h3>
+      <p>
+        <span style="color: #666;">캔버스 → 노드 타입 → 노드 목록:</span><br>
+        <code style="font-size: 12px; background: #f5f5f0; padding: 2px 6px; border-radius: 3px;">챕터1 캔버스 → 대화(500) / 나레이션(200) / 분기(50)</code><br>
+        <span style="font-size: 12px; color: #999;">맥락(챕터) + 효율(타입별 일괄) 둘 다. 가장 세밀한 그루핑.</span>
+      </p>
+    </div>
+  </div>
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>다른 구조가 있어요</h3>
+      <p>캔버스 노드의 실제 구조를 알려주세요. 현재 데이터 모델에서 노드가 어떤 계층에 속하는지에 따라 달라집니다.</p>
+    </div>
+  </div>
+</div>

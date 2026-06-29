@@ -1,0 +1,21 @@
+name: forbid-rule-disable
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  scan:
+    name: Scan for forbidden lint-rule disable comments
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Forbid `eslint-disable product-builder/no-raw-sql-query` etc.
+        run: node scripts/forbid-rule-disable.mjs

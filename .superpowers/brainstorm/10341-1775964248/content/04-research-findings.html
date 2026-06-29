@@ -1,0 +1,122 @@
+<h2>리서치 결과 — 현지화 도구 네비게이션 패턴</h2>
+<p class="subtitle">기존 도구들의 패턴을 분석하고, Flotter에 맞는 구조를 도출합니다</p>
+
+<div class="section">
+  <h3>업계 패턴 비교</h3>
+  <div style="overflow-x: auto; margin-top: 12px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+      <thead>
+        <tr style="border-bottom: 2px solid #e5e5e5;">
+          <th style="text-align: left; padding: 10px 12px; color: #888; font-weight: 600;">도구</th>
+          <th style="text-align: left; padding: 10px 12px; color: #888; font-weight: 600;">네비게이션</th>
+          <th style="text-align: left; padding: 10px 12px; color: #888; font-weight: 600;">에디터</th>
+          <th style="text-align: left; padding: 10px 12px; color: #888; font-weight: 600;">핵심 사용자</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+          <td style="padding: 10px 12px; font-weight: 500;">Crowdin</td>
+          <td style="padding: 10px 12px;">프로젝트 → <strong>파일</strong> → 문자열 → 언어</td>
+          <td style="padding: 10px 12px;">좌 원문 / 우 번역 (2열)</td>
+          <td style="padding: 10px 12px; color: #888;">번역가 팀</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0; background: #fafafa;">
+          <td style="padding: 10px 12px; font-weight: 500;">Lokalise</td>
+          <td style="padding: 10px 12px;">프로젝트 → <strong>키</strong>(문자열) → 언어 탭</td>
+          <td style="padding: 10px 12px;">키 선택 → 모든 언어 한 번에</td>
+          <td style="padding: 10px 12px; color: #888;">개발팀+번역가</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+          <td style="padding: 10px 12px; font-weight: 500;">POEditor</td>
+          <td style="padding: 10px 12px;">프로젝트 → <strong>언어</strong> → 용어 목록</td>
+          <td style="padding: 10px 12px;">인라인 편집 (테이블 내)</td>
+          <td style="padding: 10px 12px; color: #888;">1인/소규모</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0; background: #fafafa;">
+          <td style="padding: 10px 12px; font-weight: 500;">Unity L10n</td>
+          <td style="padding: 10px 12px;"><strong>테이블</strong> → 키 → 언어 컬럼</td>
+          <td style="padding: 10px 12px;">스프레드시트 스타일</td>
+          <td style="padding: 10px 12px; color: #888;">게임 개발자</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f0f0f0;">
+          <td style="padding: 10px 12px; font-weight: 500;">articy:draft</td>
+          <td style="padding: 10px 12px;"><strong>엔티티</strong>(캐릭터/장소) → 속성별 번역</td>
+          <td style="padding: 10px 12px;">속성 패널 내 인라인</td>
+          <td style="padding: 10px 12px; color: #888;">시나리오 작가</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px;">
+  <h3>핵심 인사이트</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px;">
+      <div style="font-weight: 600; color: #92400e; margin-bottom: 6px;">💡 1인 작가에겐 "언어 중심"이 더 자연스럽다</div>
+      <div style="font-size: 13px; color: #a16207; line-height: 1.5;">
+        POEditor가 소규모에서 인기 있는 이유 — "영어 먼저 끝내자"가 작가의 사고방식.<br>
+        Crowdin의 파일 중심은 번역가 팀용.
+      </div>
+    </div>
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px;">
+      <div style="font-weight: 600; color: #92400e; margin-bottom: 6px;">💡 하지만 Flotter는 "세계관"이 있다</div>
+      <div style="font-size: 13px; color: #a16207; line-height: 1.5;">
+        articy:draft처럼 엔티티(캐릭터/장소) 구조가 이미 있다.<br>
+        "아르테미아의 영어 번역"이 자연스러운 진입점.
+      </div>
+    </div>
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px;">
+      <div style="font-weight: 600; color: #92400e; margin-bottom: 6px;">💡 AI 번역은 "일괄 → 검수" 패턴</div>
+      <div style="font-size: 13px; color: #a16207; line-height: 1.5;">
+        Crowdin/Lokalise 모두 AI 초벌 → 사람 검수 워크플로우.<br>
+        "번역 시작" 한 번 → 전체 AI 초벌 → 작가가 검수.
+      </div>
+    </div>
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px;">
+      <div style="font-weight: 600; color: #92400e; margin-bottom: 6px;">💡 에디터는 2열이 표준</div>
+      <div style="font-size: 13px; color: #a16207; line-height: 1.5;">
+        좌측 원문 / 우측 번역이 업계 표준.<br>
+        맥락 패널(사전, 이전 번역)은 우측 또는 하단.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px;">
+  <h3>Flotter에 맞는 구조 — 3가지 안</h3>
+  <p class="subtitle">리서치 기반으로 재정리한 옵션입니다</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>언어 진입 + 콘텐츠 필터 (POEditor식)</h3>
+      <p>
+        <strong style="color: #666;">대시보드(언어 카드) → 언어 클릭 → 세계관/캔버스 필터로 전환</strong><br>
+        <span style="color: #999; font-size: 13px;">작가: "영어 번역 들어가자" → 세계관/캔버스 탭으로 전환 → AI 일괄 번역 → 검수. 가장 단순한 흐름.</span>
+      </p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>콘텐츠 트리 + 언어 컬럼 (articy식)</h3>
+      <p>
+        <strong style="color: #666;">세계관 트리(세계/캐릭터/장소) → 엔티티 선택 → 언어별 번역 컬럼</strong><br>
+        <span style="color: #999; font-size: 13px;">작가: "아르테미아 캐릭터의 번역 상태" → EN/JA/ZH 한눈에. 세계관 일관성에 유리. 캔버스는 별도 섹션.</span>
+      </p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>하이브리드 (대시보드 → 언어 → 콘텐츠 트리)</h3>
+      <p>
+        <strong style="color: #666;">대시보드(전체 현황) → 언어 선택 → 콘텐츠 트리(세계관/캔버스) → 에디터</strong><br>
+        <span style="color: #999; font-size: 13px;">진입은 언어 중심(작가 사고방식), 작업은 콘텐츠 중심(세계관 구조). 두 장점을 결합. 3단계 깊이.</span>
+      </p>
+    </div>
+  </div>
+</div>

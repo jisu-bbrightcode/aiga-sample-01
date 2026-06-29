@@ -1,0 +1,32 @@
+name: Neon feature branch GC
+
+on:
+  schedule:
+    - cron: "0 18 * * *"  # daily 18:00 UTC (03:00 KST)
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "실제 삭제까지 수행 (체크 안 하면 dry-run)"
+        type: boolean
+        default: false
+
+jobs:
+  gc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run GC
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          NEON_BRANCH_PREFIX: "feat/"
+          NEON_GC_MAX_AGE_D: "14"
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.apply }}" = "true" ]; then
+            node scripts/neon-gc.mjs --apply
+          else
+            node scripts/neon-gc.mjs
+          fi

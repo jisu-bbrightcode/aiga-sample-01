@@ -1,0 +1,295 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-fe-shadcn-import.mjs",
+            "timeout": 5,
+            "statusMessage": "shadcn 컴포넌트 사용 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-fe-no-manual-memo.mjs",
+            "timeout": 5,
+            "statusMessage": "React Compiler 수동 메모 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-text-draw.mjs",
+            "timeout": 5,
+            "statusMessage": "엔진 텍스트 드로잉 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-shape-draw.mjs",
+            "timeout": 5,
+            "statusMessage": "엔진 shape 드로잉 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-circle-draw.mjs",
+            "timeout": 5,
+            "statusMessage": "엔진 circle 드로잉 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-tailwind-tokens.mjs",
+            "timeout": 5,
+            "statusMessage": "Tailwind resolver 테스트 존재 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-shadow-draw.mjs",
+            "timeout": 5,
+            "statusMessage": "엔진 shadow 드로잉 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-path-draw.mjs",
+            "timeout": 5,
+            "statusMessage": "엔진 polygon 드로잉 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-image-draw.mjs",
+            "timeout": 5,
+            "statusMessage": "엔진 image 드로잉 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-gradient.mjs",
+            "timeout": 5,
+            "statusMessage": "엔진 gradient 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-state-leak.mjs",
+            "timeout": 5,
+            "statusMessage": "엔진 ctx state leak 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-edge-draw.mjs",
+            "timeout": 5,
+            "statusMessage": "엔진 edge endpoint 헬퍼 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-demo-internals.mjs",
+            "timeout": 5,
+            "statusMessage": "Playground 내부로직 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-raw-pointer.mjs",
+            "timeout": 5,
+            "statusMessage": "raw pointer/key listener 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-layer.mjs",
+            "timeout": 5,
+            "statusMessage": "엔진 레이어 규칙 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-interaction-element-alloc.mjs",
+            "timeout": 5,
+            "statusMessage": "Element hot path allocation 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-interaction-via-element.mjs",
+            "timeout": 5,
+            "statusMessage": "인터렉션 이벤트 Element dispatch 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-domain-isolation.mjs",
+            "timeout": 5,
+            "statusMessage": "엔진 도메인 격리 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/engine/check-engine-baker-isolation.mjs",
+            "timeout": 5,
+            "statusMessage": "template-baker yoga 격리 검사 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-db-destructive.mjs",
+            "timeout": 10,
+            "statusMessage": "파괴적 DB 작업 검증 중..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-payment-untouched.mjs",
+            "timeout": 5,
+            "statusMessage": "결제 모듈 보호 검사 중 (settings redesign Iron Law 1)..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-backup-untouched.mjs",
+            "timeout": 5,
+            "statusMessage": "백업 모듈 보호 검사 중 (settings redesign Iron Law 2)..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-tailwind-arbitrary.mjs",
+            "timeout": 5,
+            "statusMessage": "tailwind arbitrary 값 검사 중 (settings redesign Iron Law 4)..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-main-direct-merge.mjs",
+            "timeout": 5,
+            "statusMessage": "main 직접 머지/push 차단 검사 중..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__claude_ai_Vercel__deploy_to_vercel",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "The Vercel deploy tool was just called. Check $TOOL_RESULT for the project it deployed to. Verify it matches the correct mapping: apps/app → product-builder-app, apps/admin → product-builder-admin, apps/server → product-builder-api. If deployed to a legacy project, respond: {\"decision\":\"block\",\"reason\":\"⛔ 레거시 Vercel 프로젝트에 배포됨. Product Builder 프로젝트로 재배포하세요.\"}. Otherwise: {\"decision\":\"allow\",\"reason\":\"correct Vercel project\"}.",
+            "timeout": 10,
+            "statusMessage": "Vercel 배포 프로젝트 검증 중..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": []
+  }
+}

@@ -1,0 +1,12 @@
+{"type":"server-started","port":65319,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:65319","screen_dir":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/content","state_dir":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/state"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/content/current-state.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/content/waiting.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/content/design-dashboard.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/content/design-switcher.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/content/design-switcher-v2.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/content/design-switcher-v3.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/content/design-switcher-v4.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/content/design-settings.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/content/design-settings-v2.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/99096-1775990800/content/waiting-2.html"}
+{"type":"server-stopped","reason":"idle timeout"}

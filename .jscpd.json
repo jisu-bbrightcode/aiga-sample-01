@@ -1,0 +1,16 @@
+{
+  "threshold": 2,
+  "reporters": ["console"],
+  "gitignore": true,
+  "pattern": "{apps,packages,tools}/**/*.{ts,tsx,js,jsx,css}",
+  "ignore": [
+    "**/*.test.{ts,tsx}",
+    "**/*.spec.{ts,tsx}",
+    "**/apps/app/e2e/**",
+    "apps/app/src/routeTree.gen.ts",
+    "apps/landing/src/routeTree.gen.ts",
+    "packages/drizzle/src/schema/migrations/**",
+    "packages/oxlint-plugin/**",
+    "packages/ui/src/_shadcn/**"
+  ]
+}

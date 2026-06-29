@@ -1,0 +1,30 @@
+{"type":"server-started","port":64896,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:64896","screen_dir":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content","state_dir":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/state"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/01-current-state.html"}
+{"source":"user-event","type":"click","text":"A\n    \n      전체 리디자인 (Full Redesign)\n      오버뷰 + 번역 목록 + 에디터 + 사전 — 모든 화면을 Flotter 디자인 시스템에 맞춰 재설계. 가장 큰 범위.","choice":"a","id":null,"timestamp":1775964340252}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/02-primary-user.html"}
+{"source":"user-event","type":"click","text":"A\n    \n      작가 중심 (1인 작가가 직접)\n      작가 본인이 AI로 번역하고 검수. 단순한 워크플로우, \"번역 시작\" 한 번이면 끝. 전문 도구 느낌보다 창작 도구 느낌.","choice":"a","id":null,"timestamp":1775964398973}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/03-navigation.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/waiting-research.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/04-research-findings.html"}
+{"source":"user-event","type":"click","text":"B\n    \n      콘텐츠 트리 + 언어 컬럼 (articy식)\n      \n        세계관 트리(세계/캐릭터/장소) → 엔티티 선택 → 언어별 번역 컬럼\n        작가: \"아르테미아 캐릭터의 번역 상태\" → EN/JA/ZH 한눈에. 세계관 일관성에 유리. 캔버스는 별도 섹션.","choice":"b","id":null,"timestamp":1775965998171}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/05-editor-layout.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/06-content-list.html"}
+{"source":"user-event","type":"click","text":"4\n    \n      진행률 한눈에\n      각 엔티티/노드별 번역 완료율을 리스트에서 바로 확인. 색상 코딩 (빨강=미번역, 노랑=진행중, 초록=완료).","choice":"progress","id":null,"timestamp":1775966205950}
+{"source":"user-event","type":"click","text":"2\n    \n      AI 일괄 번역\n      필터링된 결과 전체 또는 선택한 항목들을 AI로 한 번에 번역. \"미번역 전부 AI로 돌려\" 한 번이면 끝.","choice":"batch-ai","id":null,"timestamp":1775966208215}
+{"source":"user-event","type":"click","text":"6\n    \n      그루핑/계층 뷰\n      캔버스 노드를 챕터/씬 단위로 그루핑. 세계관은 타입별. 50만 개를 flat으로 나열하면 무의미 — 구조가 필요.","choice":"grouping","id":null,"timestamp":1775966223783}
+{"source":"user-event","type":"click","text":"1\n    \n      스마트 필터링\n      카테고리(세계관/캔버스) + 엔티티 타입(캐릭터/장소/씬/대화) + 번역 상태(미번역/진행중/완료) + 검색으로 대상을 좁힘","choice":"filter","id":null,"timestamp":1775966283736}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/07-grouping.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/08-dynamic-grouping.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/09-design-proposal.html"}
+{"source":"user-event","type":"click","text":"✓\n    \n      맞습니다 — 각 화면 상세로 들어가죠\n      대시보드 → 캔버스 번역 → 세계관 번역 → 사전 → 언어 설정 순서로 상세 목업을 진행합니다.","choice":"approve","id":null,"timestamp":1775966737351}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/10-canvas-translation.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/11-uncategorized.html"}
+{"source":"user-event","type":"click","text":"A\n    \n      \"미분류\" 그룹으로 맨 아래에\n      다른 캔버스 그룹 아래에 \"미분류 (124개)\"가 항상 보임. 접혀 있되 펼칠 수 있음. 존재를 인지시키되 방해하지 않음.","choice":"a","id":null,"timestamp":1775966953079}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/12-dashboard.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/13-dashboard-v2.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/14-glossary.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/15-row-click.html"}
+{"source":"user-event","type":"click","text":"C\n    \n      별도 에디터 페이지\n      행 클릭 → 전용 편집 페이지로 이동. 원문↔번역 좌우 분할. 가장 넓은 편집 공간. 하지만 페이지 이동 = 흐름 끊김.","choice":"c","id":null,"timestamp":1775967503739}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/16-editor-page.html"}
+{"type":"screen-added","file":"/Users/bright/Projects/flotter/.superpowers/brainstorm/10341-1775964248/content/waiting-spec.html"}
+{"type":"server-stopped","reason":"idle timeout"}

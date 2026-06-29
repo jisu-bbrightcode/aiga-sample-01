@@ -1,0 +1,36 @@
+{
+  "name": "@repo/data",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./index.ts",
+    "./broadcast": "./broadcast/index.ts",
+    "./optimistic": "./optimistic/index.ts",
+    "./provider": "./provider.tsx",
+    "./hooks": "./hooks/index.ts",
+    "./remote": "./remote/index.ts",
+    "./types": "./types.ts"
+  },
+  "scripts": {
+    "lint": "node ../../scripts/biome-changed.mjs lint .",
+    "check-types": "tsc --noEmit",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.15.3",
+    "@types/react": "19.2.2",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "5.9.2"
+  },
+  "dependencies": {
+    "@repo/api-client": "workspace:^",
+    "@repo/shared": "workspace:*",
+    "@tanstack/react-query": "^5.66.5",
+    "@tanstack/react-router": "^1.122.1",
+    "fflate": "^0.8.2",
+    "react": "^19.2.0"
+  }
+}

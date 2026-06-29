@@ -1,0 +1,24 @@
+/**
+ * Landing Page - 미로그인 사용자용
+ */
+import { Link } from "@tanstack/react-router";
+import { project } from "../lib/project";
+
+export function LandingPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-slate-900 text-white">
+      <div className="text-center">
+        <h1 className="text-5xl font-bold">{project.name}</h1>
+        <p className="mt-2 text-lg text-slate-400">
+          Build modular applications with pluggable features
+        </p>
+      </div>
+
+      <div className="flex gap-4">
+        <Link to="/" className="rounded-lg bg-blue-600 px-6 py-3 font-medium hover:bg-blue-500">
+          Get Started
+        </Link>
+      </div>
+    </div>
+  );
+}

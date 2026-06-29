@@ -1,0 +1,116 @@
+<h2>/designsystem IA 방향 선택</h2>
+<p class="subtitle">목적: 개발자가 현재 디자인 토큰과 공통 컴포넌트를 빠르게 찾고, 재사용 기준을 맞추는 내부 인벤토리.</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A. Foundation First</div>
+        <div class="mockup-body">
+          <div style="display:flex; min-height:250px; gap:14px;">
+            <div class="mock-sidebar" style="width:165px;">
+              <div style="font-weight:700; margin-bottom:14px;">Design System</div>
+              <div>Colors</div>
+              <div>Typography</div>
+              <div>Spacing</div>
+              <div>Radius / Shadow</div>
+              <hr>
+              <div>Components</div>
+              <div>Patterns</div>
+              <div>Pages</div>
+            </div>
+            <div class="mock-content" style="flex:1;">
+              <div class="label">Foundation</div>
+              <h3>Colors</h3>
+              <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px;">
+                <div class="placeholder" style="height:58px; background:#1f1d18;"></div>
+                <div class="placeholder" style="height:58px; background:#f7f1df;"></div>
+                <div class="placeholder" style="height:58px; background:#3d8b6e;"></div>
+                <div class="placeholder" style="height:58px; background:#d95f43;"></div>
+              </div>
+              <div class="placeholder" style="height:88px; margin-top:16px;">Token table + usage rule</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Foundation First</h3>
+      <p>Colors, Typography 같은 기본 규칙을 먼저 정리하고 컴포넌트/패턴/페이지로 내려간다. 가장 안정적인 문서형 구조.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B. Component Workshop</div>
+        <div class="mockup-body">
+          <div style="display:flex; min-height:250px; gap:14px;">
+            <div class="mock-sidebar" style="width:165px;">
+              <div style="font-weight:700; margin-bottom:14px;">Components</div>
+              <div>Buttons</div>
+              <div>Inputs</div>
+              <div>Toolbar</div>
+              <div>Popover</div>
+              <div>Tables</div>
+              <hr>
+              <div>Tokens</div>
+              <div>Pages</div>
+            </div>
+            <div class="mock-content" style="flex:1;">
+              <div class="label">Component</div>
+              <h3>Toolbar</h3>
+              <div class="placeholder" style="height:54px;">Live preview: status tabs + view tabs + settings</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px;">
+                <div class="placeholder" style="height:92px;">Props / states</div>
+                <div class="placeholder" style="height:92px;">Usage examples</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Component Workshop</h3>
+      <p>컴포넌트를 중심에 두고 토큰은 보조로 붙인다. 재사용은 빠르지만 디자인 원칙 정리는 약해질 수 있다.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">C. Pattern + Page Inventory</div>
+        <div class="mockup-body">
+          <div style="display:flex; min-height:250px; gap:14px;">
+            <div class="mock-sidebar" style="width:165px;">
+              <div style="font-weight:700; margin-bottom:14px;">Patterns</div>
+              <div>Page Shell</div>
+              <div>Entity Page</div>
+              <div>Toolbar</div>
+              <div>Popover</div>
+              <div>Empty State</div>
+              <hr>
+              <div>Components</div>
+              <div>Tokens</div>
+            </div>
+            <div class="mock-content" style="flex:1;">
+              <div class="label">Page Pattern</div>
+              <h3>Entity List Page</h3>
+              <div class="placeholder" style="height:128px;">Full page anatomy preview</div>
+              <div class="placeholder" style="height:52px; margin-top:14px;">Do / Don't checklist</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Pattern + Page Inventory</h3>
+      <p>실제 페이지 모양과 패턴을 먼저 관리한다. 화면 품질에는 강하지만 토큰/컴포넌트 재사용 기준은 후순위가 된다.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>내 추천</h3>
+  <p>A로 시작하되, 하위 섹션에 B/C를 포함하는 구조가 맞습니다. 왼쪽 사이드바는 Foundation → Components → Patterns → Pages 순서로 두고, 각 페이지는 preview + usage + code reference + do/don't를 갖게 합니다.</p>
+</div>

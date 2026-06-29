@@ -1,0 +1,66 @@
+<h2>&#x22EF; 컨텍스트 메뉴 — 어떤 액션이 필요한가?</h2>
+<p class="subtitle">노드 우상단 &#x22EF; 클릭 시 나타나는 메뉴. 작가가 가장 자주 쓸 액션 위주로.</p>
+
+<div class="mockup" style="max-width:480px; margin:0 auto;">
+  <div class="mockup-header">Story Node + Context Menu</div>
+  <div class="mockup-body" style="padding:32px; background:#111120; display:flex; gap:16px; justify-content:center;">
+    <!-- Card -->
+    <div style="width:300px; background:#1e1e2e; border:1px solid #2a2a3e; border-radius:16px; font-family:system-ui; color:#e0e0e0; position:relative;">
+      <div style="padding:14px 16px 0; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="width:8px; height:8px; border-radius:50%; background:#a78bfa;"></div>
+          <span style="font-size:11px; color:#a78bfa; font-weight:600;">ACT 2 &middot; SCENE 3</span>
+        </div>
+        <div style="color:#a78bfa; font-size:14px; font-weight:bold;">&#x22EF;</div>
+      </div>
+      <div style="padding:10px 16px 14px;">
+        <div style="font-size:15px; font-weight:700;">왕국의 몰락을 목격하다</div>
+        <div style="font-size:12px; color:#666; margin-top:6px; line-height:1.5;">엘리아 공주가 성벽 위에서...</div>
+      </div>
+    </div>
+
+    <!-- Menu popup -->
+    <div style="width:200px; background:#1e1e2e; border:1px solid #333; border-radius:12px; font-family:system-ui; color:#d0d0d0; box-shadow:0 12px 40px rgba(0,0,0,0.5); overflow:hidden; font-size:13px; align-self:flex-start;">
+      <div style="padding:6px 0;">
+        <div style="padding:8px 14px; display:flex; align-items:center; gap:8px; background:#2a2a3e;">&#x270F;&#xFE0F; 편집</div>
+        <div style="padding:8px 14px; display:flex; align-items:center; gap:8px;">&#x1F4CB; 복제</div>
+        <div style="padding:8px 14px; display:flex; align-items:center; gap:8px;">&#x1F517; 연결 추가</div>
+        <div style="border-top:1px solid #2a2a3e; margin:4px 0;"></div>
+        <div style="padding:8px 14px; display:flex; align-items:center; gap:8px;">&#x1F3A8; 색상 변경</div>
+        <div style="padding:8px 14px; display:flex; align-items:center; gap:8px;">&#x1F3F7;&#xFE0F; 태그 관리</div>
+        <div style="padding:8px 14px; display:flex; align-items:center; gap:8px;">&#x1F465; 캐릭터 배정</div>
+        <div style="border-top:1px solid #2a2a3e; margin:4px 0;"></div>
+        <div style="padding:8px 14px; display:flex; align-items:center; gap:8px;">&#x1F4E4; 내보내기</div>
+        <div style="padding:8px 14px; display:flex; align-items:center; gap:8px; color:#f87171;">&#x1F5D1;&#xFE0F; 삭제</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:24px;">
+  <p class="subtitle">이 메뉴 구성이 맞나요? 추가/제거할 액션이 있으면 알려주세요.</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="good" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>이대로 좋다</h3>
+      <p>편집, 복제, 연결, 색상, 태그, 캐릭터, 내보내기, 삭제</p>
+    </div>
+  </div>
+  <div class="option" data-choice="simpler" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>더 줄이자</h3>
+      <p>핵심 3-4개만. 나머지는 상세 패널에서</p>
+    </div>
+  </div>
+  <div class="option" data-choice="more" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>더 추가할 게 있다</h3>
+      <p>터미널에서 말해줄게</p>
+    </div>
+  </div>
+</div>

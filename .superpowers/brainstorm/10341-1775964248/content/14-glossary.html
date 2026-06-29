@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>용어 사전 — 상세 목업</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Geist", "Pretendard Variable", system-ui, sans-serif; background: #f5f4f0; color: #333; }
+  .app-shell { display: flex; height: 100vh; }
+
+  .sidebar { width: 220px; background: #fafaf8; border-right: 1px solid #e8e5df; padding: 16px 12px; flex-shrink: 0; font-size: 13px; }
+  .sidebar-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 10px; padding: 0 8px; }
+  .sidebar-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px; color: #666; cursor: pointer; margin-bottom: 2px; }
+  .sidebar-item.active { background: #e8e5df; color: #333; font-weight: 600; }
+  .sidebar-divider { border-top: 1px solid #e8e5df; margin: 8px 0; }
+  .sidebar-item.muted { color: #aaa; font-size: 12px; }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .page-header { padding: 20px 24px 0; }
+  .page-title { font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px; }
+  .page-subtitle { font-size: 13px; color: #999; }
+
+  .toolbar { display: flex; align-items: center; gap: 10px; padding: 16px 24px; border-bottom: 1px solid #e8e5df; }
+  .search-box { display: flex; align-items: center; gap: 6px; background: #f5f4f0; border: 1px solid #e5e5e0; border-radius: 8px; padding: 6px 12px; font-size: 12px; color: #888; width: 240px; }
+  .filter-group { display: flex; gap: 4px; }
+  .filter-btn { padding: 5px 12px; border-radius: 6px; font-size: 11px; color: #888; background: #f5f4f0; border: 1px solid #e5e5e0; cursor: pointer; }
+  .filter-btn.active { background: #333; color: white; border-color: #333; }
+  .add-btn { margin-left: auto; padding: 6px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; background: #333; color: white; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+
+  .content-area { flex: 1; overflow-y: auto; }
+
+  /* Table */
+  .glossary-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .glossary-table thead { position: sticky; top: 0; z-index: 1; }
+  .glossary-table th { text-align: left; padding: 10px 16px; background: #fafaf8; border-bottom: 1px solid #e8e5df; font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+  .glossary-table th.lang-col { text-align: center; width: 140px; }
+  .glossary-table td { padding: 12px 16px; border-bottom: 1px solid #f5f4f0; vertical-align: top; }
+  .glossary-table tr:hover { background: #fafaf8; }
+
+  .term-cell { font-weight: 600; color: #333; }
+  .term-category { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px; margin-left: 6px; font-weight: 500; }
+  .cat-character { background: #fce7f3; color: #be185d; }
+  .cat-location { background: #e0e7ff; color: #4338ca; }
+  .cat-faction { background: #fef3c7; color: #92400e; }
+  .cat-item { background: #d1fae5; color: #065f46; }
+  .cat-general { background: #f0efea; color: #888; }
+
+  .def-cell { color: #888; font-size: 12px; max-width: 200px; }
+
+  .lang-cell { text-align: center; }
+  .lang-value { font-size: 13px; color: #333; }
+  .lang-empty { color: #ddd; font-size: 12px; }
+  .lang-cell-edit { background: #f8faff; border: 1px solid #dbeafe; border-radius: 4px; padding: 4px 8px; font-size: 12px; color: #333; text-align: center; cursor: text; }
+
+  /* Stats footer */
+  .stats-footer { display: flex; align-items: center; gap: 16px; padding: 10px 24px; background: #fafaf8; border-top: 1px solid #e8e5df; font-size: 12px; color: #999; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="sidebar">
+    <div class="sidebar-label">현지화</div>
+    <div class="sidebar-item"><span>📊</span> 대시보드</div>
+    <div class="sidebar-item"><span>🎬</span> 캔버스 번역</div>
+    <div class="sidebar-item"><span>📖</span> 세계관 번역</div>
+    <div class="sidebar-item active"><span>📚</span> 용어 사전</div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-item muted"><span>⚙️</span> 언어 설정</div>
+  </div>
+
+  <div class="main">
+    <div class="page-header">
+      <div class="page-title">용어 사전</div>
+      <div class="page-subtitle">고유 명사를 등록하면 AI 번역 시 일관된 용어를 사용합니다</div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-box">🔍 용어 검색...</div>
+      <div class="filter-group">
+        <div class="filter-btn active">전체</div>
+        <div class="filter-btn">캐릭터</div>
+        <div class="filter-btn">장소</div>
+        <div class="filter-btn">세력</div>
+        <div class="filter-btn">아이템</div>
+        <div class="filter-btn">일반</div>
+      </div>
+      <button class="add-btn">+ 용어 추가</button>
+    </div>
+
+    <div class="content-area">
+      <table class="glossary-table">
+        <thead>
+          <tr>
+            <th style="width: 160px;">원어</th>
+            <th>정의</th>
+            <th class="lang-col">EN</th>
+            <th class="lang-col">JA</th>
+            <th class="lang-col">ZH</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="term-cell">아르테미아 <span class="term-category cat-location">장소</span></td>
+            <td class="def-cell">태초의 마법이 깃든 대륙. 다섯 왕국이 균형을 이룬다.</td>
+            <td class="lang-cell"><span class="lang-value">Artemia</span></td>
+            <td class="lang-cell"><span class="lang-value">アルテミア</span></td>
+            <td class="lang-cell"><span class="lang-value">阿尔忒弥亚</span></td>
+          </tr>
+          <tr>
+            <td class="term-cell">카엘 <span class="term-category cat-character">캐릭터</span></td>
+            <td class="def-cell">잃어버린 왕국의 마지막 검사. 기억을 잃은 채 변경에서 깨어남.</td>
+            <td class="lang-cell"><span class="lang-value">Kael</span></td>
+            <td class="lang-cell"><span class="lang-value">カエル</span></td>
+            <td class="lang-cell"><span class="lang-empty">—</span></td>
+          </tr>
+          <tr>
+            <td class="term-cell">에리아 <span class="term-category cat-character">캐릭터</span></td>
+            <td class="def-cell">변경 마을의 약초사. 카엘을 치료한 인물.</td>
+            <td class="lang-cell"><span class="lang-value">Eria</span></td>
+            <td class="lang-cell"><span class="lang-empty">—</span></td>
+            <td class="lang-cell"><span class="lang-empty">—</span></td>
+          </tr>
+          <tr>
+            <td class="term-cell">마나석 <span class="term-category cat-item">아이템</span></td>
+            <td class="def-cell">마법 에너지가 응축된 결정. 무기와 방어구에 장착 가능.</td>
+            <td class="lang-cell"><span class="lang-value">Mana Crystal</span></td>
+            <td class="lang-cell"><span class="lang-value">マナ石</span></td>
+            <td class="lang-cell"><span class="lang-value">魔力石</span></td>
+          </tr>
+          <tr>
+            <td class="term-cell">흑철단 <span class="term-category cat-faction">세력</span></td>
+            <td class="def-cell">북부 산맥을 거점으로 한 용병 집단. 왕국에 충성하지 않는다.</td>
+            <td class="lang-cell"><span class="lang-value">Black Iron Guild</span></td>
+            <td class="lang-cell"><span class="lang-value">黒鉄団</span></td>
+            <td class="lang-cell"><span class="lang-empty">—</span></td>
+          </tr>
+          <tr>
+            <td class="term-cell">각성 <span class="term-category cat-general">일반</span></td>
+            <td class="def-cell">마나석과 공명하여 초자연적 능력을 발현하는 현상.</td>
+            <td class="lang-cell"><span class="lang-value">Awakening</span></td>
+            <td class="lang-cell"><span class="lang-value">覚醒</span></td>
+            <td class="lang-cell"><span class="lang-value">觉醒</span></td>
+          </tr>
+          <tr>
+            <td class="term-cell">변경 <span class="term-category cat-location">장소</span></td>
+            <td class="def-cell">아르테미아 대륙의 외곽 지역. 왕국의 영향력이 미치지 않는 곳.</td>
+            <td class="lang-cell"><span class="lang-value">The Frontier</span></td>
+            <td class="lang-cell"><span class="lang-empty">—</span></td>
+            <td class="lang-cell"><span class="lang-empty">—</span></td>
+          </tr>
+          <tr>
+            <td class="term-cell">심연의 문 <span class="term-category cat-location">장소</span></td>
+            <td class="def-cell">어둠의 숲 깊은 곳에 있는 고대 유적. 봉인된 힘이 잠들어 있다.</td>
+            <td class="lang-cell"><span class="lang-value">Gate of the Abyss</span></td>
+            <td class="lang-cell"><span class="lang-value">深淵の門</span></td>
+            <td class="lang-cell"><span class="lang-value">深渊之门</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="stats-footer">
+      <span>총 86개 용어</span>
+      <span>·</span>
+      <span>EN 82개 번역됨 (95%)</span>
+      <span>·</span>
+      <span>JA 68개 (79%)</span>
+      <span>·</span>
+      <span>ZH 52개 (60%)</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

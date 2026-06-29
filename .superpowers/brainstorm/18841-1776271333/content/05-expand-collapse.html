@@ -1,0 +1,95 @@
+<h2>접기/펼치기 — C(기본) → B(확장)</h2>
+<p class="subtitle">기본은 Minimal. 클릭/호버로 펼치면 본문 5~7줄 미리보기. 상세는 별도 패널.</p>
+
+<div class="mockup" style="max-width:720px; margin:0 auto;">
+  <div class="mockup-header">접힌 상태 → 펼친 상태 → 상세 패널</div>
+  <div class="mockup-body" style="padding:32px; background:#111120; display:flex; gap:24px; align-items:flex-start; justify-content:center;">
+
+    <!-- State 1: Collapsed (C) -->
+    <div style="text-align:center;">
+      <div style="font-size:10px; color:#555; margin-bottom:8px; letter-spacing:0.5px;">기본 (접힌)</div>
+      <div style="width:260px; background:#1e1e2e; border:1px solid #2a2a3e; border-radius:10px; font-family:system-ui; color:#e0e0e0;">
+        <div style="padding:12px 14px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:11px; color:#a78bfa; font-weight:600;">ACT 2 / SCENE 3</span>
+          <span style="color:#555; font-size:13px; cursor:pointer;">&#x22EF;</span>
+        </div>
+        <div style="padding:0 14px; font-size:14px; font-weight:700; line-height:1.3;">왕국의 몰락을 목격하다</div>
+        <div style="padding:10px 14px; display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#555;">
+          <div style="display:flex; gap:4px;">
+            <span style="padding:2px 6px; background:#2a3a2a; border-radius:4px; color:#6ee7b7;">완료</span>
+            <span style="padding:2px 6px; background:#2a2a3e; border-radius:4px; color:#8b8ba0;">분기점</span>
+          </div>
+          <span>3 분기</span>
+        </div>
+      </div>
+      <div style="font-size:10px; color:#444; margin-top:6px;">~100px</div>
+    </div>
+
+    <!-- Arrow -->
+    <div style="color:#555; font-size:24px; align-self:center; padding-top:20px;">&#x2192;</div>
+
+    <!-- State 2: Expanded (B-style) -->
+    <div style="text-align:center;">
+      <div style="font-size:10px; color:#555; margin-bottom:8px; letter-spacing:0.5px;">펼친 (클릭)</div>
+      <div style="width:300px; background:#1e1e2e; border:1px solid #3a3a5e; border-radius:12px; font-family:system-ui; color:#e0e0e0; box-shadow:0 4px 20px rgba(100,80,200,0.08);">
+        <div style="padding:14px 16px 0; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:11px; color:#a78bfa; font-weight:600;">ACT 2 / SCENE 3</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:10px; padding:2px 8px; background:#2a3a2a; border-radius:4px; color:#6ee7b7;">완료</span>
+            <span style="color:#555; font-size:14px; cursor:pointer;">&#x22EF;</span>
+          </div>
+        </div>
+        <div style="padding:8px 16px 0; font-size:15px; font-weight:700; line-height:1.35;">왕국의 몰락을 목격하다</div>
+        <!-- 5-7 lines preview -->
+        <div style="padding:6px 16px; font-size:13px; color:#777; line-height:1.6;">엘리아 공주가 성벽 위에서 적군의 진격을 바라보는 장면. 플레이어의 선택에 따라 3가지 분기로 나뉜다. 성문을 열어 항복하거나, 비밀 통로로 탈출하거나, 최후의 방어전을 선택할 수 있다. 각 선택은 이후 Act 3의 전개를 완전히 바꾼다.</div>
+        <!-- Tags -->
+        <div style="padding:6px 16px; display:flex; gap:6px; flex-wrap:wrap;">
+          <span style="font-size:11px; padding:3px 8px; background:#2a2a3e; border-radius:6px; color:#8b8ba0;">분기점</span>
+          <span style="font-size:11px; padding:3px 8px; background:#2a2a3e; border-radius:6px; color:#e8a87c;">긴장</span>
+          <span style="font-size:11px; padding:3px 8px; background:#2a2a3e; border-radius:6px; color:#a78bfa;">엘리아</span>
+        </div>
+        <div style="margin:6px 16px 0; border-top:1px solid #222;"></div>
+        <div style="padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex;">
+            <div style="width:20px; height:20px; border-radius:50%; background:#4a4a6a; border:2px solid #1e1e2e; display:flex; align-items:center; justify-content:center; font-size:8px; color:#ccc;">E</div>
+            <div style="width:20px; height:20px; border-radius:50%; background:#6a4a6a; border:2px solid #1e1e2e; margin-left:-5px; display:flex; align-items:center; justify-content:center; font-size:8px; color:#ccc;">K</div>
+          </div>
+          <div style="display:flex; gap:14px; font-size:11px; color:#555;">
+            <span>3 분기</span>
+            <span>12 대사</span>
+            <span>340 단어</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:10px; color:#444; margin-top:6px;">~220px</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:24px;">
+  <h3>펼치기 트리거는?</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="click" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>클릭으로 토글</h3>
+      <p>노드 클릭 = 펼치기. 다시 클릭 또는 바깥 클릭 = 접기. 명시적.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="hover" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>호버로 펼치기</h3>
+      <p>마우스 올리면 펼침. 벗어나면 접힘. 빠르게 훑기 좋음.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="both" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>호버 미리보기 + 클릭 고정</h3>
+      <p>호버 = 잠깐 펼침. 클릭 = 고정. 다시 클릭 = 접기. 두 장점 결합.</p>
+    </div>
+  </div>
+</div>

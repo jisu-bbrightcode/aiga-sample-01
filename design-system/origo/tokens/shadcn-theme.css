@@ -1,0 +1,27 @@
+/* Origo → shadcn theme (base-vega/neutral, light) — AUTO-GENERATED */
+/* 외주 프로젝트 packages/ui globals.css :root 에 병합. regenerate: design-system/scripts `npm run build` */
+@layer base {
+  :root {
+    --background: #FFFFFF;
+    --foreground: #0A0D14;
+    --card: #FFFFFF;
+    --card-foreground: #0A0D14;
+    --popover: #FFFFFF;
+    --popover-foreground: #0A0D14;
+    --primary: #0F5D66;
+    --primary-foreground: #FFFFFF;
+    --secondary: #F6F8FA;
+    --secondary-foreground: #0A0D14;
+    --muted: #F6F8FA;
+    --muted-foreground: #525866;
+    --accent: #E2E4E9;
+    --accent-foreground: #0A0D14;
+    --destructive: #DF1C41;
+    --destructive-foreground: #FFFFFF;
+    --border: #E2E4E9;
+    --input: #E2E4E9;
+    --ring: #868C98;
+    --success: #38C793;
+    --radius: 0.5rem;
+  }
+}

@@ -1,0 +1,205 @@
+name: E2E (tagged)
+
+# Tag-based browser E2E gate. Keep GitHub-hosted runner usage small:
+#
+# - PRs        : no browser E2E by default (use workflow_dispatch when needed)
+# - main       : @smoke + @critical, plus @regression in a separate job
+# - manual     : custom grep across apps; optional regression checkbox
+# - PG-branch  : separate workflow (e2e-against-pg-branch.yml) for @db specs
+#
+# Detailed operating rules: docs/runbooks/e2e-management.md
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - ".pi/**"
+      - ".crew/**"
+      - ".github/**"
+      - "*.md"
+  workflow_dispatch:
+    inputs:
+      grep:
+        description: "Playwright grep pattern for smoke job (e.g. @smoke, @auth)"
+        required: false
+        default: "@smoke|@critical"
+      run_regression:
+        description: "Also run @regression suites"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke-critical:
+    name: ${{ matrix.app }} — smoke+critical
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: apps/app
+            filter: app
+            grep: "@smoke|@critical"
+            port: 3000
+          - app: apps/admin
+            filter: admin
+            grep: "@smoke|@critical"
+            port: 3001
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Playwright (chromium)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter ${{ matrix.filter }} exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps (cache-hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter ${{ matrix.filter }} exec playwright install-deps chromium
+
+      - name: Build (if app has build script)
+        run: pnpm --filter ${{ matrix.filter }} run build || echo "no build script — assuming dev server"
+        env:
+          VITE_API_URL: http://localhost:${{ matrix.port }}
+
+      - name: Start preview server (vite-style apps)
+        run: |
+          pnpm --filter ${{ matrix.filter }} preview --host 0.0.0.0 --port ${{ matrix.port }} > preview.log 2>&1 &
+          echo "APP_PID=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 30); do
+            if nc -z localhost ${{ matrix.port }} 2>/dev/null; then
+              echo "app up on :${{ matrix.port }}"; break
+            fi
+            sleep 1
+          done
+
+      - name: Run Playwright (grep=${{ github.event.inputs.grep || matrix.grep }})
+        env:
+          CI: true
+          PLAYWRIGHT_GREP: ${{ github.event.inputs.grep || matrix.grep }}
+          # @db specs need real Postgres + NestJS backend. They run only in
+          # e2e-against-pg-branch.yml, not this mock-only workflow.
+          PLAYWRIGHT_GREP_INVERT: "@db"
+        run: |
+          pnpm --filter ${{ matrix.filter }} exec playwright test --reporter=list --pass-with-no-tests
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-${{ matrix.app }}-smoke-critical-${{ github.run_id }}
+          path: |
+            ${{ matrix.app }}/test-results/**
+            ${{ matrix.app }}/playwright-report/**
+            preview.log
+          if-no-files-found: ignore
+
+      - name: Stop preview server
+        if: always()
+        run: |
+          [ -n "${APP_PID:-}" ] && kill "$APP_PID" 2>/dev/null || true
+
+  regression:
+    name: ${{ matrix.app }} — regression
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_regression) || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: apps/app
+            filter: app
+            port: 3000
+          - app: apps/admin
+            filter: admin
+            port: 3001
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Playwright (chromium)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter ${{ matrix.filter }} exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps (cache-hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter ${{ matrix.filter }} exec playwright install-deps chromium
+
+      - name: Build (if app has build script)
+        run: pnpm --filter ${{ matrix.filter }} run build || echo "no build script — assuming dev server"
+        env:
+          VITE_API_URL: http://localhost:${{ matrix.port }}
+
+      - name: Start preview server (vite-style apps)
+        run: |
+          pnpm --filter ${{ matrix.filter }} preview --host 0.0.0.0 --port ${{ matrix.port }} > preview.log 2>&1 &
+          echo "APP_PID=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 30); do
+            if nc -z localhost ${{ matrix.port }} 2>/dev/null; then
+              echo "app up on :${{ matrix.port }}"; break
+            fi
+            sleep 1
+          done
+
+      - name: Run Playwright (grep=@regression)
+        env:
+          CI: true
+          PLAYWRIGHT_GREP: "@regression"
+          PLAYWRIGHT_GREP_INVERT: "@db"
+        run: |
+          pnpm --filter ${{ matrix.filter }} exec playwright test --reporter=list --pass-with-no-tests
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-${{ matrix.app }}-regression-${{ github.run_id }}
+          path: |
+            ${{ matrix.app }}/test-results/**
+            ${{ matrix.app }}/playwright-report/**
+            preview.log
+          if-no-files-found: ignore
+
+      - name: Stop preview server
+        if: always()
+        run: |
+          [ -n "${APP_PID:-}" ] && kill "$APP_PID" 2>/dev/null || true
