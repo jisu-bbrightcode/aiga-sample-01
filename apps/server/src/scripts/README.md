@@ -4,6 +4,18 @@ This directory contains database seeding and utility scripts for the Atlas Serve
 
 ## Available Scripts
 
+### Bootstrap Super Admin
+
+Creates the first super-admin account (idempotent) and grants admin access via a
+Better Auth organization `owner` membership, then verifies login.
+
+```bash
+pnpm --filter server db:bootstrap:super-admin
+```
+
+Defaults to `first@super.local` / `q1w2e3r4t5!$` (overridable via `PRODUCT_BUILDER_SEED_*`).
+Production handover (rotate / deactivate / transfer) procedure: `doc/admin-super-account-bootstrap.md`.
+
 ### Seed Roles & Permissions
 
 Seeds the database with system roles and permissions.

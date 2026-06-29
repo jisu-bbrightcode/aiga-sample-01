@@ -46,6 +46,7 @@
     "db:raw-sql:inventory": "node scripts/audit-raw-sql.mjs --write",
     "db:generate": "pnpm --filter @repo/drizzle db:generate",
     "db:migrate": "pnpm --filter @repo/drizzle db:migrate",
+    "db:bootstrap:super-admin": "pnpm --filter server db:bootstrap:super-admin",
     "db:push": "pnpm --filter @repo/drizzle db:push",
     "db:studio": "pnpm --filter @repo/drizzle db:studio",
     "db:seed:demo": "node scripts/seed-demo.mjs",
