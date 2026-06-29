@@ -2,17 +2,23 @@ import { ConflictException, Injectable, Logger, NotFoundException } from "@nestj
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
 import {
+  serviceDoctorCredentials,
   serviceDoctorHospitals,
   serviceDoctorSpecialties,
   serviceDoctors,
+  serviceHospitalHours,
+  serviceHospitalSpecialties,
   serviceHospitals,
   serviceRegions,
   serviceSpecialties,
 } from "@repo/drizzle/schema";
 import { and, asc, desc, eq, ilike, sql } from "drizzle-orm";
 import type {
+  CreateDoctorCredentialDto,
   CreateDoctorDto,
   CreateHospitalDto,
+  CreateHospitalHoursDto,
+  CreateHospitalSpecialtyDto,
   ListDoctorsQueryDto,
   ListHospitalsQueryDto,
   UpdateDoctorDto,
@@ -22,9 +28,13 @@ import {
   type PublicDoctorDetail,
   type PublicHospitalDetail,
   toAdminDoctor,
+  toAdminDoctorCredential,
   toAdminHospital,
+  toAdminHospitalHours,
   toPublicDoctor,
+  toPublicDoctorCredential,
   toPublicHospital,
+  toPublicHospitalHours,
   toPublicRegion,
   toPublicSpecialty,
 } from "../mappers";
@@ -101,7 +111,10 @@ export class ServiceDomainService {
         .orderBy(...orderBy)
         .limit(limit)
         .offset((page - 1) * limit),
-      this.db.select({ count: sql<number>`cast(count(*) as int)` }).from(serviceDoctors).where(where),
+      this.db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(serviceDoctors)
+        .where(where),
     ]);
 
     return { items: rows.map(toPublicDoctor), total: countRows[0]?.count ?? 0, page, limit };
@@ -118,6 +131,7 @@ export class ServiceDomainService {
         region: true,
         specialties: { with: { specialty: true } },
         hospitals: { with: { hospital: true } },
+        credentials: true,
       },
     });
 
@@ -139,6 +153,11 @@ export class ServiceDomainService {
           role: h.role,
           isPrimary: h.isPrimary,
         })),
+      // FR-005 profile: only visible entries, grouped by section then sort order.
+      credentials: row.credentials
+        .filter((c) => c.isVisible)
+        .sort((a, b) => a.kind.localeCompare(b.kind) || a.sortOrder - b.sortOrder)
+        .map(toPublicDoctorCredential),
     };
   }
 
@@ -183,6 +202,8 @@ export class ServiceDomainService {
       with: {
         region: true,
         doctors: { with: { doctor: true } },
+        specialties: { with: { specialty: true } },
+        hours: true,
       },
     });
 
@@ -197,6 +218,15 @@ export class ServiceDomainService {
         .map((d) => d.doctor)
         .filter((d) => d && d.status === PUBLISHED && !d.isDeleted)
         .map(toPublicDoctor),
+      // FR-005 병원 상세: department list (in display order) + weekly hours.
+      specialties: row.specialties
+        .filter((s) => s.specialty?.isActive)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((s) => toPublicSpecialty(s.specialty)),
+      hours: row.hours
+        .slice()
+        .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+        .map(toPublicHospitalHours),
     };
   }
 
@@ -324,6 +354,67 @@ export class ServiceDomainService {
   }
 
   // =========================================================================
+  // Profile detail — admin create (FR-005 의사 프로필 / 병원 상세)
+  // =========================================================================
+
+  /** Create a 의사 프로필 이력 항목 (education/career/certification/award). */
+  async createDoctorCredential(actorId: string, doctorId: string, dto: CreateDoctorCredentialDto) {
+    await this.requireDoctor(doctorId);
+    const rows = await this.db
+      .insert(serviceDoctorCredentials)
+      .values({ ...dto, doctorId })
+      .returning();
+    const created = this.firstOrThrow(rows);
+    this.logger.log(`doctor-credential created id=${created.id} doctor=${doctorId} by=${actorId}`);
+    return toAdminDoctorCredential(created);
+  }
+
+  /** Add a 병원 진료과 (hospital ↔ specialty department link). */
+  async addHospitalSpecialty(actorId: string, hospitalId: string, dto: CreateHospitalSpecialtyDto) {
+    await this.requireHospital(hospitalId);
+    await this.requireSpecialty(dto.specialtyId);
+    try {
+      const rows = await this.db
+        .insert(serviceHospitalSpecialties)
+        .values({ hospitalId, specialtyId: dto.specialtyId, sortOrder: dto.sortOrder })
+        .returning();
+      const created = this.firstOrThrow(rows);
+      this.logger.log(
+        `hospital-specialty added hospital=${hospitalId} specialty=${dto.specialtyId} by=${actorId}`,
+      );
+      return {
+        hospitalId: created.hospitalId,
+        specialtyId: created.specialtyId,
+        sortOrder: created.sortOrder,
+      };
+    } catch (error) {
+      throw this.mapUniqueConflict(error, "이미 등록된 진료과입니다.", "병원 진료과");
+    }
+  }
+
+  /** Add a 병원 운영시간 entry for a single weekday. */
+  async addHospitalHours(actorId: string, hospitalId: string, dto: CreateHospitalHoursDto) {
+    await this.requireHospital(hospitalId);
+    try {
+      const rows = await this.db
+        .insert(serviceHospitalHours)
+        .values({ ...dto, hospitalId })
+        .returning();
+      const created = this.firstOrThrow(rows);
+      this.logger.log(
+        `hospital-hours added hospital=${hospitalId} day=${dto.dayOfWeek} by=${actorId}`,
+      );
+      return toAdminHospitalHours(created);
+    } catch (error) {
+      throw this.mapUniqueConflict(
+        error,
+        "해당 요일의 운영시간이 이미 등록되어 있습니다.",
+        "병원 운영시간",
+      );
+    }
+  }
+
+  // =========================================================================
   // Internals
   // =========================================================================
 
@@ -360,6 +451,18 @@ export class ServiceDomainService {
     return row;
   }
 
+  private async requireSpecialty(id: string) {
+    const [row] = await this.db
+      .select()
+      .from(serviceSpecialties)
+      .where(and(eq(serviceSpecialties.id, id), eq(serviceSpecialties.isActive, true)))
+      .limit(1);
+    if (!row) {
+      throw new NotFoundException("진료과를 찾을 수 없습니다.");
+    }
+    return row;
+  }
+
   /** Replace-semantics for a doctor's M:N associations within a transaction. */
   private async replaceDoctorAssociations(
     tx: ServiceDbTx,
@@ -368,11 +471,13 @@ export class ServiceDomainService {
     hospitals: CreateDoctorDto["hospitals"],
   ) {
     if (specialtyIds !== undefined) {
-      await tx.delete(serviceDoctorSpecialties).where(eq(serviceDoctorSpecialties.doctorId, doctorId));
+      await tx
+        .delete(serviceDoctorSpecialties)
+        .where(eq(serviceDoctorSpecialties.doctorId, doctorId));
       if (specialtyIds.length > 0) {
-        await tx.insert(serviceDoctorSpecialties).values(
-          specialtyIds.map((specialtyId) => ({ doctorId, specialtyId })),
-        );
+        await tx
+          .insert(serviceDoctorSpecialties)
+          .values(specialtyIds.map((specialtyId) => ({ doctorId, specialtyId })));
       }
     }
     if (hospitals !== undefined) {
@@ -394,10 +499,29 @@ export class ServiceDomainService {
     if (typeof error === "object" && error !== null && "code" in error) {
       const code = (error as { code?: string }).code;
       if (code === PG_UNIQUE_VIOLATION) {
-        return new ConflictException(`이미 사용 중인 slug입니다. 다른 ${label} slug를 사용해주세요.`);
+        return new ConflictException(
+          `이미 사용 중인 slug입니다. 다른 ${label} slug를 사용해주세요.`,
+        );
       }
     }
-    this.logger.error(`${label} write failed`, error instanceof Error ? error.stack : String(error));
+    this.logger.error(
+      `${label} write failed`,
+      error instanceof Error ? error.stack : String(error),
+    );
+    return error instanceof Error ? error : new Error(String(error));
+  }
+
+  /** Map a unique-violation to a 409 with a resource-specific message. */
+  private mapUniqueConflict(error: unknown, message: string, label: string): Error {
+    if (typeof error === "object" && error !== null && "code" in error) {
+      if ((error as { code?: string }).code === PG_UNIQUE_VIOLATION) {
+        return new ConflictException(message);
+      }
+    }
+    this.logger.error(
+      `${label} write failed`,
+      error instanceof Error ? error.stack : String(error),
+    );
     return error instanceof Error ? error : new Error(String(error));
   }
 }
