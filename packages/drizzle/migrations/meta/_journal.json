@@ -365,6 +365,13 @@
       "when": 1781311800000,
       "tag": "0051_service_domain_profile",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1781311900000,
+      "tag": "0052_email_template_versions",
+      "breakpoints": true
     }
   ]
 }
