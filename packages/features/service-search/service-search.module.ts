@@ -1,19 +1,29 @@
 import { Module, type OnModuleInit } from "@nestjs/common";
-import { ServiceSearchAdminController, ServiceSearchController } from "./controller";
-import { ServiceSearchService } from "./service";
+import {
+  ServiceSearchAdminController,
+  ServiceSearchController,
+  ServiceSearchSynonymsAdminController,
+} from "./controller";
+import { ServiceSearchService, ServiceSearchSynonymsService } from "./service";
 import { setServiceSearchService } from "./service-registry";
 
 /**
- * 통합검색 REST API (FR-003 / BBR-531).
+ * 통합검색 REST API (FR-003).
  *
- * Capability: `domain.feature.fr-003.api.list` — the unified list/search API
- * over the PB-DATA-FR003 search projection (built on the PB-DATA-001 catalog
- * hub). Public read controller + admin-gated controller share one service.
+ * Capability: `domain.feature.fr-003.api.list` (BBR-531) — unified list/search
+ * over the PB-DATA-FR003 search projection — plus `…api.create` (BBR-533) —
+ * admin-curated search synonyms. Public read controller + admin list/search
+ * controller share `ServiceSearchService`; the admin synonym controller uses a
+ * dedicated `ServiceSearchSynonymsService`.
  */
 @Module({
-  controllers: [ServiceSearchController, ServiceSearchAdminController],
-  providers: [ServiceSearchService],
-  exports: [ServiceSearchService],
+  controllers: [
+    ServiceSearchController,
+    ServiceSearchAdminController,
+    ServiceSearchSynonymsAdminController,
+  ],
+  providers: [ServiceSearchService, ServiceSearchSynonymsService],
+  exports: [ServiceSearchService, ServiceSearchSynonymsService],
 })
 export class ServiceSearchModule implements OnModuleInit {
   constructor(private readonly service: ServiceSearchService) {}
