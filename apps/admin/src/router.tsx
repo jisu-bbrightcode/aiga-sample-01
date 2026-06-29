@@ -18,7 +18,7 @@ import { createScheduledJobAdminRoutes } from "./features/scheduled-job";
 import { createVideoLectureAdminRoutes } from "./features/video-lecture";
 // [/ATLAS:IMPORTS]
 import { AdminLayout } from "./layouts";
-import { AdminDashboard, AdminSignInPage, AdminUsersPage } from "./pages";
+import { AdminAuditLogsPage, AdminDashboard, AdminSignInPage, AdminUsersPage } from "./pages";
 
 // ============================================================================
 // Root Route
@@ -62,6 +62,13 @@ const usersRoute = createRoute({
   component: AdminUsersPage,
 });
 
+// "/audit-logs" - 감사 로그
+const auditLogsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/audit-logs",
+  component: AdminAuditLogsPage,
+});
+
 // ============================================================================
 // Route Tree 구성
 // ============================================================================
@@ -83,6 +90,7 @@ const routeTree = rootRoute.addChildren([
   adminLayoutRoute.addChildren([
     dashboardRoute,
     usersRoute,
+    auditLogsRoute,
     ...createProfileAuthRoutes(adminLayoutRoute),
     // [ATLAS:ADMIN_ROUTES]
     ...createCommunityAdminRoutes(adminLayoutRoute),

@@ -28,6 +28,7 @@ import {
   LayoutDashboard,
   LogOut,
   MessageSquare,
+  ScrollText,
   Settings,
   ShieldCheck,
   User,
@@ -125,6 +126,15 @@ function AdminSidebar() {
                 >
                   <Users />
                   <span>{labels.userManagement}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link to="/audit-logs" />}
+                  isActive={currentPath === "/audit-logs"}
+                >
+                  <ScrollText />
+                  <span>감사 로그</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>

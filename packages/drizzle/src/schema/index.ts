@@ -21,6 +21,7 @@
 export * from "../utils";
 
 // Core Schemas (base tables that features depend on)
+export * from "./core/admin-audit";
 export * from "./core/auth";
 export * from "./core/auth-tables";
 export * from "./core/better-auth";
