@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
@@ -10,11 +11,12 @@ import { InjectDrizzle } from "@repo/drizzle";
 import type { EmailLog, EmailStatus, EmailTemplateType } from "@repo/drizzle/schema";
 import { emailLogs } from "@repo/drizzle/schema";
 import { and, desc, eq, gte, ilike, type SQL } from "drizzle-orm";
-import type { EmailLogsFilters, SendEmailInput } from "../../common/types";
-import { mapResendEvent, resolveStatusUpdate } from "../webhooks/resend-event-mapper";
+import type { EmailLogsFilters, SendEmailInput, SendTemplateEmailInput } from "../../common/types";
 import type { ResendWebhookPayload } from "../webhooks/resend.payload.schema";
+import { mapResendEvent, resolveStatusUpdate } from "../webhooks/resend-event-mapper";
 import { EmailProviderService } from "./email-provider.service";
 import { EmailTemplateService } from "./email-template.service";
+import { EmailTemplateRegistryService } from "./email-template-registry.service";
 
 /**
  * Email Service
@@ -27,6 +29,7 @@ export class EmailService {
     @InjectDrizzle() private readonly db: DrizzleDB,
     private readonly providerService: EmailProviderService,
     private readonly templateService: EmailTemplateService,
+    private readonly templateRegistry: EmailTemplateRegistryService,
   ) {}
 
   /**
@@ -82,6 +85,77 @@ export class EmailService {
       });
 
       console.error(`[EmailService] Email send failed: ${log.id}`, error);
+
+      throw error;
+    }
+
+    return log;
+  }
+
+  /**
+   * 템플릿 키 기반 발송 (PB-NOTI-EMAIL-TEMPLATE-001 / BBR-656)
+   *
+   * 게시(published)된 템플릿 버전을 조회하고, 변수 스키마 검증을 **발송 전에**
+   * 수행한다. 누락/타입 불일치가 있으면 provider 호출 이전에 BadRequest 로 실패한다.
+   * subject/body 는 레지스트리에서 렌더링하고, 로그에 templateKey/templateVersionId 를
+   * 함께 남겨 어떤 버전으로 발송했는지 추적한다.
+   */
+  async sendByKey(input: SendTemplateEmailInput): Promise<EmailLog> {
+    // 1. 게시 버전 조회 + 변수 검증 + subject/body 렌더링 (검증 실패 시 여기서 throw)
+    const rendered = await this.templateRegistry.renderByKey(input.key, input.variables, {
+      requireValid: true,
+    });
+
+    if (!rendered.renderer) {
+      throw new BadRequestException(`템플릿 "${input.key}"는 발송 가능한 본문 렌더러가 없습니다.`);
+    }
+
+    // 2. 중복 발송 체크 (1분 이내)
+    await this.checkDuplicateSend(input.recipientEmail, rendered.renderer);
+
+    // 3. 로그 생성 (어떤 템플릿/버전으로 발송했는지 기록)
+    const [log] = await this.db
+      .insert(emailLogs)
+      .values({
+        recipientEmail: input.recipientEmail,
+        recipientName: input.recipientName,
+        recipientId: input.recipientId,
+        templateType: rendered.renderer,
+        templateKey: input.key,
+        templateVersionId: rendered.templateVersionId,
+        subject: rendered.subject,
+        status: "pending",
+        metadata: input.variables,
+      })
+      .returning();
+
+    if (!log) {
+      throw new InternalServerErrorException("이메일 로그 생성에 실패했습니다");
+    }
+
+    // 4. 발송 시도
+    try {
+      const result = await this.providerService.send({
+        to: input.recipientEmail,
+        subject: rendered.subject,
+        html: rendered.html,
+      });
+
+      await this.updateLogStatus(log.id, {
+        status: "sent",
+        sentAt: new Date(),
+        providerMessageId: result.messageId,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+      await this.updateLogStatus(log.id, {
+        status: "failed",
+        failureReason: errorMessage,
+        retryCount: log.retryCount + 1,
+      });
+
+      console.error(`[EmailService] sendByKey failed: ${log.id}`, error);
 
       throw error;
     }
