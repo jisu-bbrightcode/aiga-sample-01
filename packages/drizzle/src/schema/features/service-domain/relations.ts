@@ -7,6 +7,8 @@ import {
 import { serviceHospitals } from "./hospitals";
 import { serviceRegions } from "./regions";
 import { serviceSpecialties } from "./specialties";
+import { serviceDoctorCredentials } from "./credentials";
+import { serviceHospitalHours, serviceHospitalSpecialties } from "./hospital-details";
 
 /**
  * AIGA service-domain relations.
@@ -30,6 +32,7 @@ export const serviceDoctorsRelations = relations(serviceDoctors, ({ one, many })
   }),
   specialties: many(serviceDoctorSpecialties),
   hospitals: many(serviceDoctorHospitals),
+  credentials: many(serviceDoctorCredentials),
 }));
 
 export const serviceHospitalsRelations = relations(serviceHospitals, ({ one, many }) => ({
@@ -38,10 +41,13 @@ export const serviceHospitalsRelations = relations(serviceHospitals, ({ one, man
     references: [serviceRegions.id],
   }),
   doctors: many(serviceDoctorHospitals),
+  specialties: many(serviceHospitalSpecialties),
+  hours: many(serviceHospitalHours),
 }));
 
 export const serviceSpecialtiesRelations = relations(serviceSpecialties, ({ many }) => ({
   doctors: many(serviceDoctorSpecialties),
+  hospitals: many(serviceHospitalSpecialties),
 }));
 
 export const serviceRegionsRelations = relations(serviceRegions, ({ one, many }) => ({
@@ -71,6 +77,34 @@ export const serviceDoctorHospitalsRelations = relations(serviceDoctorHospitals,
   }),
   hospital: one(serviceHospitals, {
     fields: [serviceDoctorHospitals.hospitalId],
+    references: [serviceHospitals.id],
+  }),
+}));
+
+export const serviceDoctorCredentialsRelations = relations(serviceDoctorCredentials, ({ one }) => ({
+  doctor: one(serviceDoctors, {
+    fields: [serviceDoctorCredentials.doctorId],
+    references: [serviceDoctors.id],
+  }),
+}));
+
+export const serviceHospitalSpecialtiesRelations = relations(
+  serviceHospitalSpecialties,
+  ({ one }) => ({
+    hospital: one(serviceHospitals, {
+      fields: [serviceHospitalSpecialties.hospitalId],
+      references: [serviceHospitals.id],
+    }),
+    specialty: one(serviceSpecialties, {
+      fields: [serviceHospitalSpecialties.specialtyId],
+      references: [serviceSpecialties.id],
+    }),
+  }),
+);
+
+export const serviceHospitalHoursRelations = relations(serviceHospitalHours, ({ one }) => ({
+  hospital: one(serviceHospitals, {
+    fields: [serviceHospitalHours.hospitalId],
     references: [serviceHospitals.id],
   }),
 }));

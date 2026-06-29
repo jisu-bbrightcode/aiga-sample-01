@@ -14,4 +14,6 @@ export * from "./specialties";
 export * from "./regions";
 export * from "./hospitals";
 export * from "./doctors";
+export * from "./credentials";
+export * from "./hospital-details";
 export * from "./relations";
