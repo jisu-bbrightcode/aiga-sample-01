@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
   type DrizzleDB,
+  identityVerificationAttempts,
   identityVerificationRequests,
   identityVerifications,
 } from "@repo/drizzle";
@@ -74,6 +75,12 @@ export class IdentityVerificationService {
         targetAction: input.target.action,
         stateHash: hashSecret(state),
         nonceHash: hashSecret(nonce),
+        // Consent evidence captured by the service before the provider popup. Stored
+        // verbatim (non-sensitive: agreement version + consented scope), with the
+        // server clock as the authoritative consent time.
+        consentVersion: input.consent?.version ?? null,
+        consentScope: input.consent?.scope ?? null,
+        consentedAt: input.consent ? now : null,
         expiresAt,
       })
       .returning();
@@ -120,6 +127,11 @@ export class IdentityVerificationService {
         .where(eq(identityVerificationRequests.id, request.id))
         .returning();
 
+      // First attempt audit row: the redirect hand-off is the only place a `redirected`
+      // outcome originates (subsequent verified/failed/canceled/expired attempts are
+      // recorded by the callback flow). Non-sensitive — no CI/DI, RRN, or raw payload.
+      await this.recordAttempt(request.id, 1, "redirected", clientIp);
+
       return {
         ...serializeRequest(updated ?? request),
         redirectUrl: adapterResponse.redirectUrl,
@@ -141,6 +153,11 @@ export class IdentityVerificationService {
         })
         .where(eq(identityVerificationRequests.id, request.id))
         .returning();
+
+      // Audit the blocked/failed hand-off as the first attempt so adapter health/JAR
+      // failures are visible in the per-attempt log, separate from the user-facing
+      // `blocked` response below.
+      await this.recordAttempt(request.id, 1, "failed", clientIp, publicError.code);
 
       return {
         ...serializeRequest(updated ?? request),
@@ -354,6 +371,28 @@ export class IdentityVerificationService {
       .set({ status, failureCode, updatedAt: new Date() })
       .where(eq(identityVerificationRequests.id, requestId));
   }
+
+  /**
+   * Append an immutable per-attempt audit row. Stores only non-sensitive correlation
+   * data (attempt number, outcome, stable codes, client IP) — never CI/DI, RRN, or the
+   * raw provider payload.
+   */
+  private async recordAttempt(
+    requestId: string,
+    attemptNo: number,
+    outcome: "redirected" | "verified" | "failed" | "canceled" | "expired",
+    clientIp: string | null,
+    failureCode?: string,
+  ) {
+    await this.db.insert(identityVerificationAttempts).values({
+      requestId,
+      attemptNo,
+      outcome,
+      failureCode: failureCode ?? null,
+      resultCode: failureCode ?? null,
+      clientIp,
+    });
+  }
 }
 
 type RequestRow = typeof identityVerificationRequests.$inferSelect;
@@ -370,6 +409,9 @@ function serializeRequest(request: RequestRow) {
     providerTransactionId: request.providerTransactionId,
     resultCode: request.resultCode,
     failureCode: request.failureCode,
+    consentVersion: request.consentVersion,
+    consentScope: request.consentScope,
+    consentedAt: request.consentedAt?.toISOString() ?? null,
     expiresAt: request.expiresAt.toISOString(),
     createdAt: request.createdAt.toISOString(),
     updatedAt: request.updatedAt.toISOString(),

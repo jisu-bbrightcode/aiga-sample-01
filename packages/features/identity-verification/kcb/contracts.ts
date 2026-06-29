@@ -49,9 +49,20 @@ export const kcbTargetActionSchema = z.object({
 });
 export type KcbTargetAction = z.infer<typeof kcbTargetActionSchema>;
 
+// Consent captured by the service before handing off to the KCB popup (AIGA delta,
+// PB-IDV-KCB-DATA-001). This is the service's own consent evidence — recorded at
+// session creation and retained regardless of the verification outcome. `version`
+// identifies the agreement text the user agreed to; `scope` the data items consented.
+export const kcbConsentInputSchema = z.object({
+  version: z.string().min(1).max(60),
+  scope: z.string().min(1).max(200),
+});
+export type KcbConsentInput = z.infer<typeof kcbConsentInputSchema>;
+
 export const createKcbSessionInputSchema = z.object({
   mode: identityVerificationModeSchema.default("standard"),
   target: kcbTargetActionSchema,
+  consent: kcbConsentInputSchema.optional(),
 });
 export type CreateKcbSessionInput = z.infer<typeof createKcbSessionInputSchema>;
 
