@@ -19,6 +19,10 @@ function makeController() {
     }),
     listTemplates: jest.fn().mockResolvedValue([]),
     getTemplate: jest.fn().mockResolvedValue({ key: "auth.welcome" }),
+    archiveTemplate: jest
+      .fn()
+      .mockResolvedValue({ key: "marketing.custom-blast", isActive: false }),
+    restoreTemplate: jest.fn().mockResolvedValue({ key: "marketing.custom-blast", isActive: true }),
   } as unknown as jest.Mocked<EmailTemplateRegistryService>;
   const controller = new EmailController(emailService, templateService, templateRegistry);
   return { controller, templateRegistry };
@@ -64,5 +68,21 @@ describe("EmailController — template read endpoints (BBR-657 / PB-NOTI-EMAIL-A
     const { controller, templateRegistry } = makeController();
     await controller.getTemplate("auth.welcome");
     expect(templateRegistry.getTemplate).toHaveBeenCalledWith("auth.welcome");
+  });
+});
+
+describe("EmailController — archive/restore endpoints (BBR-660 / PB-NOTI-EMAIL-API-DELETE-001)", () => {
+  it("DELETE templates/:key delegates to the registry archive", async () => {
+    const { controller, templateRegistry } = makeController();
+    const result = await controller.archiveTemplate("marketing.custom-blast");
+    expect(templateRegistry.archiveTemplate).toHaveBeenCalledWith("marketing.custom-blast");
+    expect(result).toMatchObject({ isActive: false });
+  });
+
+  it("POST templates/:key/restore delegates to the registry restore", async () => {
+    const { controller, templateRegistry } = makeController();
+    const result = await controller.restoreTemplate("marketing.custom-blast");
+    expect(templateRegistry.restoreTemplate).toHaveBeenCalledWith("marketing.custom-blast");
+    expect(result).toMatchObject({ isActive: true });
   });
 });

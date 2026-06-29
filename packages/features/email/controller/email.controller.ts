@@ -9,6 +9,7 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -183,6 +184,43 @@ export class EmailController {
   @ApiResponse({ status: 404, description: "템플릿을 찾을 수 없음" })
   getTemplate(@Param("key") key: string) {
     return this.templateRegistry.getTemplate(key);
+  }
+
+  @Delete("templates/:key")
+  @ApiOperation({
+    summary: "[Admin] 이메일 템플릿 보관(soft delete) — 신규 발송 제외, 이력 보존",
+    description:
+      "실제 삭제 대신 템플릿을 보관(archive)합니다. 보관된 템플릿은 신규 발송에 사용되지 않지만 목록/상세 이력 조회는 계속 가능합니다. 시스템 필수 템플릿은 보호되어 보관할 수 없습니다.",
+  })
+  @ApiParam({ name: "key", description: "템플릿 키 (예: marketing.custom-blast)" })
+  @ApiResponse({
+    status: 200,
+    description: "보관된 템플릿 상세 반환 (isActive=false)",
+    type: EmailTemplateDetailDto,
+  })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "시스템 필수 템플릿은 보관(삭제)할 수 없음" })
+  @ApiResponse({ status: 404, description: "템플릿을 찾을 수 없음" })
+  archiveTemplate(@Param("key") key: string) {
+    return this.templateRegistry.archiveTemplate(key);
+  }
+
+  @Post("templates/:key/restore")
+  @ApiOperation({
+    summary: "[Admin] 보관된 이메일 템플릿 복구",
+    description: "보관(archive)된 템플릿을 복구하여 다시 신규 발송에 사용할 수 있게 합니다.",
+  })
+  @ApiParam({ name: "key", description: "템플릿 키 (예: marketing.custom-blast)" })
+  @ApiResponse({
+    status: 200,
+    description: "복구된 템플릿 상세 반환 (isActive=true)",
+    type: EmailTemplateDetailDto,
+  })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 필요" })
+  @ApiResponse({ status: 404, description: "템플릿을 찾을 수 없음" })
+  restoreTemplate(@Param("key") key: string) {
+    return this.templateRegistry.restoreTemplate(key);
   }
 
   @Post("templates/:key/validate")

@@ -90,6 +90,7 @@ const templateSummarySchema = z.object({
   description: z.string().nullable(),
   category: categoryEnum,
   isActive: z.boolean(),
+  isSystem: z.boolean(),
   renderer: rendererEnum.nullable(),
   currentVersion: z.number().nullable(),
   currentStatus: versionStatusEnum.nullable(),
