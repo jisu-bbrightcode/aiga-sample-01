@@ -69,6 +69,7 @@ import {
   RuleResponseDto,
   VoteResultResponseDto,
 } from "../dto";
+import { publicPostViewerState, toPublicPostListItem } from "../mappers";
 import { OptionalUser } from "../optional-user.decorator";
 import {
   CommunityBlockService,
@@ -86,7 +87,6 @@ import {
   POST_SORTS,
   parsePostSort,
 } from "../service/post-list-options";
-import { publicPostViewerState, toPublicPostListItem } from "../mappers";
 
 @ApiTags("Community")
 @Controller("community")
@@ -601,6 +601,16 @@ export class CommunityController {
     @CurrentUser() user: User,
   ) {
     return this.postService.remove(id, dto.reason, user.id);
+  }
+
+  @Post("posts/:id/restore")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "게시물 복구 (모더레이터)" })
+  @ApiParam({ name: "id", description: "게시물 ID" })
+  @ApiResponse({ status: 200, description: "게시물 복구 완료", type: PostResponseDto })
+  async restorePost(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.postService.restore(id, user.id);
   }
 
   @Post("posts/:id/crosspost")

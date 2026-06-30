@@ -1,10 +1,16 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { type RateLimitConfig, RateLimitService } from "@repo/core/rate-limit";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
 import {
   type CommunityPost,
   communities,
+  communityModLogs,
   communityPosts,
   user as userTable,
 } from "@repo/drizzle/schema";
@@ -16,6 +22,7 @@ import { CommunityService } from "./community.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
 import { CommunityTierService, TIER_PRIVILEGES } from "./community-tier.service";
+import { canRestore, RESTORE_TARGET_STATUS } from "./post-deletion-policy";
 import { DEFAULT_POST_SORT, normalizePostListLimit, type PostSort } from "./post-list-options";
 import { normalizePostSearchTerm } from "./post-search";
 
@@ -629,7 +636,82 @@ export class CommunityPostService {
       .where(eq(communityPosts.id, id))
       .returning();
 
+    // 감사 로그: 모더레이션 제거 이력은 게시글 행과 무관하게 보존된다.
+    await this.recordModLog({
+      communityId: post.communityId,
+      moderatorId: userId,
+      action: "remove_post",
+      targetId: id,
+      reason,
+      details: { kind: "post_removed", fromStatus: post.status },
+    });
+
     return updated as CommunityPost;
+  }
+
+  /**
+   * 모더레이터가 숨김/제거한 게시글을 공개 상태로 복구한다.
+   *
+   * - 작성자 삭제(`deleted`)는 작성자 의사이므로 복구 대상이 아니다 → 409.
+   * - 댓글/신고/감사 로그는 soft delete 로 보존되어 복구 시 그대로 노출된다.
+   */
+  async restore(id: string, userId: string): Promise<CommunityPost> {
+    const post = await this.findById(id);
+    if (!post) {
+      throw new NotFoundException("게시글을 찾을 수 없습니다.");
+    }
+
+    await assertCommunityPermission(this.communityService, userId, post.communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+
+    if (!canRestore(post.status)) {
+      throw new ConflictException("숨김 또는 제거된 게시글만 복구할 수 있습니다.");
+    }
+
+    const [updated] = await this.db
+      .update(communityPosts)
+      .set({
+        status: RESTORE_TARGET_STATUS,
+        removalReason: null,
+        removedBy: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(communityPosts.id, id))
+      .returning();
+
+    await this.recordModLog({
+      communityId: post.communityId,
+      moderatorId: userId,
+      action: "other",
+      targetId: id,
+      reason: "post_restored",
+      details: { kind: "post_restored", fromStatus: post.status },
+    });
+
+    return updated as CommunityPost;
+  }
+
+  /** community_mod_logs append-only 감사 기록. (post target 고정) */
+  private async recordModLog(entry: {
+    communityId: string;
+    moderatorId: string;
+    action: "remove_post" | "other";
+    targetId: string;
+    reason?: string;
+    details?: Record<string, unknown>;
+  }): Promise<void> {
+    await this.db.insert(communityModLogs).values({
+      communityId: entry.communityId,
+      moderatorId: entry.moderatorId,
+      action: entry.action,
+      targetType: "post",
+      targetId: entry.targetId,
+      reason: entry.reason ?? null,
+      details: entry.details ?? {},
+    });
   }
 
   async crosspost(
