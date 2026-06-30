@@ -84,3 +84,43 @@ export interface DoctorListPage {
   page: number;
   limit: number;
 }
+
+/* -------------------------------------------------------------------------- */
+/* 사용자 등급 (user grade) — FR-001 / BBR-581                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 등급 배지 — mirrors the `grade` object on the server's `SelfUserDto`
+ * (`@repo/features/user-directory`, GET `/users/me`).
+ *
+ * `dailyUsageLimit` is optional and absent from today's self contract: the
+ * server intentionally scopes quota config to the admin DTO. It is modeled here
+ * so the membership card binds to the real number the moment a follow-up backend
+ * issue exposes it on `/users/me` — `undefined` means "not provided", `null`
+ * means 무제한(unlimited), a number is the per-day cap.
+ */
+export interface UserGradeBadge {
+  id: string;
+  slug: string;
+  name: string;
+  dailyUsageLimit?: number | null;
+}
+
+/**
+ * 본인 정보 — GET `/users/me` (auth). Mirrors `SelfUserDto`: the public
+ * projection plus self-only fields. The membership card reads `grade`.
+ */
+export interface SelfUser {
+  id: string;
+  handle: string | null;
+  name: string;
+  bio: string | null;
+  avatar: string | null;
+  grade: UserGradeBadge | null;
+  joinedAt: string | null;
+  email: string;
+  authProvider: string | null;
+  isActive: boolean;
+  marketingConsentAt: string | null;
+  updatedAt: string | null;
+}

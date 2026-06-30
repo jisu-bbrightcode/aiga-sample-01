@@ -22,6 +22,7 @@ import type {
   Interest,
   SavedItem,
   SearchHistoryEntry,
+  SelfUser,
 } from "./types";
 import type {
   PopularTerm,
@@ -160,6 +161,14 @@ export function getSearchHistory(
     authed: true,
     signal,
   });
+}
+
+/**
+ * 본인 정보 (등급 포함) — `GET /users/me`. Auth-gated; a logged-out caller gets
+ * 401 → surfaced as a 권한 없음 branch. Powers the membership card (FR-001).
+ */
+export function getMe(signal?: AbortSignal): Promise<SelfUser> {
+  return fetchJson<SelfUser>("/users/me", { authed: true, signal });
 }
 
 export interface FeaturedDoctorsParams {

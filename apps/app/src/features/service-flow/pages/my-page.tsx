@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { getAppErrorMessage } from "@/lib/user-facing-error";
 import type { SearchHistoryEntry } from "../api/types";
+import { MembershipSection } from "../components/membership-section";
 import {
   InterestsList,
   SavedItemsList,
@@ -93,6 +94,8 @@ export function MyPage() {
           {t("serviceFlow.myPage.explore")}
         </Button>
       </header>
+
+      <MembershipSection enabled={true} />
 
       <ServiceSection
         title={t("serviceFlow.saved.title")}

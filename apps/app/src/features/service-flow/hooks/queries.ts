@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   getFeaturedDoctors,
   getInterests,
+  getMe,
   getPopularTerms,
   getRecentTerms,
   getSavedItems,
@@ -23,6 +24,7 @@ import type {
   Interest,
   SavedItem,
   SearchHistoryEntry,
+  SelfUser,
 } from "../api/types";
 import type { PopularTerm, RecentSearch, SearchResult } from "../api/unified-search-types";
 import {
@@ -32,6 +34,7 @@ import {
 } from "../lib/unified-search-params";
 
 export const serviceFlowKeys = {
+  me: ["service-flow", "me"] as const,
   savedItems: ["service-flow", "saved-items"] as const,
   interests: ["service-flow", "interests"] as const,
   searchHistory: ["service-flow", "search-history"] as const,
@@ -49,6 +52,15 @@ function shouldRetry(failureCount: number, error: unknown): boolean {
     if (status === 401 || status === 403) return false;
   }
   return failureCount < 1;
+}
+
+export function useMe(enabled: boolean) {
+  return useQuery<SelfUser>({
+    queryKey: serviceFlowKeys.me,
+    queryFn: ({ signal }) => getMe(signal),
+    enabled,
+    retry: shouldRetry,
+  });
 }
 
 export function useSavedItems(enabled: boolean) {
