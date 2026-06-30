@@ -14,5 +14,6 @@ export * from "./community-sanction.service";
 export * from "./community-tier.service";
 export * from "./community-vote.service";
 export * from "./content-filter-policy";
+export * from "./moderation-queue";
 export * from "./post-deletion-policy";
 export * from "./post-search";

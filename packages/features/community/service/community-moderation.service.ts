@@ -15,6 +15,7 @@ import {
   communities,
   communityBans,
   communityComments,
+  communityFilterLogs,
   communityFlairs,
   communityMemberships,
   communityModerators,
@@ -23,7 +24,7 @@ import {
   communityReports,
   communityRules,
 } from "@repo/drizzle/schema";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { type SQL, and, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import type {
   BanUserDto,
   CreateFlairDto,
@@ -49,6 +50,41 @@ import {
 } from "../helpers/moderator-policy";
 import { assertCommunityPermission } from "../helpers/permission";
 import { CommunityService } from "./community.service";
+import {
+  type ModerationKind,
+  type ModerationQueueItem,
+  type ModerationState,
+  normalizeBan,
+  normalizeFilter,
+  normalizeReport,
+  paginateSlice,
+  sortByCreatedAtDesc,
+} from "./moderation-queue";
+
+/** Query options for the unified admin moderation queue (BBR-620). */
+export interface ModerationQueueQuery {
+  page?: number;
+  limit?: number;
+  /** Restrict to a single source; omit to aggregate all kinds. */
+  kind?: ModerationKind;
+  /** Filter by normalized lifecycle state across sources. */
+  state?: ModerationState;
+  /** Scope to a single community. */
+  communityId?: string;
+  /** Case-insensitive substring match against the reason/description text. */
+  search?: string;
+}
+
+export interface ModerationQueueResult {
+  items: ModerationQueueItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/** The three first-class moderation sources aggregated by the queue. */
+const MODERATION_KINDS: readonly ModerationKind[] = ["report", "filter", "ban"];
 
 /** Postgres unique-violation SQLSTATE — used to keep report creation idempotent. */
 const PG_UNIQUE_VIOLATION = "23505";
@@ -937,6 +973,124 @@ export class CommunityModerationService {
       }
     }
     return stats;
+  }
+
+  // ── Unified Moderation Queue (BBR-620) ──────────────────────────────
+
+  /**
+   * 관리자 통합 모더레이션 큐(AC#2). 신고/필터(차단·숨김 후보)/차단을 세 개의
+   * 일급 모더레이션 테이블에서 모아 한 화면에서 추적 가능한 정규화 형태로 반환한다.
+   *
+   * 호출자(`CommunityAdminController`)가 관리자 가드로 보호되므로 이 메서드 자체는
+   * 관리자 전제(AC#1)로 cross-community 전역 조회를 수행한다.
+   *
+   * 페이지네이션: 각 소스에서 `page * limit`(= offset+limit)개를 createdAt 내림차순
+   * 으로 가져오면, 전역 상위 `page*limit`에 들어갈 수 있는 모든 행이 포함되므로,
+   * 병합·정렬 후 `[offset, offset+limit)` 윈도우를 잘라내면 요청 페이지가 정확하다.
+   * (운영용 어드민 도구 기준의 합리적 트레이드오프 — 매우 깊은 페이지에서는 소스별
+   * 과다 조회가 발생할 수 있다.)
+   */
+  async getModerationQueue(query: ModerationQueueQuery): Promise<ModerationQueueResult> {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
+    const fetchN = page * limit;
+    const kinds = query.kind ? [query.kind] : MODERATION_KINDS;
+    const now = new Date();
+
+    const items: ModerationQueueItem[] = [];
+    let total = 0;
+
+    if (kinds.includes("report")) {
+      const { rows, totalCount } = await this.queryReportSource(query, fetchN);
+      for (const row of rows) items.push(normalizeReport(row));
+      total += totalCount;
+    }
+    if (kinds.includes("filter")) {
+      const { rows, totalCount } = await this.queryFilterSource(query, fetchN);
+      for (const row of rows) items.push(normalizeFilter(row));
+      total += totalCount;
+    }
+    if (kinds.includes("ban")) {
+      const { rows, totalCount } = await this.queryBanSource(query, fetchN);
+      for (const row of rows) items.push(normalizeBan(row, now));
+      total += totalCount;
+    }
+
+    const pageItems = paginateSlice(sortByCreatedAtDesc(items), page, limit);
+    return { items: pageItems, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  private async queryReportSource(query: ModerationQueueQuery, fetchN: number) {
+    const conditions: SQL[] = [];
+    if (query.communityId) conditions.push(eq(communityReports.communityId, query.communityId));
+    if (query.state === "open")
+      conditions.push(inArray(communityReports.status, ["pending", "reviewing"]));
+    if (query.state === "resolved")
+      conditions.push(inArray(communityReports.status, ["resolved", "dismissed"]));
+    if (query.search) conditions.push(ilike(communityReports.description, `%${query.search}%`));
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [rows, totalResult] = await Promise.all([
+      this.db
+        .select()
+        .from(communityReports)
+        .where(where)
+        .orderBy(desc(communityReports.createdAt))
+        .limit(fetchN),
+      this.db.select({ count: count() }).from(communityReports).where(where),
+    ]);
+    return { rows, totalCount: totalResult[0]?.count ?? 0 };
+  }
+
+  private async queryFilterSource(query: ModerationQueueQuery, fetchN: number) {
+    const conditions: SQL[] = [];
+    if (query.communityId) conditions.push(eq(communityFilterLogs.communityId, query.communityId));
+    if (query.state === "open")
+      conditions.push(eq(communityFilterLogs.reviewStatus, "pending"));
+    if (query.state === "resolved")
+      conditions.push(inArray(communityFilterLogs.reviewStatus, ["approved", "rejected"]));
+    if (query.search) conditions.push(ilike(communityFilterLogs.reason, `%${query.search}%`));
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [rows, totalResult] = await Promise.all([
+      this.db
+        .select()
+        .from(communityFilterLogs)
+        .where(where)
+        .orderBy(desc(communityFilterLogs.createdAt))
+        .limit(fetchN),
+      this.db.select({ count: count() }).from(communityFilterLogs).where(where),
+    ]);
+    return { rows, totalCount: totalResult[0]?.count ?? 0 };
+  }
+
+  private async queryBanSource(query: ModerationQueueQuery, fetchN: number) {
+    // Use SQL NOW() (not a bound JS Date) for the active-window check — the
+    // postgres driver can't bind a Date interpolated into a raw sql`` fragment,
+    // and evaluating "now" server-side avoids client/server clock skew.
+    const active = sql`(${communityBans.isPermanent} = true OR ${communityBans.expiresAt} IS NULL OR ${communityBans.expiresAt} > NOW())`;
+    const conditions: SQL[] = [];
+    if (query.communityId) conditions.push(eq(communityBans.communityId, query.communityId));
+    if (query.state === "open") conditions.push(active);
+    if (query.state === "resolved") conditions.push(sql`NOT ${active}`);
+    if (query.search) {
+      const reasonMatch = ilike(communityBans.reason, `%${query.search}%`);
+      const noteMatch = ilike(communityBans.note, `%${query.search}%`);
+      const searchCond = or(reasonMatch, noteMatch);
+      if (searchCond) conditions.push(searchCond);
+    }
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [rows, totalResult] = await Promise.all([
+      this.db
+        .select()
+        .from(communityBans)
+        .where(where)
+        .orderBy(desc(communityBans.createdAt))
+        .limit(fetchN),
+      this.db.select({ count: count() }).from(communityBans).where(where),
+    ]);
+    return { rows, totalCount: totalResult[0]?.count ?? 0 };
   }
 
   // ── SLA Tracking ──────────────────────────────────
