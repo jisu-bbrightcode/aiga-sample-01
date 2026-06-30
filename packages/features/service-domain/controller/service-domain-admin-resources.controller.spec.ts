@@ -26,6 +26,17 @@ function service() {
     }),
     createDoctor: jest.fn().mockResolvedValue({ id: "doc-1", type: "doctor" }),
     createHospital: jest.fn().mockResolvedValue({ id: "hos-1", type: "hospital" }),
+    updateDoctor: jest.fn().mockResolvedValue({ id: "d1", type: "doctor", status: "draft" }),
+    updateHospital: jest.fn().mockResolvedValue({ id: "h1", type: "hospital", status: "draft" }),
+    changeDomainResourceStatus: jest.fn().mockResolvedValue({
+      type: "doctor",
+      id: "d1",
+      name: "n",
+      slug: "s",
+      status: "published",
+      isDeleted: false,
+    }),
+    getDomainResourceHistory: jest.fn().mockResolvedValue({ rows: [], nextCursor: null }),
   } as unknown as jest.Mocked<ServiceDomainService>;
 }
 
@@ -97,5 +108,60 @@ describe("ServiceDomainAdminResourcesController (GET /admin/domain/resources)", 
     expect(Array.isArray(guards)).toBe(true);
     expect(guards).toContain(BetterAuthGuard);
     expect(guards).toContain(BetterAuthAdminGuard);
+  });
+
+  it("forwards a doctor update with the actor id (BBR-681)", async () => {
+    const svc = service();
+    const controller = new ServiceDomainAdminResourcesController(svc);
+    const dto = { shortBio: "갱신" } as never;
+
+    await controller.updateDoctor(adminUser, "d1", dto);
+
+    expect(svc.updateDoctor).toHaveBeenCalledWith("admin-1", "d1", dto);
+  });
+
+  it("forwards a hospital update with the actor id (BBR-681)", async () => {
+    const svc = service();
+    const controller = new ServiceDomainAdminResourcesController(svc);
+    const dto = { summary: "갱신" } as never;
+
+    await controller.updateHospital(adminUser, "h1", dto);
+
+    expect(svc.updateHospital).toHaveBeenCalledWith("admin-1", "h1", dto);
+  });
+
+  it("forwards a status change with the actor, params, and target status (BBR-681)", async () => {
+    const svc = service();
+    const controller = new ServiceDomainAdminResourcesController(svc);
+
+    const result = await controller.changeStatus(
+      adminUser,
+      { type: "doctor", id: "d1" } as never,
+      { status: "published" } as never,
+    );
+
+    expect(svc.changeDomainResourceStatus).toHaveBeenCalledWith(
+      "admin-1",
+      "doctor",
+      "d1",
+      "published",
+    );
+    expect(result).toMatchObject({ status: "published" });
+  });
+
+  it("forwards a history read with the params + cursor query (BBR-681)", async () => {
+    const svc = service();
+    const controller = new ServiceDomainAdminResourcesController(svc);
+
+    const result = await controller.getResourceHistory(
+      { type: "hospital", id: "h1" } as never,
+      { limit: 50 } as never,
+    );
+
+    expect(svc.getDomainResourceHistory).toHaveBeenCalledWith("hospital", "h1", {
+      cursor: undefined,
+      limit: 50,
+    });
+    expect(result).toMatchObject({ rows: [], nextCursor: null });
   });
 });

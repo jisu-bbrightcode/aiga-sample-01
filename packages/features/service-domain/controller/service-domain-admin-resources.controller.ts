@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import type { User } from "@repo/core/nestjs/auth";
 import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
@@ -6,12 +16,17 @@ import {
   AdminDoctorDto,
   AdminDomainResourceDetailDto,
   AdminDomainResourceDetailParamDto,
+  AdminDomainResourceHistoryDto,
+  AdminDomainResourceHistoryQueryDto,
   AdminDomainResourceLifecycleDto,
   AdminDomainResourceListDto,
   AdminDomainResourceQueryDto,
   AdminHospitalDto,
+  ChangeStatusDto,
   CreateDoctorDto,
   CreateHospitalDto,
+  UpdateDoctorDto,
+  UpdateHospitalDto,
 } from "../dto";
 import { ServiceDomainService } from "../service";
 
@@ -33,12 +48,15 @@ import { ServiceDomainService } from "../service";
  * lifecycle state (defaults to draft) and the action is recorded in the audit
  * log; sensitive operational fields are validated separately from the public
  * fields at the DTO boundary.
+ * `PATCH /api/admin/domain/resources/doctors|hospitals/:id` — edit a record
+ * (BBR-681); `POST /api/admin/domain/resources/:type/:id/status` — change its
+ * publish status (허용된 전이만), and `GET .../:type/:id/history` — read its
+ * 변경 이력 (audit trail). Both mutations append to `admin_audit_log`.
  *
  * All are gated by BetterAuthGuard then BetterAuthAdminGuard (owner/admin),
  * identical to the other admin routes. Kept on its own `admin/domain` base path
  * (distinct from the editorial CRUD controller's `service/admin`) so it matches
- * the committed contract URL exactly. Sibling update/delete endpoints
- * (BBR-681..682) will hang off this same base.
+ * the committed contract URL exactly.
  */
 @ApiTags("Admin Domain Resources")
 @ApiBearerAuth()
@@ -91,5 +109,59 @@ export class ServiceDomainAdminResourcesController {
   @ApiResponse({ status: 409, description: "slug 중복" })
   createHospital(@CurrentUser() user: User, @Body() dto: CreateHospitalDto) {
     return this.service.createHospital(user.id, dto);
+  }
+
+  // ---- update / status / history (PB-ADMIN-DOMAIN-UPDATE-001 / BBR-681) ----
+
+  @Patch("resources/doctors/:id")
+  @ApiOperation({ summary: "도메인 리소스 수정 — 의사 (감사 로그 기록)" })
+  @ApiResponse({ status: 200, type: AdminDoctorDto })
+  @ApiResponse({ status: 404, description: "의사를 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "slug 중복" })
+  updateDoctor(
+    @CurrentUser() user: User,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateDoctorDto,
+  ) {
+    return this.service.updateDoctor(user.id, id, dto);
+  }
+
+  @Patch("resources/hospitals/:id")
+  @ApiOperation({ summary: "도메인 리소스 수정 — 병원 (감사 로그 기록)" })
+  @ApiResponse({ status: 200, type: AdminHospitalDto })
+  @ApiResponse({ status: 404, description: "병원을 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "slug 중복" })
+  updateHospital(
+    @CurrentUser() user: User,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateHospitalDto,
+  ) {
+    return this.service.updateHospital(user.id, id, dto);
+  }
+
+  @Post("resources/:type/:id/status")
+  @ApiOperation({ summary: "도메인 리소스 상태 변경 (허용된 전이만, 감사 로그 기록)" })
+  @ApiResponse({ status: 201, type: AdminDomainResourceLifecycleDto })
+  @ApiResponse({ status: 404, description: "리소스를 찾을 수 없음" })
+  @ApiResponse({ status: 422, description: "허용되지 않은 상태 전이" })
+  changeStatus(
+    @CurrentUser() user: User,
+    @Param() params: AdminDomainResourceDetailParamDto,
+    @Body() dto: ChangeStatusDto,
+  ) {
+    return this.service.changeDomainResourceStatus(user.id, params.type, params.id, dto.status);
+  }
+
+  @Get("resources/:type/:id/history")
+  @ApiOperation({ summary: "도메인 리소스 변경 이력 (감사 로그, 최신순)" })
+  @ApiResponse({ status: 200, type: AdminDomainResourceHistoryDto })
+  getResourceHistory(
+    @Param() params: AdminDomainResourceDetailParamDto,
+    @Query() query: AdminDomainResourceHistoryQueryDto,
+  ) {
+    return this.service.getDomainResourceHistory(params.type, params.id, {
+      cursor: query.cursor,
+      limit: query.limit,
+    });
   }
 }

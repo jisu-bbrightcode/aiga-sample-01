@@ -68,3 +68,33 @@ export const adminDomainResourceLifecycleSchema = z.object({
 export class AdminDomainResourceLifecycleDto extends createZodDto(
   adminDomainResourceLifecycleSchema,
 ) {}
+
+// ---- change history (audit trail) — PB-ADMIN-DOMAIN-UPDATE-001 / BBR-681 ----
+
+/** Cursor-paginated query for a resource's 변경 이력 (audit log) view. */
+export const adminDomainResourceHistoryQuerySchema = z.object({
+  cursor: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+export class AdminDomainResourceHistoryQueryDto extends createZodDto(
+  adminDomainResourceHistoryQuerySchema,
+) {}
+
+/** One audit-log entry as surfaced to the admin console. */
+export const adminDomainResourceHistoryEntrySchema = z.object({
+  id: z.string(),
+  actorUserId: z.string(),
+  action: z.string(),
+  targetType: z.string().nullable(),
+  targetId: z.string().nullable(),
+  payloadBefore: z.unknown(),
+  payloadAfter: z.unknown(),
+  reason: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export const adminDomainResourceHistorySchema = z.object({
+  rows: z.array(adminDomainResourceHistoryEntrySchema),
+  nextCursor: z.string().nullable(),
+});
+export class AdminDomainResourceHistoryDto extends createZodDto(adminDomainResourceHistorySchema) {}

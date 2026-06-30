@@ -18,5 +18,11 @@ export const DOMAIN_ADMIN_PATH = "/domain";
  */
 export const DOMAIN_ADMIN_CREATE_PATH = "/domain/new";
 
+/**
+ * Admin route suffix for the domain resource edit form
+ * (PB-ADMIN-DOMAIN-UPDATE-001 / BBR-681). Hangs off the detail route.
+ */
+export const DOMAIN_ADMIN_EDIT_PATH = "/domain/$type/$id/edit";
+
 /** Default page size for the admin list. */
 export const DOMAIN_ADMIN_DEFAULT_PAGE_SIZE = 20;
