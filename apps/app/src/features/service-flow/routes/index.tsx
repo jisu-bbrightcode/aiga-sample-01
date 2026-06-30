@@ -4,6 +4,7 @@
  * Mounted on the root route (NOT the workspace AppLayout) because the AIGA
  * service is consumer-facing and must not force workspace selection:
  *  - `/explore` — public, browsable logged-out (gated CTAs handle protected actions)
+ *  - `/search`  — public 통합 검색 (FR-003 / BBR-582); 최근 검색어 is auth-gated within
  *  - `/me`      — private 내 페이지, wrapped in {@link RequireAuth}
  */
 
@@ -11,6 +12,7 @@ import { createRoute } from "@tanstack/react-router";
 import { RequireAuth } from "../components/require-auth";
 import { ExplorePage } from "../pages/explore-page";
 import { MyPage } from "../pages/my-page";
+import { SearchPage } from "../pages/search-page";
 
 function GuardedMyPage() {
   return (
@@ -28,11 +30,17 @@ export function createServiceFlowRoutes(rootRoute: any) {
     component: ExplorePage,
   });
 
+  const searchRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/search",
+    component: SearchPage,
+  });
+
   const myPageRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/me",
     component: GuardedMyPage,
   });
 
-  return [exploreRoute, myPageRoute];
+  return [exploreRoute, searchRoute, myPageRoute];
 }
