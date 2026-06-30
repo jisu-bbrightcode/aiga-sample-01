@@ -71,6 +71,48 @@ export const createEmailTemplateSchema = z.object({
 });
 export class CreateEmailTemplateDto extends createZodDto(createEmailTemplateSchema) {}
 
+/**
+ * Request body for updating a template (PB-NOTI-EMAIL-API-UPDATE-001 / BBR-659).
+ *
+ * Every field is optional — only the keys present are changed. Metadata fields
+ * patch the template row; content fields (subject/body/variableSchema/changelog)
+ * are applied to the working draft so a published version is never mutated. Like
+ * create, `variableSchema` is loose here and validated semantically in the
+ * service (422 on malformed). At least one field must be supplied.
+ */
+export const updateEmailTemplateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200).optional().describe("템플릿 이름"),
+    description: z.string().max(2000).nullable().optional().describe("템플릿 설명 (null로 비움)"),
+    category: categoryEnum.optional().describe("카테고리"),
+    isActive: z.boolean().optional().describe("활성 여부"),
+    subject: z.string().trim().min(1).max(200).optional().describe("이메일 제목 (변수 보간 지원)"),
+    bodySource: z.string().nullable().optional().describe("DB 저장형 본문 소스 (null로 비움)"),
+    changelog: z.string().max(2000).nullable().optional().describe("버전 변경 이력"),
+    variableSchema: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe("템플릿이 기대하는 변수 스키마 { name: { type, required, description } }"),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "수정할 필드를 최소 1개 이상 제공해야 합니다.",
+  });
+export class UpdateEmailTemplateDto extends createZodDto(updateEmailTemplateSchema) {}
+
+/**
+ * Request body for publishing a template's working draft
+ * (PB-NOTI-EMAIL-API-UPDATE-001 / BBR-659). The body is optional; when
+ * `previewVariables` is omitted the service synthesizes a sample from the draft's
+ * schema so the pre-publish render is still exercised.
+ */
+export const publishEmailTemplateSchema = z.object({
+  previewVariables: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe("발행 전 검증에 사용할 미리보기 변수 (생략 시 스키마에서 샘플 자동 생성)"),
+});
+export class PublishEmailTemplateDto extends createZodDto(publishEmailTemplateSchema) {}
+
 const validationIssueSchema = z.object({
   variable: z.string(),
   code: z.enum(["missing_required", "type_mismatch"]),

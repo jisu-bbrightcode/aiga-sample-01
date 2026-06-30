@@ -145,6 +145,34 @@ export function summarizeValidationIssues(issues: TemplateValidationIssue[]): st
   return issues.map((issue) => issue.message).join(" ");
 }
 
+/**
+ * Synthesize a sample variable map that satisfies every declared variable in a
+ * schema (type-correct, non-empty). Used by the publish gate
+ * (PB-NOTI-EMAIL-API-UPDATE-001 / BBR-659) to verify that a draft renders BEFORE
+ * publishing when the caller does not supply an explicit preview payload — so
+ * publish still validates subject/body interpolation against real-shaped values.
+ */
+export function buildSampleVariables(schema: TemplateVariableSchema): Record<string, unknown> {
+  const sample: Record<string, unknown> = {};
+  for (const [name, spec] of Object.entries(schema)) {
+    switch (spec.type) {
+      case "number":
+        sample[name] = 1;
+        break;
+      case "boolean":
+        sample[name] = true;
+        break;
+      case "url":
+        sample[name] = "https://example.com";
+        break;
+      default:
+        sample[name] = `샘플 ${name}`;
+        break;
+    }
+  }
+  return sample;
+}
+
 /** Outcome of strictly parsing an admin-supplied `variableSchema` for a new template. */
 export interface VariableSchemaParseResult {
   valid: boolean;

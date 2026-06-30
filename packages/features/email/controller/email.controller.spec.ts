@@ -19,6 +19,8 @@ function makeController() {
     }),
     listTemplates: jest.fn().mockResolvedValue([]),
     getTemplate: jest.fn().mockResolvedValue({ key: "auth.welcome" }),
+    updateTemplate: jest.fn().mockResolvedValue({ key: "auth.welcome" }),
+    publishTemplate: jest.fn().mockResolvedValue({ key: "auth.welcome" }),
   } as unknown as jest.Mocked<EmailTemplateRegistryService>;
   const controller = new EmailController(emailService, templateService, templateRegistry);
   return { controller, templateRegistry };
@@ -64,5 +66,25 @@ describe("EmailController — template read endpoints (BBR-657 / PB-NOTI-EMAIL-A
     const { controller, templateRegistry } = makeController();
     await controller.getTemplate("auth.welcome");
     expect(templateRegistry.getTemplate).toHaveBeenCalledWith("auth.welcome");
+  });
+});
+
+describe("EmailController — template update/publish (BBR-659)", () => {
+  it("PATCH templates/:key forwards the admin id, key and body to updateTemplate", async () => {
+    const { controller, templateRegistry } = makeController();
+    const dto = { subject: "새 제목 {{name}}" } as never;
+
+    await controller.updateTemplate(user, "auth.welcome", dto);
+
+    expect(templateRegistry.updateTemplate).toHaveBeenCalledWith("auth.welcome", "admin-1", dto);
+  });
+
+  it("POST templates/:key/publish forwards the key and body to publishTemplate", async () => {
+    const { controller, templateRegistry } = makeController();
+    const dto = { previewVariables: { name: "홍길동" } } as never;
+
+    await controller.publishTemplate("auth.welcome", dto);
+
+    expect(templateRegistry.publishTemplate).toHaveBeenCalledWith("auth.welcome", dto);
   });
 });

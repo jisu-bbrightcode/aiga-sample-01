@@ -1,4 +1,5 @@
 import {
+  buildSampleVariables,
   normalizeVariableSchema,
   parseVariableSchemaInput,
   type TemplateVariableSchema,
@@ -140,5 +141,29 @@ describe("parseVariableSchemaInput", () => {
     const result = parseVariableSchemaInput({ a: "string" });
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toContain("a");
+  });
+});
+
+describe("buildSampleVariables", () => {
+  it("produces a type-correct, schema-valid sample for every declared variable", () => {
+    const schema: TemplateVariableSchema = {
+      name: { type: "string", required: true },
+      count: { type: "number", required: true },
+      optedIn: { type: "boolean", required: false },
+      link: { type: "url", required: true },
+    };
+
+    const sample = buildSampleVariables(schema);
+
+    // The synthesized payload must satisfy its own schema (publish-gate invariant).
+    expect(validateTemplateVariables(schema, sample).valid).toBe(true);
+    expect(typeof sample.name).toBe("string");
+    expect(typeof sample.count).toBe("number");
+    expect(typeof sample.optedIn).toBe("boolean");
+    expect(sample.link).toBe("https://example.com");
+  });
+
+  it("returns an empty map for an empty schema", () => {
+    expect(buildSampleVariables({})).toEqual({});
   });
 });
