@@ -35,6 +35,7 @@ import type { User } from "@repo/core/nestjs/auth";
 import { BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import type {
   BanUserDto,
+  CastPollVoteDto,
   CreateCommentDto,
   CreateCommunityDto,
   CreateFlairDto,
@@ -76,6 +77,7 @@ import {
   CommunityFeedService,
   CommunityKarmaService,
   CommunityModerationService,
+  CommunityPollService,
   CommunityPostService,
   CommunityService,
   CommunityVoteService,
@@ -90,11 +92,13 @@ import {
 @ApiTags("Community")
 @Controller("community")
 export class CommunityController {
+  // biome-ignore lint/complexity/useMaxParams: NestJS controller receives explicitly injected providers.
   constructor(
     private readonly communityService: CommunityService,
     private readonly postService: CommunityPostService,
     private readonly commentService: CommunityCommentService,
     private readonly voteService: CommunityVoteService,
+    private readonly pollService: CommunityPollService,
     private readonly karmaService: CommunityKarmaService,
     private readonly moderationService: CommunityModerationService,
     private readonly feedService: CommunityFeedService,
@@ -747,6 +751,66 @@ export class CommunityController {
   })
   async removeVote(@Body() dto: RemoveVoteDto, @CurrentUser() user: User) {
     return this.voteService.removeVote(dto, user.id);
+  }
+
+  // ==========================================================================
+  // 게시글 투표(Poll) — Public 조회 / Auth cast·remove
+  // ==========================================================================
+
+  @Get("posts/:id/poll")
+  @ApiOperation({ summary: "게시글 투표 결과 조회" })
+  @ApiParam({ name: "id", description: "게시물 ID" })
+  @ApiResponse({ status: 200, description: "투표 결과 반환" })
+  @ApiResponse({ status: 400, description: "투표 게시글이 아님" })
+  @ApiResponse({ status: 404, description: "게시글 없음" })
+  async getPoll(
+    @Param("id", ParseUUIDPipe) id: string,
+    @OptionalUser() user: User | undefined,
+  ) {
+    return this.pollService.getPoll(id, user?.id);
+  }
+
+  @Post("posts/:id/poll/votes")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "게시글 투표하기 (cast)" })
+  @ApiParam({ name: "id", description: "게시물 ID" })
+  @ApiResponse({ status: 201, description: "투표 성공, 결과 반환" })
+  @ApiResponse({ status: 400, description: "투표 게시글 아님 / 선택지 오류" })
+  @ApiResponse({ status: 403, description: "미가입·차단·잠금" })
+  @ApiResponse({ status: 404, description: "게시글 없음" })
+  @ApiResponse({ status: 409, description: "중복 투표 또는 종료된 투표" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["optionIds"],
+      properties: {
+        optionIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "선택한 투표 항목 ID (단일 선택은 1개)",
+        },
+      },
+    },
+  })
+  async castPollVote(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: CastPollVoteDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.pollService.castVote(id, user.id, dto?.optionIds ?? []);
+  }
+
+  @Delete("posts/:id/poll/votes")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "게시글 투표 취소 (remove)" })
+  @ApiParam({ name: "id", description: "게시물 ID" })
+  @ApiResponse({ status: 200, description: "투표 취소 성공, 결과 반환" })
+  @ApiResponse({ status: 404, description: "게시글 없음" })
+  @ApiResponse({ status: 409, description: "종료된 투표" })
+  async removePollVote(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.pollService.removeVote(id, user.id);
   }
 
   // ==========================================================================

@@ -57,6 +57,7 @@ export default defineConfig({
     "community_posts",
     "community_comments",
     "community_votes",
+    "community_poll_votes",
     "community_memberships",
     "community_moderators",
     "community_rules",

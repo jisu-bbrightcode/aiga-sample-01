@@ -417,6 +417,33 @@ export const communityVotes = pgTable(
 );
 
 /**
+ * Community Poll Votes Table
+ *
+ * 게시글(type=poll)의 선택지(`pollData.options[].id`)에 대한 사용자별 투표 기록.
+ * 한 행 = (게시글, 사용자, 선택지) 한 표. 집계 카운트는 `communityPosts.pollData`에 캐시한다.
+ * unique(postId, userId, optionId)로 동일 선택지 중복 투표를 DB 레벨에서 차단한다.
+ */
+export const communityPollVotes = pgTable(
+  "community_poll_votes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => communityPosts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    optionId: text("option_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("community_poll_votes_unique").on(table.postId, table.userId, table.optionId),
+    index("idx_poll_votes_post").on(table.postId),
+    index("idx_poll_votes_post_user").on(table.postId, table.userId),
+  ],
+);
+
+/**
  * Community Memberships Table
  */
 export const communityMemberships = pgTable(
@@ -804,6 +831,9 @@ export type Distinguished = "moderator" | "admin" | null;
 export type CommunityVote = typeof communityVotes.$inferSelect;
 export type NewCommunityVote = typeof communityVotes.$inferInsert;
 export type VoteTargetType = "post" | "comment";
+
+export type CommunityPollVote = typeof communityPollVotes.$inferSelect;
+export type NewCommunityPollVote = typeof communityPollVotes.$inferInsert;
 
 export type CommunityMembership = typeof communityMemberships.$inferSelect;
 export type NewCommunityMembership = typeof communityMemberships.$inferInsert;

@@ -6,6 +6,7 @@ export * from "./community-feed.service";
 export * from "./community-karma.service";
 export * from "./community-keyword-filter.service";
 export * from "./community-moderation.service";
+export * from "./community-poll.service";
 export * from "./community-post.service";
 export * from "./community-sanction.service";
 export * from "./community-tier.service";
