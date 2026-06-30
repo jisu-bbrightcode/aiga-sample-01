@@ -27,10 +27,11 @@ import {
 } from "@nestjs/swagger";
 import type { User } from "@repo/core/nestjs/auth";
 import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
-import { CommunityModerationService, CommunityService } from "../service";
+import { CommunityModerationService, CommunityPostService, CommunityService } from "../service";
 import type { BanUserDto, ResolveReportDto } from "../dto";
 import {
   AdminCommunityListResponseDto,
+  AdminPostListResponseDto,
   AdminReportListResponseDto,
   BanResponseDto,
   DeleteResponseDto,
@@ -38,6 +39,7 @@ import {
   ReportStatsResponseDto,
   SystemStatsResponseDto,
 } from "../dto";
+import { ADMIN_POST_VIEWER_STATE, toAdminPostListItem } from "../mappers";
 
 @ApiTags("Community Admin")
 @ApiBearerAuth()
@@ -47,6 +49,7 @@ export class CommunityAdminController {
   constructor(
     private readonly communityService: CommunityService,
     private readonly moderationService: CommunityModerationService,
+    private readonly postService: CommunityPostService,
   ) {}
 
   // ==========================================================================
@@ -82,6 +85,56 @@ export class CommunityAdminController {
   @ApiResponse({ status: 200, description: "전체 통계 반환", type: SystemStatsResponseDto })
   async stats() {
     return this.communityService.getSystemStats();
+  }
+
+  // ==========================================================================
+  // 게시글 관리
+  // ==========================================================================
+
+  @Get("posts")
+  @ApiOperation({
+    summary: "게시글 목록 (관리자용)",
+    description:
+      "공개 피드와 달리 미게시/숨김/제거/삭제 게시글까지 모두 조회되고, 모더레이션 " +
+      "내부필드(removalReason, removedBy)를 포함한다. status 로 상태 필터 가능.",
+  })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiQuery({
+    name: "search",
+    required: false,
+    type: String,
+    description: "제목/본문 부분일치 검색",
+  })
+  @ApiQuery({ name: "communityId", required: false, type: String })
+  @ApiQuery({
+    name: "status",
+    required: false,
+    enum: ["draft", "published", "hidden", "removed", "deleted"],
+  })
+  @ApiResponse({ status: 200, description: "게시글 목록 반환", type: AdminPostListResponseDto })
+  async posts(
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query("search") search?: string,
+    @Query("communityId") communityId?: string,
+    @Query("status") status?: "draft" | "published" | "hidden" | "removed" | "deleted",
+  ) {
+    const result = await this.postService.adminFindAll({
+      page,
+      limit,
+      search,
+      communityId,
+      status,
+    });
+
+    return {
+      items: result.items.map(toAdminPostListItem),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      viewer: ADMIN_POST_VIEWER_STATE,
+    };
   }
 
   // ==========================================================================

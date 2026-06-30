@@ -63,8 +63,8 @@ import {
   ModeratorResponseDto,
   ModLogListResponseDto,
   ModQueueResponseDto,
-  PostListResponseDto,
   PostResponseDto,
+  PublicPostListResponseDto,
   ReportResponseDto,
   RuleResponseDto,
   VoteResultResponseDto,
@@ -86,6 +86,7 @@ import {
   POST_SORTS,
   parsePostSort,
 } from "../service/post-list-options";
+import { publicPostViewerState, toPublicPostListItem } from "../mappers";
 
 @ApiTags("Community")
 @Controller("community")
@@ -382,7 +383,12 @@ export class CommunityController {
   // ==========================================================================
 
   @Get("posts")
-  @ApiOperation({ summary: "게시물 목록 조회" })
+  @ApiOperation({
+    summary: "게시물 목록 조회",
+    description:
+      "공개/로그인 게시글 피드. status='published' 만 노출되고(숨김/제거/삭제 제외), " +
+      "로그인 시 차단한 작성자의 글이 제외된다. 모더레이션 내부필드는 반환하지 않는다.",
+  })
   @ApiQuery({ name: "communitySlug", required: false, type: String })
   @ApiQuery({ name: "communityId", required: false, type: String })
   @ApiQuery({
@@ -390,13 +396,21 @@ export class CommunityController {
     required: false,
     enum: POST_SORTS,
   })
+  @ApiQuery({
+    name: "search",
+    required: false,
+    type: String,
+    description: "제목/본문 부분일치 검색",
+  })
   @ApiQuery({ name: "cursor", required: false, type: String })
   @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiResponse({ status: 200, description: "게시물 목록 반환", type: PostListResponseDto })
+  @ApiResponse({ status: 200, description: "게시물 목록 반환", type: PublicPostListResponseDto })
   async postList(
+    @OptionalUser() user?: User,
     @Query("communitySlug") communitySlug?: string,
     @Query("communityId") communityId?: string,
     @Query("sort") sort?: string,
+    @Query("search") search?: string,
     @Query("cursor") cursor?: string,
     @Query("limit", new DefaultValuePipe(DEFAULT_POST_LIST_LIMIT), ParseIntPipe) limit?: number,
   ) {
@@ -404,13 +418,24 @@ export class CommunityController {
       throw new BadRequestException("communitySlug와 communityId는 동시에 사용할 수 없습니다.");
     }
 
-    return this.postService.findAll({
+    // 로그인 사용자는 차단(양방향) 작성자의 글을 피드에서 제외한다 (AC#1).
+    const blockedUserIds = user ? await this.blockService.getBlockedUserIds(user.id) : undefined;
+
+    const page = await this.postService.findAll({
       communitySlug,
       communityId,
       sort: parsePostSort(sort),
+      search,
       cursor,
       limit: normalizePostListLimit(limit),
+      blockedUserIds,
     });
+
+    return {
+      items: page.items.map(toPublicPostListItem),
+      nextCursor: page.nextCursor,
+      viewer: publicPostViewerState(Boolean(user)),
+    };
   }
 
   @Get("posts/:id")

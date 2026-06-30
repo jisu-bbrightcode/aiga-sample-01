@@ -186,6 +186,79 @@ export const postListResponseSchema = z.object({
 
 export class PostListResponseDto extends createZodDto(postListResponseSchema) {}
 
+// ----------------------------------------------------------------------------
+// Post list — viewer-separated views (PB-COMM-POST-API-LIST-001 / BBR-594)
+// ----------------------------------------------------------------------------
+
+/** 요청자의 목록 조회 권한 상태. 공개 surface 는 isAdmin 을 절대 true 로 보고하지 않는다. */
+export const postListViewerStateSchema = z.object({
+  authenticated: z.boolean(),
+  isAdmin: z.boolean(),
+});
+
+/**
+ * 공개/로그인 목록 아이템 — 표시용 공개 필드만.
+ * 모더레이션 내부필드(removalReason, removedBy)는 제외된다(AC#2).
+ */
+export const publicPostListItemSchema = z.object({
+  id: z.string(),
+  communityId: z.string(),
+  communitySlug: z.string().nullable(),
+  authorId: z.string(),
+  authorName: z.string().nullable(),
+  authorAvatar: z.string().nullable(),
+  title: z.string(),
+  content: z.string().nullable(),
+  type: z.enum(["text", "link", "image", "video", "poll"]),
+  linkUrl: z.string().nullable(),
+  linkPreview: linkPreviewSchema,
+  mediaUrls: z.array(z.string()).nullable(),
+  pollData: pollDataSchema,
+  flairId: z.string().nullable(),
+  isNsfw: z.boolean(),
+  isSpoiler: z.boolean(),
+  isOc: z.boolean(),
+  contentRating: z.enum(["general", "sensitive", "nsfw", "violence"]),
+  status: z.enum(["draft", "published", "hidden", "removed", "deleted"]),
+  isPinned: z.boolean(),
+  isLocked: z.boolean(),
+  viewCount: z.number(),
+  upvoteCount: z.number(),
+  downvoteCount: z.number(),
+  voteScore: z.number(),
+  commentCount: z.number(),
+  shareCount: z.number(),
+  crosspostParentId: z.string().nullable(),
+  hotScore: z.number(),
+  lastActivityAt: z.string().nullable(),
+  createdAt: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+});
+
+export const publicPostListResponseSchema = z.object({
+  items: z.array(publicPostListItemSchema),
+  nextCursor: z.string().nullable(),
+  viewer: postListViewerStateSchema,
+});
+
+export class PublicPostListResponseDto extends createZodDto(publicPostListResponseSchema) {}
+
+/** 관리자 목록 아이템 — 공개 필드 + 모더레이션 내부필드. */
+export const adminPostListItemSchema = publicPostListItemSchema.extend({
+  removalReason: z.string().nullable(),
+  removedBy: z.string().nullable(),
+});
+
+export const adminPostListResponseSchema = z.object({
+  items: z.array(adminPostListItemSchema),
+  total: z.number(),
+  page: z.number(),
+  limit: z.number(),
+  viewer: postListViewerStateSchema,
+});
+
+export class AdminPostListResponseDto extends createZodDto(adminPostListResponseSchema) {}
+
 // ============================================================================
 // Comment
 // ============================================================================
