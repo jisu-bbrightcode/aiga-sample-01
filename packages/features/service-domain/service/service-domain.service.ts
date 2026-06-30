@@ -12,8 +12,18 @@ import {
   serviceRegions,
   serviceSpecialties,
 } from "@repo/drizzle/schema";
-import { and, asc, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, type SQL, sql } from "drizzle-orm";
+import {
+  type AdminDomainResource,
+  type AdminDomainResourceListResult,
+  type AdminDomainSortKey,
+  mergeResourcePage,
+  type SortOrder,
+  toAdminDomainResource,
+  totalPages,
+} from "../admin-resources";
 import type {
+  AdminDomainResourceQueryDto,
   CreateDoctorCredentialDto,
   CreateDoctorDto,
   CreateHospitalDto,
@@ -47,6 +57,16 @@ const PUBLISHED: ServicePublishStatus = "published";
 
 /** The transaction handle drizzle hands to a `db.transaction(...)` callback. */
 type ServiceDbTx = Parameters<Parameters<DrizzleDB["transaction"]>[0]>[0];
+
+/** Shared options for the per-table admin resource queries. */
+interface ResourceQueryOpts {
+  status?: ServicePublishStatus;
+  search?: string;
+  sort: AdminDomainSortKey;
+  order: SortOrder;
+  limit: number;
+  offset: number;
+}
 
 @Injectable()
 export class ServiceDomainService {
@@ -412,6 +432,170 @@ export class ServiceDomainService {
         "병원 운영시간",
       );
     }
+  }
+
+  // =========================================================================
+  // Admin — unified domain resource list (PB-ADMIN-DOMAIN-API-001 / BBR-761)
+  // =========================================================================
+
+  /**
+   * Admin console list across both catalog tables (의사 + 병원).
+   *
+   * Admin-only: surfaces every lifecycle state (draft/published/archived) and a
+   * deliberately narrow projection — sensitive columns are never selected. When
+   * `type` is omitted the result is a union of doctors + hospitals ordered by the
+   * requested key across both tables.
+   */
+  async listAdminDomainResources(
+    query: AdminDomainResourceQueryDto,
+  ): Promise<AdminDomainResourceListResult> {
+    const { page, limit, type, status, search, sort, order } = query;
+
+    const wantDoctors = !type || type === "doctor";
+    const wantHospitals = !type || type === "hospital";
+
+    // For a single-table list the DB applies the page window directly. For the
+    // union we must pull each table's first page*limit rows so the in-app merge
+    // of the two sorted streams reproduces the correct global page window.
+    const fetchLimit = type ? limit : page * limit;
+    const fetchOffset = type ? (page - 1) * limit : 0;
+
+    const [doctor, hospital] = await Promise.all([
+      wantDoctors
+        ? this.queryDoctorResources({
+            status,
+            search,
+            sort,
+            order,
+            limit: fetchLimit,
+            offset: fetchOffset,
+          })
+        : Promise.resolve<[AdminDomainResource[], number]>([[], 0]),
+      wantHospitals
+        ? this.queryHospitalResources({
+            status,
+            search,
+            sort,
+            order,
+            limit: fetchLimit,
+            offset: fetchOffset,
+          })
+        : Promise.resolve<[AdminDomainResource[], number]>([[], 0]),
+    ]);
+
+    const [doctorRows, doctorCount] = doctor;
+    const [hospitalRows, hospitalCount] = hospital;
+    const total = doctorCount + hospitalCount;
+
+    let items: AdminDomainResource[];
+    if (type === "doctor") {
+      items = doctorRows;
+    } else if (type === "hospital") {
+      items = hospitalRows;
+    } else {
+      items = mergeResourcePage(doctorRows, hospitalRows, { sort, order, page, limit });
+    }
+
+    return { items, total, page, limit, totalPages: totalPages(total, limit) };
+  }
+
+  private async queryDoctorResources(
+    opts: ResourceQueryOpts,
+  ): Promise<[AdminDomainResource[], number]> {
+    const { status, search, sort, order, limit, offset } = opts;
+    const where = and(
+      eq(serviceDoctors.isDeleted, false),
+      status ? eq(serviceDoctors.status, status) : undefined,
+      search
+        ? or(ilike(serviceDoctors.name, `%${search}%`), ilike(serviceDoctors.slug, `%${search}%`))
+        : undefined,
+    );
+    const sortColumn = {
+      name: serviceDoctors.name,
+      status: serviceDoctors.status,
+      updatedAt: serviceDoctors.updatedAt,
+    }[sort];
+    const dir = order === "asc" ? asc : desc;
+
+    const [rows, countRows] = await Promise.all([
+      this.db
+        .select({
+          id: serviceDoctors.id,
+          name: serviceDoctors.name,
+          slug: serviceDoctors.slug,
+          status: serviceDoctors.status,
+          regionName: serviceRegions.name,
+          specialtyName: serviceSpecialties.name,
+          isFeatured: serviceDoctors.isFeatured,
+          updatedAt: serviceDoctors.updatedAt,
+          createdAt: serviceDoctors.createdAt,
+        })
+        .from(serviceDoctors)
+        .leftJoin(serviceRegions, eq(serviceDoctors.regionId, serviceRegions.id))
+        .leftJoin(serviceSpecialties, eq(serviceDoctors.primarySpecialtyId, serviceSpecialties.id))
+        .where(where)
+        // secondary asc(id) mirrors the merge comparator's tiebreaker exactly.
+        .orderBy(dir(sortColumn), asc(serviceDoctors.id))
+        .limit(limit)
+        .offset(offset),
+      this.db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(serviceDoctors)
+        .where(where),
+    ]);
+
+    return [rows.map((row) => toAdminDomainResource(row, "doctor")), countRows[0]?.count ?? 0];
+  }
+
+  private async queryHospitalResources(
+    opts: ResourceQueryOpts,
+  ): Promise<[AdminDomainResource[], number]> {
+    const { status, search, sort, order, limit, offset } = opts;
+    const where = and(
+      eq(serviceHospitals.isDeleted, false),
+      status ? eq(serviceHospitals.status, status) : undefined,
+      search
+        ? or(
+            ilike(serviceHospitals.name, `%${search}%`),
+            ilike(serviceHospitals.slug, `%${search}%`),
+          )
+        : undefined,
+    );
+    const sortColumn = {
+      name: serviceHospitals.name,
+      status: serviceHospitals.status,
+      updatedAt: serviceHospitals.updatedAt,
+    }[sort];
+
+    const [rows, countRows] = await Promise.all([
+      this.db
+        .select({
+          id: serviceHospitals.id,
+          name: serviceHospitals.name,
+          slug: serviceHospitals.slug,
+          status: serviceHospitals.status,
+          regionName: serviceRegions.name,
+          isFeatured: serviceHospitals.isFeatured,
+          updatedAt: serviceHospitals.updatedAt,
+          createdAt: serviceHospitals.createdAt,
+        })
+        .from(serviceHospitals)
+        .leftJoin(serviceRegions, eq(serviceHospitals.regionId, serviceRegions.id))
+        .where(where)
+        .orderBy(this.direction(sortColumn, order), asc(serviceHospitals.id))
+        .limit(limit)
+        .offset(offset),
+      this.db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(serviceHospitals)
+        .where(where),
+    ]);
+
+    return [rows.map((row) => toAdminDomainResource(row, "hospital")), countRows[0]?.count ?? 0];
+  }
+
+  private direction(column: SQL | unknown, order: SortOrder) {
+    return order === "asc" ? asc(column as never) : desc(column as never);
   }
 
   // =========================================================================

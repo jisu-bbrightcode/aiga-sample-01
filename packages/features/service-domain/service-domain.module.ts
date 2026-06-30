@@ -1,5 +1,9 @@
 import { Module, type OnModuleInit } from "@nestjs/common";
-import { ServiceDomainAdminController, ServiceDomainController } from "./controller";
+import {
+  ServiceDomainAdminController,
+  ServiceDomainAdminResourcesController,
+  ServiceDomainController,
+} from "./controller";
 import { ServiceDomainService } from "./service";
 import { setServiceDomainService } from "./service-registry";
 
@@ -11,7 +15,11 @@ import { setServiceDomainService } from "./service-registry";
  * controller + admin-gated mutation controller share one service.
  */
 @Module({
-  controllers: [ServiceDomainController, ServiceDomainAdminController],
+  controllers: [
+    ServiceDomainController,
+    ServiceDomainAdminController,
+    ServiceDomainAdminResourcesController,
+  ],
   providers: [ServiceDomainService],
   exports: [ServiceDomainService],
 })
