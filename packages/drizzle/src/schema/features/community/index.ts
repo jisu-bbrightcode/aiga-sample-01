@@ -50,6 +50,11 @@ export const distinguishedEnum = pgEnum("community_comment_distinguished", ["mod
 
 export const voteTargetTypeEnum = pgEnum("community_vote_target_type", ["post", "comment"]);
 
+export const hiddenContentTargetTypeEnum = pgEnum("community_hidden_content_target_type", [
+  "post",
+  "comment",
+]);
+
 export const memberRoleEnum = pgEnum("community_member_role", [
   "member",
   "moderator",
@@ -784,6 +789,33 @@ export const communityUserBlocks = pgTable(
   ],
 );
 
+/**
+ * Hidden Contents Table — 사용자별 콘텐츠 숨김
+ * 작성자 차단(communityUserBlocks)이나 모더레이터 숨김(post.isHidden)과 구분되는,
+ * 개별 사용자가 자기 피드에서 특정 게시글/댓글을 숨기는 UGC 컨트롤.
+ */
+export const communityHiddenContents = pgTable(
+  "community_hidden_contents",
+  {
+    ...baseColumns(),
+
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    targetType: hiddenContentTargetTypeEnum("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+  },
+  (table) => [
+    uniqueIndex("community_hidden_contents_unique").on(
+      table.userId,
+      table.targetType,
+      table.targetId,
+    ),
+    index("idx_hidden_contents_user").on(table.userId),
+    index("idx_hidden_contents_target").on(table.targetType, table.targetId),
+  ],
+);
+
 // ============================================================================
 // Type Exports
 // ============================================================================
@@ -870,3 +902,8 @@ export type SanctionStatus = "active" | "expired" | "appealed" | "overturned";
 export type CommunityAppeal = typeof communityAppeals.$inferSelect;
 export type NewCommunityAppeal = typeof communityAppeals.$inferInsert;
 export type AppealStatus = "pending" | "under_review" | "upheld" | "overturned" | "modified";
+
+export type CommunityHiddenContent = typeof communityHiddenContents.$inferSelect;
+export type NewCommunityHiddenContent = typeof communityHiddenContents.$inferInsert;
+export type HiddenContentTargetType = "post" | "comment";
+
