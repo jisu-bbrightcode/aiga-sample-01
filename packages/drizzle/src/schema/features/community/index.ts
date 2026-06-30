@@ -3,6 +3,7 @@
  * Reddit-style communities with posts, comments, voting, and moderation
  */
 import { baseColumns, user } from "@repo/drizzle/schema";
+import { sql } from "drizzle-orm";
 import {
   boolean,
   doublePrecision,
@@ -611,6 +612,11 @@ export const communityReports = pgTable(
     index("idx_reports_target").on(table.targetType, table.targetId),
     index("idx_reports_reporter").on(table.reporterId),
     index("idx_reports_severity").on(table.severity),
+    // Duplicate report policy (BBR-614): at most one ACTIVE (pending/reviewing)
+    // report per reporter per target. Resolved/dismissed reports free the slot.
+    uniqueIndex("uq_community_reports_active_dedup")
+      .on(table.reporterId, table.communityId, table.targetType, table.targetId)
+      .where(sql`${table.status} IN ('pending', 'reviewing')`),
   ],
 );
 

@@ -120,7 +120,7 @@ describeIfDb("CommunityModerationService", () => {
       reporter,
     );
     createdIds.reports.push(r.id);
-    const pending = await svc.getReports(ctx.communityId, "pending");
+    const pending = await svc.getReports(ctx.communityId, ctx.ownerId, "pending");
     expect(pending.some((x) => x.id === r.id)).toBe(true);
   });
 
@@ -194,8 +194,32 @@ describeIfDb("CommunityModerationService", () => {
       reporter,
     );
     createdIds.reports.push(r.id);
-    const queue = await svc.getModQueue(ctx.communityId);
+    const queue = await svc.getModQueue(ctx.communityId, ctx.ownerId);
     expect(queue).toBeDefined();
     expect(queue.reports?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it("중복 신고 정책: 동일 신고자·동일 대상의 활성 신고는 멱등하게 기존 신고를 반환한다", async () => {
+    const dto = {
+      communityId: ctx.communityId,
+      targetType: "post",
+      targetId: postId,
+      reason: "spam",
+    } as never;
+
+    const first = await svc.createReport(dto, reporter);
+    createdIds.reports.push(first.id);
+    const second = await svc.createReport(dto, reporter);
+
+    // 같은 신고 row 가 반환되고 새 row 가 생성되지 않는다.
+    expect(second.id).toBe(first.id);
+    const all = await svc.getReports(ctx.communityId, ctx.ownerId);
+    expect(all.filter((x) => x.targetId === postId && x.reporterId === reporter)).toHaveLength(1);
+  });
+
+  it("신고자 보호: 모더레이터가 아닌 사용자는 신고 목록/큐를 조회할 수 없다 (AC#2)", async () => {
+    // `reporter` 는 일반 멤버(role=member)이며 모더레이터 권한이 없다.
+    await expect(svc.getReports(ctx.communityId, reporter)).rejects.toThrow();
+    await expect(svc.getModQueue(ctx.communityId, reporter)).rejects.toThrow();
   });
 });
