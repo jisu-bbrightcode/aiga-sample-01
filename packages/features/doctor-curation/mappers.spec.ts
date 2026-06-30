@@ -1,4 +1,5 @@
 import {
+  buildViewerState,
   toAdminCollection,
   toAdminCollectionDetail,
   toCollectionItem,
@@ -98,6 +99,32 @@ describe("doctor-curation mappers", () => {
       const detail = toAdminCollectionDetail(makeCollectionRow() as never, [item as never]);
       expect(detail.items).toHaveLength(1);
       expect(detail.id).toBe("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    });
+  });
+
+  describe("buildViewerState (BBR-537)", () => {
+    it("guest: anonymous viewer, cannot manage", () => {
+      expect(buildViewerState("guest")).toEqual({
+        authenticated: false,
+        role: "guest",
+        canManage: false,
+      });
+    });
+
+    it("member: signed-in viewer, still cannot manage", () => {
+      expect(buildViewerState("member")).toEqual({
+        authenticated: true,
+        role: "member",
+        canManage: false,
+      });
+    });
+
+    it("admin: authenticated operator with manage rights", () => {
+      expect(buildViewerState("admin")).toEqual({
+        authenticated: true,
+        role: "admin",
+        canManage: true,
+      });
     });
   });
 });

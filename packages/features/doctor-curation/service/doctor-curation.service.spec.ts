@@ -143,6 +143,12 @@ describe("DoctorCurationService", () => {
           items: [expect.objectContaining({ doctorId: item.doctorId })],
         }),
       );
+      // BBR-537: admin detail carries an admin viewer state with manage rights
+      expect(result.viewerState).toEqual({
+        authenticated: true,
+        role: "admin",
+        canManage: true,
+      });
     });
 
     it("throws NotFound for a missing or soft-deleted collection", async () => {

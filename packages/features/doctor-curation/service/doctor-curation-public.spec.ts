@@ -107,6 +107,15 @@ describe("DoctorCurationService — public browse (BBR-536)", () => {
       );
     });
 
+    it("treats a missing slug and an unpublished/draft collection identically as 404 (no leak)", async () => {
+      // The published+non-deleted filter lives in the query, so a draft collection
+      // never comes back from findFirst — same 404 contract as a non-existent slug.
+      db.query.serviceDoctorCollections.findFirst.mockResolvedValue(undefined);
+      await expect(service.getPublicCollectionBySlug("a-draft-collection")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
     it("orders items by rank and hides draft/deleted doctors", async () => {
       db.query.serviceDoctorCollections.findFirst.mockResolvedValue({
         ...makeCollectionRow(),
@@ -135,6 +144,38 @@ describe("DoctorCurationService — public browse (BBR-536)", () => {
       expect(detail).not.toHaveProperty("internalNotes");
       // embedded doctor is public-mapped
       expect(detail.items[0]?.doctor).not.toHaveProperty("licenseNumber");
+    });
+
+    it("reports guest viewer state for an anonymous request", async () => {
+      db.query.serviceDoctorCollections.findFirst.mockResolvedValue({
+        ...makeCollectionRow(),
+        items: [],
+      });
+
+      const detail = await service.getPublicCollectionBySlug("2026-knee-joint");
+
+      expect(detail.viewerState).toEqual({
+        authenticated: false,
+        role: "guest",
+        canManage: false,
+      });
+    });
+
+    it("reports member viewer state for a signed-in request", async () => {
+      db.query.serviceDoctorCollections.findFirst.mockResolvedValue({
+        ...makeCollectionRow(),
+        items: [],
+      });
+
+      const detail = await service.getPublicCollectionBySlug("2026-knee-joint", {
+        id: "user-1",
+      } as never);
+
+      expect(detail.viewerState).toEqual({
+        authenticated: true,
+        role: "member",
+        canManage: false,
+      });
     });
   });
 

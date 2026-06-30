@@ -121,4 +121,34 @@ export function toPublicCollectionItem(row: PublicItemRow): PublicCollectionItem
 
 export interface PublicCollectionDetail extends PublicCollection {
   items: PublicCollectionItem[];
+  viewerState: ViewerState;
+}
+
+// ---------------------------------------------------------------------------
+// Viewer state (FR-004 / BBR-537) — the detail response's per-role access
+// summary. The READ contract is "공개/사용자/관리자 권한에 따라 접근 결과가 명확":
+//   - guest  : anonymous visitor on the public detail route
+//   - member : signed-in user on the public detail route
+//   - admin  : operator on the gated admin detail route (canManage = true)
+// It lets the client render the same detail payload differently per viewer
+// without a second round-trip, and is the single source of `canManage`.
+// ---------------------------------------------------------------------------
+
+export type ViewerRole = "guest" | "member" | "admin";
+
+export interface ViewerState {
+  /** Whether the request carried an authenticated viewer. */
+  authenticated: boolean;
+  /** The viewer's access tier for this resource. */
+  role: ViewerRole;
+  /** Whether the viewer may edit/manage this collection (admin only). */
+  canManage: boolean;
+}
+
+export function buildViewerState(role: ViewerRole): ViewerState {
+  return {
+    authenticated: role !== "guest",
+    role,
+    canManage: role === "admin",
+  };
 }

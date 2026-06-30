@@ -52,8 +52,15 @@ export class DoctorCurationAdminController {
   }
 
   @Get(":id")
-  @ApiOperation({ summary: "명의 컬렉션 상세 (admin)" })
+  @ApiOperation({
+    summary: "명의 컬렉션 상세 (admin)",
+    description:
+      "관리자(owner/admin)만 접근 가능하며 미게시(draft) 컬렉션도 조회된다. viewerState.role=admin, " +
+      "canManage=true. 비로그인은 401, 권한 없는 사용자는 403, 없는 id는 404.",
+  })
   @ApiResponse({ status: 200, type: AdminCollectionDetailDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
   @ApiResponse({ status: 404, description: "컬렉션을 찾을 수 없음" })
   getCollection(@Param("id", ParseUUIDPipe) id: string) {
     return this.service.getCollectionById(id);
