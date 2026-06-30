@@ -1,9 +1,15 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
 import {
   type CommunityComment,
   communityComments,
+  communityModLogs,
   communityPosts,
   user as userTable,
 } from "@repo/drizzle/schema";
@@ -12,6 +18,7 @@ import { type EnrichedCommentRow, toPublicCommentItem } from "../comment-visibil
 import { buildCursorResult, decodeCursor } from "../helpers/pagination";
 import { assertCommunityPermission } from "../helpers/permission";
 import type { CreateCommentDto } from "../dto";
+import { canRestoreComment } from "./comment-deletion-policy";
 import { CommunityService } from "./community.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
@@ -283,11 +290,16 @@ export class CommunityCommentService {
       throw new ForbiddenException("작성자 또는 관리자만 댓글을 삭제할 수 있습니다.");
     }
 
+    // 멱등: 이미 삭제된 댓글에 대한 재호출은 commentCount 를 다시 감소시키지 않는다.
+    // (AC#1 — 게시글 댓글 수가 중복 호출로 어긋나지 않도록 보장한다.)
+    if (comment.isDeleted) {
+      return;
+    }
+
     await this.db
       .update(communityComments)
       .set({
         isDeleted: true,
-        content: "[삭제됨]",
         updatedAt: new Date(),
       })
       .where(eq(communityComments.id, id));
@@ -328,13 +340,103 @@ export class CommunityCommentService {
         isRemoved: true,
         removalReason: reason,
         removedBy: userId,
-        content: "[removed]",
         updatedAt: new Date(),
       })
       .where(eq(communityComments.id, id))
       .returning();
 
+    // 감사 로그: 모더레이션 제거 이력은 댓글 행과 무관하게 append-only 로 보존된다(AC#1).
+    await this.recordModLog({
+      communityId: post.communityId,
+      moderatorId: userId,
+      action: "remove_comment",
+      targetId: id,
+      reason,
+      details: { kind: "comment_removed" },
+    });
+
     return updated as CommunityComment;
+  }
+
+  /**
+   * 모더레이터가 제거(`isRemoved`)하거나 필터로 숨겨진(`isHidden`) 댓글을 공개로 복구한다.
+   *
+   * - 작성자 삭제(`isDeleted`)는 작성자 의사이므로 복구 대상이 아니다 → 409.
+   * - 이미 공개 상태인 댓글은 복구할 것이 없다 → 409.
+   * - 원본 본문은 제거/숨김 시 보존되므로(read 시점 마스킹), 복구하면 그대로 다시 노출된다.
+   * - 대댓글/신고/감사 로그는 soft delete 로 보존되어 복구 후에도 일관된다(AC#1).
+   */
+  async restore(id: string, userId: string): Promise<CommunityComment> {
+    const comment = await this.findById(id);
+    if (!comment) {
+      throw new NotFoundException("댓글을 찾을 수 없습니다.");
+    }
+
+    const [post] = await this.db
+      .select()
+      .from(communityPosts)
+      .where(eq(communityPosts.id, comment.postId))
+      .limit(1);
+
+    if (!post) {
+      throw new NotFoundException("게시글을 찾을 수 없습니다.");
+    }
+
+    await assertCommunityPermission(this.communityService, userId, post.communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+
+    if (!canRestoreComment(comment)) {
+      throw new ConflictException("숨김 또는 제거된 댓글만 복구할 수 있습니다.");
+    }
+
+    const [updated] = await this.db
+      .update(communityComments)
+      .set({
+        isRemoved: false,
+        isHidden: false,
+        removalReason: null,
+        removedBy: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(communityComments.id, id))
+      .returning();
+
+    await this.recordModLog({
+      communityId: post.communityId,
+      moderatorId: userId,
+      action: "other",
+      targetId: id,
+      reason: "comment_restored",
+      details: { kind: "comment_restored" },
+    });
+
+    return updated as CommunityComment;
+  }
+
+  /**
+   * 모더레이션 감사 로그를 append-only 로 기록한다. 댓글 행/게시글 카운트와 독립적으로
+   * 보존되어 삭제·복구 이력의 일관성을 보장한다(AC#1).
+   */
+  private async recordModLog(entry: {
+    communityId: string;
+    moderatorId: string;
+    action: "remove_comment" | "other";
+    targetId: string;
+    reason?: string;
+    details?: Record<string, unknown>;
+  }): Promise<void> {
+    await this.db.insert(communityModLogs).values({
+      communityId: entry.communityId,
+      moderatorId: entry.moderatorId,
+      action: entry.action,
+      targetType: "comment",
+      targetId: entry.targetId,
+      reason: entry.reason ?? null,
+      details: entry.details ?? {},
+    });
   }
 
   async sticky(id: string, userId: string): Promise<CommunityComment> {
