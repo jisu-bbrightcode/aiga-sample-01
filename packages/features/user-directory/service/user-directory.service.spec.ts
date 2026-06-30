@@ -1,4 +1,9 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import { createMockDb } from "../../__test-utils__/mock-db";
 import type { UserDirectoryRow } from "../mappers";
 import { UserDirectoryService } from "./user-directory.service";
@@ -39,12 +44,12 @@ function makeRow(overrides: Partial<UserDirectoryRow> = {}): UserDirectoryRow {
 
 describe("UserDirectoryService", () => {
   let db: ReturnType<typeof createMockDb>;
-  let audit: { log: jest.Mock };
+  let audit: { log: jest.Mock; list: jest.Mock };
   let service: UserDirectoryService;
 
   beforeEach(() => {
     db = createMockDb();
-    audit = { log: jest.fn() };
+    audit = { log: jest.fn(), list: jest.fn() };
     service = new UserDirectoryService(db as never, audit as never);
   });
 
@@ -273,6 +278,91 @@ describe("UserDirectoryService", () => {
         service.restoreUser({ id: "ghost", actorUserId: "admin1" }),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(audit.log).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateAdminUser (부분 수정)", () => {
+    it("updates allowed fields and records a user.updated audit with before/after", async () => {
+      db._queueResolve("limit", [makeRow()]);
+
+      const result = await service.updateAdminUser({
+        id: "u1",
+        actorUserId: "admin1",
+        name: "임꺽정",
+        bio: "소개글",
+        reason: "운영자 정정",
+      });
+
+      expect(result.name).toBe("임꺽정");
+      expect(result.bio).toBe("소개글");
+      expect(db.update).toHaveBeenCalledTimes(1);
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "user.updated",
+          actorUserId: "admin1",
+          targetType: "user",
+          targetId: "u1",
+          payloadBefore: expect.objectContaining({ name: "홍길동" }),
+          payloadAfter: expect.objectContaining({ name: "임꺽정", bio: "소개글" }),
+        }),
+      );
+    });
+
+    it("clears a nullable field when explicitly set to null", async () => {
+      db._queueResolve("limit", [makeRow({ profile: makeProfile({ bio: "old" }) })]);
+
+      const result = await service.updateAdminUser({
+        id: "u1",
+        actorUserId: "admin1",
+        bio: null,
+      });
+
+      expect(result.bio).toBeNull();
+      expect(db.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws BadRequest when no editable field is provided (no read/write/audit)", async () => {
+      await expect(
+        service.updateAdminUser({ id: "u1", actorUserId: "admin1", reason: "noop" }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(db.select).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+
+    it("throws NotFound for a missing user", async () => {
+      db._queueResolve("limit", []);
+      await expect(
+        service.updateAdminUser({ id: "ghost", actorUserId: "admin1", name: "x" }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+
+    it("maps a handle unique-violation to 409 Conflict", async () => {
+      db._queueResolve("limit", [makeRow()]);
+      (db.update as jest.Mock).mockImplementationOnce(() => {
+        throw Object.assign(new Error("duplicate key"), { code: "23505" });
+      });
+
+      await expect(
+        service.updateAdminUser({ id: "u1", actorUserId: "admin1", handle: "taken" }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getUserHistory (변경 이력)", () => {
+    it("delegates to the audit log scoped to this user", async () => {
+      audit.list.mockResolvedValue({ rows: [], nextCursor: null });
+
+      const result = await service.getUserHistory("u1", { cursor: "100", limit: 25 });
+
+      expect(audit.list).toHaveBeenCalledWith({
+        targetType: "user",
+        targetId: "u1",
+        cursor: "100",
+        limit: 25,
+      });
+      expect(result).toEqual({ rows: [], nextCursor: null });
     });
   });
 });
