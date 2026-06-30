@@ -26,6 +26,9 @@ export class AdminUserListItemDto {
   @ApiProperty()
   createdAt!: string;
 
+  @ApiProperty({ nullable: true, description: "프로필 최근 업데이트(최근활동) 시각" })
+  lastActiveAt!: string | null;
+
   @ApiProperty()
   emailVerified!: boolean;
 

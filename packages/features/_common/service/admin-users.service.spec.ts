@@ -115,6 +115,38 @@ describe("AdminUsersService.list", () => {
     const result = await svc.list({ q: "nobody" });
     expect(result).toEqual({ users: [], total: 0 });
   });
+
+  it("applies status/accessRole filters and sort without breaking mapping", async () => {
+    const { svc } = build([
+      [{ count: 1 }],
+      [
+        {
+          id: "u1",
+          userName: "Zoe",
+          userEmail: "zoe@a.com",
+          userImage: null,
+          emailVerified: true,
+          createdAt: CREATED,
+          profileName: null,
+          profileEmail: null,
+          profileAvatar: null,
+          isActive: false,
+        },
+      ],
+      [], // rbac roles
+      [{ userId: "u1", role: "admin" }],
+    ]);
+
+    const result = await svc.list({
+      status: "inactive",
+      accessRole: "admin",
+      sort: "name",
+      order: "asc",
+    });
+
+    expect(result.total).toBe(1);
+    expect(result.users[0]).toMatchObject({ id: "u1", accessRole: "admin", isActive: false });
+  });
 });
 
 describe("AdminUsersService.setActive", () => {

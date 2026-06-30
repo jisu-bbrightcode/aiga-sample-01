@@ -1,12 +1,16 @@
 /**
- * Admin Users Page — user/profile management (BBR-684 / PB-ADMIN-USERS-001).
+ * Admin Users Page — user/profile management.
  *
- * List + search of core user/profile metadata, with a detail dialog that
- * exposes the two audited management actions (접근 역할 변경 / 계정 상태 변경).
+ * List + search of core user/profile metadata, with filter (상태/접근 역할),
+ * sort (가입일/최근활동/상태/이름), pagination, and a detail dialog exposing the
+ * two audited management actions (접근 역할 변경 / 계정 상태 변경).
  *
- * User sanctions are domain-specific. Community bans stay in community
- * membership/moderation tables, not on the core Better Auth user row; this
- * page manages account-level access role (org membership) and active status.
+ * - BBR-684 / PB-ADMIN-USERS-001: list + search + detail/management.
+ * - BBR-685 / PB-ADMIN-USERS-LIST-001: filter + sort + masked PII (this work).
+ *
+ * Sensitive info (email) is masked in the list; the full address stays in the
+ * detail dialog. User sanctions are domain-specific — community bans stay in
+ * community membership/moderation tables, not on the core Better Auth user row.
  */
 
 import { cn } from "@repo/ui/lib/utils";
@@ -14,8 +18,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/shadcn/avatar";
 import { Button } from "@repo/ui/shadcn/button";
 import { Input } from "@repo/ui/shadcn/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/shadcn/select";
+import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
+  ChevronUp,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -23,8 +37,13 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
-import type { AdminUserItem } from "../../features/users/api";
-import { ADMIN_USERS_PAGE_SIZE, useAdminUsers } from "../../features/users/use-admin-users";
+import { type AdminUserItem, maskEmail, type UserSortField } from "../../features/users/api";
+import {
+  type AccessRoleFilterValue,
+  ADMIN_USERS_PAGE_SIZE,
+  type StatusFilterValue,
+  useAdminUsers,
+} from "../../features/users/use-admin-users";
 import { UserDetailDialog } from "../../features/users/user-detail-dialog";
 
 interface RoleInfo {
@@ -39,6 +58,20 @@ const ACCESS_ROLE_INFO: Record<string, RoleInfo> = {
   none: { label: "일반 사용자", color: "bg-gray-100 text-gray-600" },
 };
 
+const STATUS_FILTER_OPTIONS: { value: StatusFilterValue; label: string }[] = [
+  { value: "all", label: "전체 상태" },
+  { value: "active", label: "활성" },
+  { value: "inactive", label: "정지" },
+];
+
+const ROLE_FILTER_OPTIONS: { value: AccessRoleFilterValue; label: string }[] = [
+  { value: "all", label: "전체 역할" },
+  { value: "owner", label: "소유자" },
+  { value: "admin", label: "관리자" },
+  { value: "member", label: "멤버" },
+  { value: "none", label: "일반 사용자" },
+];
+
 const USER_ROW_SKELETON_KEYS = [
   "user-skeleton-1",
   "user-skeleton-2",
@@ -47,9 +80,27 @@ const USER_ROW_SKELETON_KEYS = [
   "user-skeleton-5",
 ];
 
+const TABLE_COLUMN_COUNT = 5;
+
 export function AdminUsersPage() {
-  const { users, total, page, setPage, searchInput, setSearchInput, loading, error, refetch } =
-    useAdminUsers();
+  const {
+    users,
+    total,
+    page,
+    setPage,
+    searchInput,
+    setSearchInput,
+    status,
+    setStatus,
+    accessRole,
+    setAccessRole,
+    sort,
+    order,
+    toggleSort,
+    loading,
+    error,
+    refetch,
+  } = useAdminUsers();
   const [selected, setSelected] = useState<AdminUserItem | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -64,14 +115,42 @@ export function AdminUsersPage() {
     <div className="p-6">
       <AdminUsersHeader total={total} loading={loading} onRefresh={refetch} />
 
-      <div className="mb-4 relative max-w-sm">
-        <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="이름 또는 이메일로 검색"
-          className="pl-8"
-        />
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative max-w-sm flex-1 min-w-[200px]">
+          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="이름 또는 이메일로 검색"
+            className="pl-8"
+          />
+        </div>
+
+        <Select value={status} onValueChange={(v) => setStatus(v as StatusFilterValue)}>
+          <SelectTrigger className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_FILTER_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={accessRole} onValueChange={(v) => setAccessRole(v as AccessRoleFilterValue)}>
+          <SelectTrigger className="w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ROLE_FILTER_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {error ? (
@@ -80,7 +159,14 @@ export function AdminUsersPage() {
         </div>
       ) : null}
 
-      <UsersTable users={users} loading={loading} onSelect={openDetail} />
+      <UsersTable
+        users={users}
+        loading={loading}
+        sort={sort}
+        order={order}
+        onSort={toggleSort}
+        onSelect={openDetail}
+      />
 
       {totalPages > 1 ? (
         <AdminUsersPagination
@@ -174,13 +260,57 @@ function AdminUsersPagination({
   );
 }
 
+function SortableHeader({
+  label,
+  field,
+  sort,
+  order,
+  onSort,
+}: {
+  label: string;
+  field: UserSortField;
+  sort: UserSortField;
+  order: "asc" | "desc";
+  onSort: (field: UserSortField) => void;
+}) {
+  const active = sort === field;
+  return (
+    <th className="px-4 py-2.5 text-left font-medium">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onSort(field)}
+        className="-ml-2 h-auto gap-1 px-2 py-1 text-[13px] font-medium"
+      >
+        {label}
+        <SortIcon active={active} order={order} />
+      </Button>
+    </th>
+  );
+}
+
+function SortIcon({ active, order }: { active: boolean; order: "asc" | "desc" }) {
+  if (!active) return <ChevronsUpDown className="size-3.5 opacity-40" />;
+  return order === "asc" ? (
+    <ChevronUp className="size-3.5" />
+  ) : (
+    <ChevronDown className="size-3.5" />
+  );
+}
+
 function UsersTable({
   users,
   loading,
+  sort,
+  order,
+  onSort,
   onSelect,
 }: {
   users: AdminUserItem[];
   loading: boolean;
+  sort: UserSortField;
+  order: "asc" | "desc";
+  onSort: (field: UserSortField) => void;
   onSelect: (user: AdminUserItem) => void;
 }) {
   return (
@@ -188,10 +318,23 @@ function UsersTable({
       <table className="w-full text-[13px]">
         <thead>
           <tr className="border-b bg-muted/40">
-            <th className="px-4 py-2.5 text-left font-medium">사용자</th>
+            <SortableHeader label="사용자" field="name" sort={sort} order={order} onSort={onSort} />
             <th className="px-4 py-2.5 text-left font-medium">접근 역할</th>
-            <th className="px-4 py-2.5 text-left font-medium">상태</th>
-            <th className="px-4 py-2.5 text-left font-medium">가입일</th>
+            <SortableHeader label="상태" field="status" sort={sort} order={order} onSort={onSort} />
+            <SortableHeader
+              label="최근활동"
+              field="lastActiveAt"
+              sort={sort}
+              order={order}
+              onSort={onSort}
+            />
+            <SortableHeader
+              label="가입일"
+              field="createdAt"
+              sort={sort}
+              order={order}
+              onSort={onSort}
+            />
           </tr>
         </thead>
         <tbody>
@@ -209,7 +352,7 @@ function UsersTable({
 function UserTableSkeleton() {
   return USER_ROW_SKELETON_KEYS.map((key) => (
     <tr key={key} className="border-b">
-      <td colSpan={4} className="px-4 py-3">
+      <td colSpan={TABLE_COLUMN_COUNT} className="px-4 py-3">
         <div className="h-5 w-full animate-pulse rounded bg-muted" />
       </td>
     </tr>
@@ -219,7 +362,7 @@ function UserTableSkeleton() {
 function UserTableEmpty() {
   return (
     <tr>
-      <td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">
+      <td colSpan={TABLE_COLUMN_COUNT} className="px-4 py-12 text-center text-muted-foreground">
         사용자가 없습니다
       </td>
     </tr>
@@ -252,7 +395,7 @@ function UserRow({
           </Avatar>
           <div className="min-w-0">
             <p className="truncate font-medium">{user.name}</p>
-            <p className="truncate text-[12px] text-muted-foreground">{user.email}</p>
+            <p className="truncate text-[12px] text-muted-foreground">{maskEmail(user.email)}</p>
           </div>
         </div>
       </td>
@@ -278,6 +421,10 @@ function UserRow({
         >
           {user.isActive ? "활성" : "정지"}
         </span>
+      </td>
+
+      <td className="px-4 py-3 text-muted-foreground">
+        {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleDateString("ko-KR") : "-"}
       </td>
 
       <td className="px-4 py-3 text-muted-foreground">
