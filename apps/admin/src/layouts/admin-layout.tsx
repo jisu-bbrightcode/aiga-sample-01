@@ -25,6 +25,7 @@ import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-route
 import { useAtomValue } from "jotai";
 import {
   CreditCard,
+  Files,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -136,6 +137,15 @@ function AdminSidebar() {
                 >
                   <Stethoscope />
                   <span>도메인 리소스</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link to="/files" />}
+                  isActive={currentPath === "/files" || currentPath.startsWith("/files/")}
+                >
+                  <Files />
+                  <span>파일 관리</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>

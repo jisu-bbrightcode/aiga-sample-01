@@ -12,6 +12,7 @@ import { createSignUpRoute } from "./features/auth";
 import { createCommunityAdminRoutes, createCommunityRoutes } from "./features/community";
 import { createDomainAdminRoutes } from "./features/domain";
 import { createEmailAdminRoutes } from "./features/email";
+import { createFileAdminRoutes } from "./features/file-upload/admin";
 import { createIdentityVerificationAdminRoutes } from "./features/identity-verification";
 import { createPaymentAdminRoutes } from "./features/payment";
 import { createProfileAuthRoutes } from "./features/profile";
@@ -97,6 +98,7 @@ const routeTree = rootRoute.addChildren([
     ...createCommunityAdminRoutes(adminLayoutRoute),
     ...createDomainAdminRoutes(adminLayoutRoute),
     ...createEmailAdminRoutes(adminLayoutRoute),
+    ...createFileAdminRoutes(adminLayoutRoute),
     ...createIdentityVerificationAdminRoutes(adminLayoutRoute),
     ...createPaymentAdminRoutes(adminLayoutRoute),
     ...createScheduledJobAdminRoutes(adminLayoutRoute),
