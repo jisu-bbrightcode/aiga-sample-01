@@ -28,6 +28,12 @@
  *  - D7 (create): an authenticated admin on /domain/new sees the separated
  *    공개 정보 / 운영 정보 sections and required-field validation, and can
  *    submit a draft resource.
+ *  - D8 (edit): the detail page exposes a 수정 action; the edit form pre-fills
+ *    the record and saving returns to the detail
+ *    (PB-ADMIN-DOMAIN-UPDATE-001 / BBR-681).
+ *  - D9 (status + history): the detail page exposes publish/unpublish status
+ *    actions behind a confirm dialog and a 변경 이력 (audit trail) section
+ *    (PB-ADMIN-DOMAIN-UPDATE-001 / BBR-681).
  */
 import { expect, test } from "@playwright/test";
 
@@ -150,5 +156,44 @@ test.describe("Domain Admin — list/search (qa@example.com) @admin @domain @db"
     await page.fill("#slug", unique);
     await page.getByRole("button", { name: "리소스 생성" }).click();
     await expect(page).toHaveURL(/\/domain\/doctor\//, { timeout: 10_000 });
+  });
+
+  test("D8: detail exposes a 수정 action and the edit form pre-fills the record", async ({
+    page,
+  }) => {
+    const firstResource = page.locator('a[href^="/domain/"]').first();
+    await expect(firstResource).toBeVisible({ timeout: 10_000 });
+    await firstResource.click();
+    await expect(page).toHaveURL(/\/domain\/(doctor|hospital)\//, { timeout: 10_000 });
+
+    await page.getByRole("button", { name: "수정" }).click();
+    await expect(page).toHaveURL(/\/domain\/(doctor|hospital)\/.+\/edit/, { timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "도메인 리소스 수정" })).toBeVisible();
+    // The edit form pre-fills the existing name (non-empty slug/name).
+    await expect(page.locator("#name")).not.toHaveValue("");
+    // Saving returns to the detail page.
+    await page.getByRole("button", { name: "변경 사항 저장" }).click();
+    await expect(page).toHaveURL(/\/domain\/(doctor|hospital)\/[^/]+$/, { timeout: 10_000 });
+  });
+
+  test("D9: detail exposes status actions behind a confirm dialog + a 변경 이력 section", async ({
+    page,
+  }) => {
+    const firstResource = page.locator('a[href^="/domain/"]').first();
+    await expect(firstResource).toBeVisible({ timeout: 10_000 });
+    await firstResource.click();
+    await expect(page).toHaveURL(/\/domain\/(doctor|hospital)\//, { timeout: 10_000 });
+
+    // 변경 이력 (audit trail) section is always present on the detail page.
+    await expect(page.getByText("변경 이력")).toBeVisible({ timeout: 10_000 });
+
+    // A publish/unpublish action (공개 or 비공개 전환) sits next to the lifecycle
+    // buttons; triggering it asks for confirmation before changing exposure.
+    const statusButton = page.getByRole("button", { name: /^공개$|비공개 전환/ }).first();
+    await expect(statusButton).toBeVisible({ timeout: 10_000 });
+    await statusButton.click();
+    await expect(page.getByRole("alertdialog")).toBeVisible({ timeout: 10_000 });
+    // Cancelling leaves the status untouched.
+    await page.getByRole("button", { name: "취소" }).click();
   });
 });

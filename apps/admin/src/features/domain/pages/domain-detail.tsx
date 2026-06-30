@@ -1,10 +1,13 @@
+import { Button } from "@repo/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/shadcn/card";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
-import { ShieldAlert, Star } from "lucide-react";
+import { Pencil, ShieldAlert, Star } from "lucide-react";
 import type { ReactNode } from "react";
+import { DomainHistoryCard } from "../components/domain-history-card";
 import { DomainLifecycleActions } from "../components/domain-lifecycle-actions";
+import { DomainStatusActions } from "../components/domain-status-actions";
 import { DomainStatusBadge } from "../components/domain-status-badge";
 import { DomainTypeBadge } from "../components/domain-type-badge";
 import type {
@@ -368,7 +371,20 @@ export function DomainDetail({ detail }: { detail: DomainResourceDetail }) {
         <DomainTypeBadge type={detail.type} />
         <DomainStatusBadge status={detail.status} />
         <span className="text-sm text-muted-foreground">{detail.slug}</span>
-        <div className="ml-auto">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {!detail.ops.isDeleted && (
+            <Button
+              render={
+                <Link to="/domain/$type/$id/edit" params={{ type: detail.type, id: detail.id }} />
+              }
+              variant="outline"
+              size="sm"
+            >
+              <Pencil className="mr-2 size-3.5" />
+              수정
+            </Button>
+          )}
+          <DomainStatusActions detail={detail} />
           <DomainLifecycleActions detail={detail} />
         </div>
       </div>
@@ -381,6 +397,7 @@ export function DomainDetail({ detail }: { detail: DomainResourceDetail }) {
         ) : (
           <HospitalDetailBody detail={detail} />
         )}
+        <DomainHistoryCard type={detail.type} id={detail.id} />
       </div>
     </div>
   );

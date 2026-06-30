@@ -15,6 +15,7 @@ import type {
   DomainResourceDetail,
   DomainResourceFilters,
   DomainResourceListResult,
+  DomainResourceStatus,
   DomainResourceType,
   DomainTaxonomyOptions,
 } from "./types";
@@ -335,11 +336,153 @@ export function createDomainHospital(input: HospitalCreateInput): Promise<{ id: 
   return postCreate("hospitals", input);
 }
 
+// ---------------------------------------------------------------------------
+// Update / status change / history — PB-ADMIN-DOMAIN-UPDATE-001 / BBR-681
+//
+// 수정과 상태 변경은 서버에서 admin_audit_log 에 감사 기록되고, 상태 변경은 허용된
+// 전이만 통과한다 (서버가 422 로 거부). 변경 이력은 그 감사 로그를 최신순으로 읽는다.
+// ---------------------------------------------------------------------------
+
+/** Edit-form payloads — a partial of the create inputs (all fields optional). */
+export type DoctorUpdateInput = Partial<DoctorCreateInput>;
+export type HospitalUpdateInput = Partial<HospitalCreateInput>;
+
+const updateResultSchema = z.object({ id: z.string() });
+
+/**
+ * Map a non-2xx update/status response to a friendly operator-facing Korean
+ * message. We never echo the raw server body.
+ */
+function mutateErrorMessage(status: number): string {
+  if (status === 409) {
+    return "이미 사용 중인 slug입니다. 다른 slug를 입력해주세요.";
+  }
+  if (status === 422) {
+    return "허용되지 않은 상태 변경입니다.";
+  }
+  if (status === 400) {
+    return "입력값을 확인해주세요.";
+  }
+  if (status === 401 || status === 403) {
+    return "이 작업을 수행할 권한이 없습니다.";
+  }
+  if (status === 404) {
+    return "리소스를 찾을 수 없습니다.";
+  }
+  return `요청을 처리하지 못했습니다 (HTTP ${status})`;
+}
+
+async function patchUpdate(path: string, body: unknown): Promise<{ id: string }> {
+  const response = await fetch(`${API_URL}${DOMAIN_ADMIN_RESOURCES_ENDPOINT}/${path}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...getAuthHeaders(),
+    },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(mutateErrorMessage(response.status));
+  }
+
+  return updateResultSchema.parse(await response.json());
+}
+
+/** Edit a 의사 catalog record. */
+export function updateDomainDoctor(id: string, input: DoctorUpdateInput): Promise<{ id: string }> {
+  return patchUpdate(`doctors/${id}`, input);
+}
+
+/** Edit a 병원 catalog record. */
+export function updateDomainHospital(
+  id: string,
+  input: HospitalUpdateInput,
+): Promise<{ id: string }> {
+  return patchUpdate(`hospitals/${id}`, input);
+}
+
+/**
+ * Change a resource's publish status. The server validates the transition
+ * (허용된 전이만) and audits the change; a disallowed move comes back as 422.
+ */
+export async function changeDomainResourceStatus(
+  type: DomainResourceType,
+  id: string,
+  status: DomainResourceStatus,
+): Promise<DomainResourceLifecycleResult> {
+  const response = await fetch(
+    `${API_URL}${DOMAIN_ADMIN_RESOURCES_ENDPOINT}/${type}/${id}/status`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...getAuthHeaders(),
+      },
+      credentials: "include",
+      body: JSON.stringify({ status }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(mutateErrorMessage(response.status));
+  }
+
+  return domainResourceLifecycleSchema.parse(await response.json());
+}
+
+const historyEntrySchema = z.object({
+  id: z.string(),
+  actorUserId: z.string(),
+  action: z.string(),
+  targetType: z.string().nullable(),
+  targetId: z.string().nullable(),
+  payloadBefore: z.unknown(),
+  payloadAfter: z.unknown(),
+  reason: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+const historyResponseSchema = z.object({
+  rows: z.array(historyEntrySchema),
+  nextCursor: z.string().nullable(),
+});
+
+export type DomainResourceHistoryEntry = z.infer<typeof historyEntrySchema>;
+export type DomainResourceHistoryResult = z.infer<typeof historyResponseSchema>;
+
+/** Read a resource's 변경 이력 (audit trail), newest first. */
+export async function fetchDomainResourceHistory(
+  type: DomainResourceType,
+  id: string,
+  signal?: AbortSignal,
+): Promise<DomainResourceHistoryResult> {
+  const url = `${API_URL}${DOMAIN_ADMIN_RESOURCES_ENDPOINT}/${type}/${id}/history`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json", ...getAuthHeaders() },
+    credentials: "include",
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`변경 이력을 불러오지 못했습니다 (HTTP ${response.status})`);
+  }
+
+  return historyResponseSchema.parse(await response.json());
+}
+
 export const adminDomainQueryKeys = {
   resourcesPrefix: () => ["admin", "domain", "resources"] as const,
   resources: (filters: DomainResourceFilters) =>
     [...adminDomainQueryKeys.resourcesPrefix(), filters] as const,
   detail: (type: DomainResourceType, id: string) =>
     [...adminDomainQueryKeys.resourcesPrefix(), "detail", type, id] as const,
+  history: (type: DomainResourceType, id: string) =>
+    [...adminDomainQueryKeys.resourcesPrefix(), "history", type, id] as const,
   taxonomy: () => ["admin", "domain", "taxonomy"] as const,
 };

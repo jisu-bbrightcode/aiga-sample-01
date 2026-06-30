@@ -56,6 +56,7 @@ import {
   toPublicSpecialty,
 } from "../mappers";
 import { resolveStatusChange, type ServicePublishStatus } from "../status";
+import { assertStatusTransition } from "../transitions";
 
 /** Postgres unique-violation SQLSTATE — surfaced as a friendly 409. */
 const PG_UNIQUE_VIOLATION = "23505";
@@ -72,8 +73,11 @@ const ARCHIVED: ServicePublishStatus = "archived";
 export const ServiceDomainAuditAction = {
   archived: "service_domain.archived",
   restored: "service_domain.restored",
+  statusChanged: "service_domain.status_changed",
   doctorCreated: "domain.doctor.created",
   hospitalCreated: "domain.hospital.created",
+  doctorUpdated: "domain.doctor.updated",
+  hospitalUpdated: "domain.hospital.updated",
 } as const;
 export type ServiceDomainAuditAction =
   (typeof ServiceDomainAuditAction)[keyof typeof ServiceDomainAuditAction];
@@ -331,8 +335,11 @@ export class ServiceDomainService {
   }
 
   async updateDoctor(actorId: string, id: string, dto: UpdateDoctorDto) {
-    const { specialtyIds, hospitals, ...fields } = dto;
-    await this.requireDoctor(id);
+    // status 변경은 별도 엔드포인트(POST .../status)에서 전이 검증(AC#1)과 publishedAt
+    // 보정을 함께 처리한다. 일반 수정 경로에서는 의도적으로 무시한다.
+    const { specialtyIds, hospitals, status, ...fields } = dto;
+    void status;
+    const before = await this.requireDoctor(id);
     try {
       const updated = await this.db.transaction(async (tx) => {
         const rows = await tx
@@ -345,7 +352,17 @@ export class ServiceDomainService {
         }
         return this.firstOrThrow(rows);
       });
-      return toAdminDoctor(updated);
+      const admin = toAdminDoctor(updated);
+      // 수정 작업은 감사 로그에 남는다 (BBR-681 AC#2).
+      await this.audit.log({
+        actorUserId: actorId,
+        action: ServiceDomainAuditAction.doctorUpdated,
+        targetType: RESOURCE_TARGET_TYPE.doctor,
+        targetId: id,
+        payloadBefore: toAdminDoctor(before),
+        payloadAfter: admin,
+      });
+      return admin;
     } catch (error) {
       throw this.mapWriteError(error, "의사");
     }
@@ -353,13 +370,29 @@ export class ServiceDomainService {
 
   async changeDoctorStatus(actorId: string, id: string, status: ServicePublishStatus) {
     const current = await this.requireDoctor(id);
+    if (current.status === status) {
+      // 멱등: 같은 상태로의 변경은 write·감사 없이 현재 레코드를 반환한다.
+      return toAdminDoctor(current);
+    }
+    // 허용된 전이만 가능하다 (BBR-681 AC#1) — 위반 시 422.
+    assertStatusTransition(current.status, status);
     const patch = resolveStatusChange(status, new Date(), current.publishedAt);
     const updated = await this.db
       .update(serviceDoctors)
       .set({ ...patch, updatedBy: actorId })
       .where(eq(serviceDoctors.id, id))
       .returning();
-    return toAdminDoctor(this.firstOrThrow(updated));
+    const admin = toAdminDoctor(this.firstOrThrow(updated));
+    // 상태 변경 작업은 감사 로그에 남는다 (BBR-681 AC#2).
+    await this.audit.log({
+      actorUserId: actorId,
+      action: ServiceDomainAuditAction.statusChanged,
+      targetType: RESOURCE_TARGET_TYPE.doctor,
+      targetId: id,
+      payloadBefore: { status: current.status, publishedAt: current.publishedAt },
+      payloadAfter: { status: admin.status, publishedAt: admin.publishedAt },
+    });
+    return admin;
   }
 
   async deleteDoctor(actorId: string, id: string) {
@@ -402,14 +435,27 @@ export class ServiceDomainService {
   }
 
   async updateHospital(actorId: string, id: string, dto: UpdateHospitalDto) {
-    await this.requireHospital(id);
+    // status 변경은 별도 엔드포인트(POST .../status)에서 전이 검증(AC#1)과 함께 처리한다.
+    const { status, ...fields } = dto;
+    void status;
+    const before = await this.requireHospital(id);
     try {
       const rows = await this.db
         .update(serviceHospitals)
-        .set({ ...dto, updatedBy: actorId })
+        .set({ ...fields, updatedBy: actorId })
         .where(eq(serviceHospitals.id, id))
         .returning();
-      return toAdminHospital(this.firstOrThrow(rows));
+      const admin = toAdminHospital(this.firstOrThrow(rows));
+      // 수정 작업은 감사 로그에 남는다 (BBR-681 AC#2).
+      await this.audit.log({
+        actorUserId: actorId,
+        action: ServiceDomainAuditAction.hospitalUpdated,
+        targetType: RESOURCE_TARGET_TYPE.hospital,
+        targetId: id,
+        payloadBefore: toAdminHospital(before),
+        payloadAfter: admin,
+      });
+      return admin;
     } catch (error) {
       throw this.mapWriteError(error, "병원");
     }
@@ -417,13 +463,29 @@ export class ServiceDomainService {
 
   async changeHospitalStatus(actorId: string, id: string, status: ServicePublishStatus) {
     const current = await this.requireHospital(id);
+    if (current.status === status) {
+      // 멱등: 같은 상태로의 변경은 write·감사 없이 현재 레코드를 반환한다.
+      return toAdminHospital(current);
+    }
+    // 허용된 전이만 가능하다 (BBR-681 AC#1) — 위반 시 422.
+    assertStatusTransition(current.status, status);
     const patch = resolveStatusChange(status, new Date(), current.publishedAt);
     const rows = await this.db
       .update(serviceHospitals)
       .set({ ...patch, updatedBy: actorId })
       .where(eq(serviceHospitals.id, id))
       .returning();
-    return toAdminHospital(this.firstOrThrow(rows));
+    const admin = toAdminHospital(this.firstOrThrow(rows));
+    // 상태 변경 작업은 감사 로그에 남는다 (BBR-681 AC#2).
+    await this.audit.log({
+      actorUserId: actorId,
+      action: ServiceDomainAuditAction.statusChanged,
+      targetType: RESOURCE_TARGET_TYPE.hospital,
+      targetId: id,
+      payloadBefore: { status: current.status, publishedAt: current.publishedAt },
+      payloadAfter: { status: admin.status, publishedAt: admin.publishedAt },
+    });
+    return admin;
   }
 
   async deleteHospital(actorId: string, id: string) {
@@ -618,6 +680,44 @@ export class ServiceDomainService {
       return this.toLifecycleResult(type, current);
     }
     return this.transitionResourceStatus({ actorId, type, id, current, next: DRAFT });
+  }
+
+  /**
+   * General status change for the admin console (PB-ADMIN-DOMAIN-UPDATE-001 /
+   * BBR-681). Delegates to the per-type editorial path (which validates the
+   * transition and writes the audit trail) and narrows the full admin record to
+   * the compact lifecycle shape the console consumes — identical to the
+   * archive/restore endpoints.
+   */
+  async changeDomainResourceStatus(
+    actorId: string,
+    type: AdminDomainResourceType,
+    id: string,
+    next: ServicePublishStatus,
+  ): Promise<DomainResourceLifecycleResult> {
+    const admin =
+      type === "doctor"
+        ? await this.changeDoctorStatus(actorId, id, next)
+        : await this.changeHospitalStatus(actorId, id, next);
+    return this.toLifecycleResult(type, admin);
+  }
+
+  /**
+   * 변경 이력 (BBR-681): the append-only audit trail for one catalog resource.
+   * Reads `admin_audit_log` filtered to this record's targetType + targetId so
+   * the console can show who changed what, when. Newest first, cursor-paginated.
+   */
+  getDomainResourceHistory(
+    type: AdminDomainResourceType,
+    id: string,
+    opts: { cursor?: string; limit?: number } = {},
+  ) {
+    return this.audit.list({
+      targetType: RESOURCE_TARGET_TYPE[type],
+      targetId: id,
+      cursor: opts.cursor,
+      limit: opts.limit,
+    });
   }
 
   /**

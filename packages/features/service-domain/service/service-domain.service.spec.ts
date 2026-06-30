@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { ConflictException, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import { createMockDb } from "../../__test-utils__/mock-db";
 import { ServiceDomainService } from "./service-domain.service";
 
@@ -209,6 +209,108 @@ describe("ServiceDomainService", () => {
       await expect(
         service.changeDoctorStatus("admin-1", "missing", "archived"),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  // ---- update + status change audit / transitions (BBR-681) -----------------
+
+  describe("updateDoctor", () => {
+    it("audits the edit with before/after snapshots (AC#2)", async () => {
+      const before = makeDoctorRow({ shortBio: "old" });
+      db._queueResolve("limit", [before]); // requireDoctor terminal
+      db._tx._queueResolve("returning", [makeDoctorRow({ shortBio: "new" })]);
+
+      await service.updateDoctor("admin-1", before.id, { shortBio: "new" } as never);
+
+      expect(audit.log).toHaveBeenCalledTimes(1);
+      const entry = audit.log.mock.calls[0][0];
+      expect(entry).toEqual(
+        expect.objectContaining({
+          actorUserId: "admin-1",
+          action: "domain.doctor.updated",
+          targetType: "service_doctor",
+          targetId: before.id,
+        }),
+      );
+      expect(entry.payloadBefore).toEqual(expect.objectContaining({ shortBio: "old" }));
+      expect(entry.payloadAfter).toEqual(expect.objectContaining({ shortBio: "new" }));
+    });
+  });
+
+  describe("changeDoctorStatus — transition policy (AC#1)", () => {
+    it("rejects a disallowed transition (archived → published) with a 422 and no write", async () => {
+      const current = makeDoctorRow({ status: "archived", publishedAt: null });
+      db._queueResolve("limit", [current]); // requireDoctor terminal
+
+      await expect(
+        service.changeDoctorStatus("admin-1", current.id, "published"),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(db.set).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+
+    it("is a no-op when the status is unchanged (no write, no audit)", async () => {
+      const current = makeDoctorRow({ status: "published" });
+      db._queueResolve("limit", [current]); // requireDoctor terminal
+
+      const out = await service.changeDoctorStatus("admin-1", current.id, "published");
+
+      expect(out.status).toBe("published");
+      expect(db.set).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+
+    it("audits an allowed status change (AC#2)", async () => {
+      const current = makeDoctorRow({ status: "draft", publishedAt: null });
+      db._queueResolve("limit", [current]); // requireDoctor terminal
+      db._queueResolve("returning", [makeDoctorRow({ status: "published" })]);
+
+      await service.changeDoctorStatus("admin-1", current.id, "published");
+
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId: "admin-1",
+          action: "service_domain.status_changed",
+          targetType: "service_doctor",
+          targetId: current.id,
+        }),
+      );
+    });
+  });
+
+  describe("changeDomainResourceStatus", () => {
+    it("narrows the updated record to the compact lifecycle result", async () => {
+      const current = makeDoctorRow({ status: "draft", publishedAt: null });
+      db._queueResolve("limit", [current]); // requireDoctor terminal
+      db._queueResolve("returning", [makeDoctorRow({ status: "published" })]);
+
+      const out = await service.changeDomainResourceStatus(
+        "admin-1",
+        "doctor",
+        current.id,
+        "published",
+      );
+
+      expect(out).toEqual(
+        expect.objectContaining({ type: "doctor", status: "published", isDeleted: false }),
+      );
+      expect(out).not.toHaveProperty("licenseNumber");
+    });
+  });
+
+  describe("getDomainResourceHistory", () => {
+    it("reads the audit log filtered to the resource's target type + id", async () => {
+      audit.list.mockResolvedValue({ rows: [], nextCursor: null });
+
+      const out = await service.getDomainResourceHistory("hospital", "h1", { limit: 25 });
+
+      expect(audit.list).toHaveBeenCalledWith({
+        targetType: "service_hospital",
+        targetId: "h1",
+        cursor: undefined,
+        limit: 25,
+      });
+      expect(out).toEqual({ rows: [], nextCursor: null });
     });
   });
 
