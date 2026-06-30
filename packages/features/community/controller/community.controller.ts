@@ -920,7 +920,12 @@ export class CommunityController {
   // ==========================================================================
 
   @Get("feed/all")
-  @ApiOperation({ summary: "전체 피드 (모든 공개 커뮤니티)" })
+  @ApiOperation({
+    summary: "전체 피드 (모든 공개 커뮤니티)",
+    description:
+      "공개 피드. status='published' 만 노출되고(숨김/제거/삭제 제외), 콘텐츠 등급 필터가 " +
+      "적용된다. 로그인 시 차단(양방향) 작성자의 글이 모든 정렬에서 동일하게 제외된다.",
+  })
   @ApiQuery({
     name: "sort",
     required: false,
@@ -935,16 +940,24 @@ export class CommunityController {
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiResponse({ status: 200, description: "전체 피드 반환", type: FeedResponseDto })
   async feedAll(
+    @OptionalUser() user?: User,
     @Query("sort") sort: "hot" | "new" | "top" | "rising" | "controversial" = "hot",
     @Query("timeFilter") timeFilter: "hour" | "day" | "week" | "month" | "year" | "all" = "day",
-    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query("limit", new DefaultValuePipe(25), ParseIntPipe) limit: number,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query("limit", new DefaultValuePipe(25), ParseIntPipe) limit?: number,
   ) {
-    return this.feedService.getAllFeed({ sort, timeFilter, page, limit });
+    // 로그인 사용자는 차단(양방향) 작성자의 글을 모든 피드 정렬에서 제외한다 (AC#2).
+    const blockedUserIds = user ? await this.blockService.getBlockedUserIds(user.id) : undefined;
+    return this.feedService.getAllFeed({ sort, timeFilter, page, limit, blockedUserIds });
   }
 
   @Get("feed/popular")
-  @ApiOperation({ summary: "인기 피드" })
+  @ApiOperation({
+    summary: "인기 피드",
+    description:
+      "공개 인기 피드(시간 창 내 voteScore 상위). 차단/숨김/등급 필터가 다른 피드 정렬과 " +
+      "동일하게 적용된다.",
+  })
   @ApiQuery({
     name: "timeFilter",
     required: false,
@@ -953,10 +966,13 @@ export class CommunityController {
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiResponse({ status: 200, description: "인기 피드 반환", type: PostResponseDto, isArray: true })
   async feedPopular(
+    @OptionalUser() user?: User,
     @Query("timeFilter") timeFilter: "hour" | "day" | "week" | "month" | "year" | "all" = "day",
-    @Query("limit", new DefaultValuePipe(25), ParseIntPipe) limit: number,
+    @Query("limit", new DefaultValuePipe(25), ParseIntPipe) limit?: number,
   ) {
-    return this.feedService.getPopularFeed({ timeFilter, limit });
+    // 차단(양방향) 작성자의 글을 인기 피드에서도 동일하게 제외한다 (AC#2).
+    const blockedUserIds = user ? await this.blockService.getBlockedUserIds(user.id) : undefined;
+    return this.feedService.getPopularFeed({ timeFilter, limit, blockedUserIds });
   }
 
   @Get("feed/home")

@@ -159,6 +159,19 @@ describeIfDb("CommunityFeedService", () => {
     expect(r.items.map((p: { id: string }) => p.id)).not.toContain(postId);
   });
 
+  // AC#2: 차단 필터가 모든 피드 정렬에 동일하게 적용된다 (home 외 all/popular도).
+  it("getAllFeed() excludes posts from blocked authors", async () => {
+    const postId = await seedPost(memberId);
+    const r = await svc.getAllFeed({ blockedUserIds: [memberId] });
+    expect(r.items.map((p: { id: string }) => p.id)).not.toContain(postId);
+  });
+
+  it("getPopularFeed() excludes posts from blocked authors", async () => {
+    const postId = await seedPost(memberId);
+    const items = await svc.getPopularFeed({ blockedUserIds: [memberId] });
+    expect(items.map((p) => p.id)).not.toContain(postId);
+  });
+
   it("allowedRatings defaults to general+sensitive (nsfw excluded by default)", async () => {
     const nsfwId = await seedPost(memberId, { contentRating: "nsfw" });
     const cleanId = await seedPost(memberId, { contentRating: "general" });
