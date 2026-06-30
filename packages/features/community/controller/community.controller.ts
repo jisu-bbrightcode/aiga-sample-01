@@ -757,6 +757,16 @@ export class CommunityController {
     return this.commentService.remove(id, dto.reason, user.id);
   }
 
+  @Post("comments/:id/restore")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "댓글 복구 (모더레이터)" })
+  @ApiParam({ name: "id", description: "댓글 ID" })
+  @ApiResponse({ status: 200, description: "댓글 복구 완료", type: CommunityCommentResponseDto })
+  async restoreComment(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.commentService.restore(id, user.id);
+  }
+
   @Post("comments/:id/sticky")
   @UseGuards(BetterAuthGuard)
   @ApiBearerAuth()

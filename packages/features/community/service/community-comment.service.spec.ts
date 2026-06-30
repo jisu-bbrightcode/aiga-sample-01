@@ -8,9 +8,14 @@
  * (no bannedWords seeded).
  */
 
-import { NotFoundException } from "@nestjs/common";
-import { communityComments, communityMemberships, communityPosts } from "@repo/drizzle";
-import { eq, inArray } from "drizzle-orm";
+import { ConflictException, NotFoundException } from "@nestjs/common";
+import {
+  communityComments,
+  communityMemberships,
+  communityModLogs,
+  communityPosts,
+} from "@repo/drizzle";
+import { and, eq, inArray } from "drizzle-orm";
 import { endTestDb, getDrizzleDb, hasDb } from "../../payment/__tests__/test-db";
 import { addExtraMember, cleanupExtraMember, setupCommunityCtx } from "./__tests__/test-helpers";
 import { CommunityCommentService } from "./community-comment.service";
@@ -153,5 +158,65 @@ describeIfDb("CommunityCommentService", () => {
     const list = await svc.findByPost({ postId, blockedUserIds: [author], viewerId: ctx.ownerId });
     expect(list.items.map((x) => x.id)).toEqual([mine.id]);
     expect(list.totalCount).toBe(1);
+  });
+
+  // BBR-602 — 삭제/숨김/복구 + 카운트/감사 일관성
+
+  const postCommentCount = async (): Promise<number> => {
+    const [row] = await getDrizzleDb()
+      .select({ commentCount: communityPosts.commentCount })
+      .from(communityPosts)
+      .where(eq(communityPosts.id, postId));
+    return row?.commentCount ?? -1;
+  };
+
+  it("delete() is idempotent — re-deleting does not double-decrement commentCount (AC#1)", async () => {
+    const c = await svc.create({ postId, content: "to delete" } as never, author);
+    createdCommentIds.push(c.id);
+    expect(await postCommentCount()).toBe(1);
+
+    await svc.delete(c.id, author);
+    expect(await postCommentCount()).toBe(0);
+
+    // 재호출은 멱등 — 카운트가 음수로 어긋나지 않는다.
+    await svc.delete(c.id, author);
+    expect(await postCommentCount()).toBe(0);
+  });
+
+  it("remove() preserves original content + writes an audit log; restore() unhides it (AC#2)", async () => {
+    const c = await svc.create({ postId, content: "operator target" } as never, author);
+    createdCommentIds.push(c.id);
+
+    const removed = await svc.remove(c.id, "rule violation", ctx.ownerId);
+    expect(removed.isRemoved).toBe(true);
+    expect(removed.removedBy).toBe(ctx.ownerId);
+    // 본문은 보존되어 복구 시 그대로 노출된다(저장 마스킹이 아니라 read 마스킹).
+    expect(removed.content).toBe("operator target");
+
+    const removeLogs = await getDrizzleDb()
+      .select()
+      .from(communityModLogs)
+      .where(and(eq(communityModLogs.targetId, c.id), eq(communityModLogs.action, "remove_comment")));
+    expect(removeLogs).toHaveLength(1);
+
+    const restored = await svc.restore(c.id, ctx.ownerId);
+    expect(restored.isRemoved).toBe(false);
+    expect(restored.removalReason).toBeNull();
+    expect(restored.removedBy).toBeNull();
+    expect(restored.content).toBe("operator target");
+
+    const restoreLogs = await getDrizzleDb()
+      .select()
+      .from(communityModLogs)
+      .where(and(eq(communityModLogs.targetId, c.id), eq(communityModLogs.action, "other")));
+    expect(restoreLogs).toHaveLength(1);
+  });
+
+  it("restore() rejects an author-deleted comment with 409 (작성자 의사 우선)", async () => {
+    const c = await svc.create({ postId, content: "author will delete" } as never, author);
+    createdCommentIds.push(c.id);
+    await svc.delete(c.id, author);
+
+    await expect(svc.restore(c.id, ctx.ownerId)).rejects.toThrow(ConflictException);
   });
 });
