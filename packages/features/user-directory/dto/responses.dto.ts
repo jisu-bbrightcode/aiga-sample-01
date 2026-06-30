@@ -29,6 +29,18 @@ export const publicUserSchema = z.object({
 });
 export class PublicUserDto extends createZodDto(publicUserSchema) {}
 
+// ---- public detail (viewer-aware, BBR-527) ----------------------------------
+
+export const viewerStateSchema = z.object({
+  authenticated: z.boolean(),
+  isSelf: z.boolean(),
+});
+
+export const publicUserDetailSchema = publicUserSchema.extend({
+  viewer: viewerStateSchema,
+});
+export class PublicUserDetailDto extends createZodDto(publicUserDetailSchema) {}
+
 // ---- self -------------------------------------------------------------------
 
 export const selfUserSchema = publicUserSchema.extend({

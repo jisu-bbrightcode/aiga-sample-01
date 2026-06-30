@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type { DrizzleDB } from "@repo/drizzle";
 // Import tables from the top-level barrel (NOT `@repo/drizzle/schema`): jest
 // maps only `^@repo/drizzle$` to the workspace source, so the subpath would
@@ -9,11 +9,14 @@ import type { ListAdminUsersQueryDto, ListUsersQueryDto } from "../dto";
 import {
   type AdminUser,
   type PublicUser,
+  type PublicUserDetail,
   type SelfUser,
   toAdminUser,
   toPublicUser,
+  toPublicUserDetail,
   toSelfUser,
   type UserDirectoryRow,
+  type ViewerContext,
 } from "../mappers";
 
 /**
@@ -94,16 +97,48 @@ export class UserDirectoryService {
     };
   }
 
-  async getByHandle(handle: string): Promise<PublicUser> {
-    const [row] = await this.baseQuery()
-      .where(
-        and(eq(profiles.handle, handle), eq(profiles.isActive, true), isNull(profiles.deletedAt)),
-      )
-      .limit(1);
+  /**
+   * 공개 사용자 상세 (viewer-aware, BBR-527).
+   *
+   * 핸들 기준으로 단건 조회하되, 가시성 상태에 따라 오류 contract 가 갈린다:
+   * - 핸들에 해당하는 프로필 없음 → 404 (없는 리소스).
+   * - 요청자 본인(self)이면 비활성/탈퇴 여부와 무관하게 항상 200 (자기 자신은 항상 조회 가능).
+   * - 탈퇴/삭제된 프로필(`deletedAt`) → 404 (존재 자체를 노출하지 않음).
+   * - 비활성(`isActive=false`) 프로필 → 인증된 타인은 403 (권한 없는 리소스),
+   *   비로그인 요청은 404 (익명 열거 방지).
+   * - 그 외 활성 공개 회원 → 200.
+   *
+   * 200 응답에는 항상 공개 projection + viewer state 가 함께 실린다.
+   */
+  async getByHandle(
+    handle: string,
+    viewer: ViewerContext | null = null,
+  ): Promise<PublicUserDetail> {
+    const [row] = await this.baseQuery().where(eq(profiles.handle, handle)).limit(1);
     if (!row) {
       throw new NotFoundException("사용자를 찾을 수 없습니다.");
     }
-    return toPublicUser(row as UserDirectoryRow);
+
+    const directoryRow = row as UserDirectoryRow;
+    const profile = directoryRow.profile;
+    const isSelf = viewer != null && viewer.id === profile.id;
+
+    if (!isSelf) {
+      if (profile.deletedAt != null) {
+        // 탈퇴/삭제: 누구에게도 존재를 노출하지 않는다.
+        throw new NotFoundException("사용자를 찾을 수 없습니다.");
+      }
+      if (!profile.isActive) {
+        // 존재하지만 공개되지 않은 리소스. 인증된 호출자에게만 권한 없음을
+        // 명확히 알리고, 익명 호출자에게는 열거를 막기 위해 404 로 응답한다.
+        if (viewer != null) {
+          throw new ForbiddenException("비활성화된 사용자입니다.");
+        }
+        throw new NotFoundException("사용자를 찾을 수 없습니다.");
+      }
+    }
+
+    return toPublicUserDetail(directoryRow, viewer);
   }
 
   // =========================================================================

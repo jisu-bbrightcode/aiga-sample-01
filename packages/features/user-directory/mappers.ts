@@ -74,6 +74,48 @@ export function toPublicUser(row: UserDirectoryRow): PublicUser {
 }
 
 // ---------------------------------------------------------------------------
+// Viewer-aware public detail (FR-001 사용자 상세 / BBR-527)
+// ---------------------------------------------------------------------------
+
+/** The authenticated caller, or null for an anonymous request. */
+export interface ViewerContext {
+  id: string;
+}
+
+/**
+ * Viewer state attached to the public detail response. It tells the client who
+ * is looking at the profile relative to the resource — without ever widening
+ * the field projection. The frontend uses it to decide whether to show the
+ * "내 프로필 수정" affordance (`isSelf`) or a logged-out CTA (`!authenticated`).
+ *
+ * `isAdmin` is intentionally NOT inferred here: the Better Auth JWT carries no
+ * role claim, and operator-tier reads have their own endpoint
+ * (`GET /admin/users/:id`). Public detail stays a public projection.
+ */
+export interface ViewerState {
+  authenticated: boolean;
+  isSelf: boolean;
+}
+
+/** Public projection plus the per-request viewer state. */
+export interface PublicUserDetail extends PublicUser {
+  viewer: ViewerState;
+}
+
+export function toPublicUserDetail(
+  row: UserDirectoryRow,
+  viewer: ViewerContext | null,
+): PublicUserDetail {
+  return {
+    ...toPublicUser(row),
+    viewer: {
+      authenticated: viewer != null,
+      isSelf: viewer != null && viewer.id === row.profile.id,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Self — own record (authenticated, BetterAuthGuard)
 // ---------------------------------------------------------------------------
 

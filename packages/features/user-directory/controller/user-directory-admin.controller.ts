@@ -22,6 +22,8 @@ export class UserDirectoryAdminController {
   @Get()
   @ApiOperation({ summary: "사용자 목록/검색 (관리자, 전체 필드/필터)" })
   @ApiResponse({ status: 200, type: AdminUserListDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
   listUsers(@Query() query: ListAdminUsersQueryDto) {
     return this.service.listAdminUsers(query);
   }
@@ -29,6 +31,8 @@ export class UserDirectoryAdminController {
   @Get(":id")
   @ApiOperation({ summary: "사용자 상세 (관리자, profile id 기준)" })
   @ApiResponse({ status: 200, type: AdminUserDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
   @ApiResponse({ status: 404, description: "사용자를 찾을 수 없음" })
   getUser(@Param("id") id: string) {
     return this.service.getAdminUser(id);
