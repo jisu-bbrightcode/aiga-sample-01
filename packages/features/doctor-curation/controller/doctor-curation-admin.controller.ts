@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -127,5 +129,53 @@ export class DoctorCurationAdminController {
     @Query() query: CollectionHistoryQueryDto,
   ) {
     return this.service.listCollectionHistory(id, query);
+  }
+
+  @Post(":id/archive")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "명의 컬렉션 archive (노출 차단)",
+    description:
+      "게시를 내려 공개/앱 노출을 차단하고 관리자 관리 대상으로 유지한다(status=archived). " +
+      "수록 의사 등 연결 데이터는 보존되며 restore 로 복구 가능. 이미 archived 면 멱등하게 200.",
+  })
+  @ApiResponse({ status: 200, type: AdminCollectionDetailDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
+  @ApiResponse({ status: 404, description: "컬렉션을 찾을 수 없음" })
+  archiveCollection(@CurrentUser() user: User, @Param("id", ParseUUIDPipe) id: string) {
+    return this.service.archiveCollection(user.id, id);
+  }
+
+  @Delete(":id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "명의 컬렉션 삭제 (soft delete)",
+    description:
+      "행을 물리 삭제하지 않고 isDeleted 플래그로 숨긴다. 수록 의사 등 연결 데이터는 보존되고 " +
+      "restore 로 복구 가능. 이미 삭제된 경우에도 멱등하게 200, 존재하지 않으면 404.",
+  })
+  @ApiResponse({ status: 200, type: AdminCollectionDetailDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
+  @ApiResponse({ status: 404, description: "컬렉션을 찾을 수 없음" })
+  deleteCollection(@CurrentUser() user: User, @Param("id", ParseUUIDPipe) id: string) {
+    return this.service.deleteCollection(user.id, id);
+  }
+
+  @Post(":id/restore")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "명의 컬렉션 복구",
+    description:
+      "삭제/archive 된 컬렉션을 안전한 draft 상태로 되살린다. 자동 재게시는 하지 않으며, " +
+      "이미 활성 상태면 멱등하게 현재 상태를 반환한다. 존재하지 않으면 404.",
+  })
+  @ApiResponse({ status: 200, type: AdminCollectionDetailDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
+  @ApiResponse({ status: 404, description: "컬렉션을 찾을 수 없음" })
+  restoreCollection(@CurrentUser() user: User, @Param("id", ParseUUIDPipe) id: string) {
+    return this.service.restoreCollection(user.id, id);
   }
 }

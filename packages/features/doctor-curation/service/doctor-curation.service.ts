@@ -37,6 +37,8 @@ import {
 const PG_UNIQUE_VIOLATION = "23505";
 
 const PUBLISHED = "published";
+const DRAFT = "draft";
+const ARCHIVED = "archived";
 
 type CollectionStatus = ServiceDoctorCollection["status"];
 
@@ -274,17 +276,9 @@ export class DoctorCurationService {
 
   async getCollectionById(id: string) {
     const collection = await this.requireCollection(id);
-    const items = await this.db
-      .select()
-      .from(serviceDoctorCollectionItems)
-      .where(eq(serviceDoctorCollectionItems.collectionId, id))
-      .orderBy(asc(serviceDoctorCollectionItems.rank));
     // Admin detail is only reachable behind the admin guard, so the viewer is
     // always an operator with manage rights.
-    return {
-      ...toAdminCollectionDetail(collection, items),
-      viewerState: buildViewerState("admin"),
-    };
+    return this.adminDetailResponse(collection);
   }
 
   async listCollections(query: ListCollectionsQueryDto) {
@@ -310,6 +304,70 @@ export class DoctorCurationService {
     ]);
 
     return { items: rows.map(toAdminCollection), total: countRows[0]?.count ?? 0, page, limit };
+  }
+
+  // =========================================================================
+  // Lifecycle: archive / soft-delete / restore (admin) — FR-004 (BBR-540)
+  //
+  // 모든 파괴적 동작은 soft 하고 되돌릴 수 있다 — 컬렉션 행과 수록 의사
+  // (service_doctor_collection_items)는 항상 보존되므로, 연결된 편집 데이터와
+  // 하위 이력/감사 참조가 살아남는다. 물리 DELETE 는 절대 발생하지 않는다.
+  //
+  //   archive  → status='archived'              : 공개/앱 노출 차단, 관리자 목록엔 유지
+  //   delete   → isDeleted=true, deletedAt=now    : 공개/앱/관리자 기본 목록 모두 숨김
+  //   restore  → isDeleted=false, status='draft'  : 안전한 비공개 draft 로 복구(자동 재게시 X)
+  //
+  // 노출 정책 (acceptance criteria):
+  //   - 공개(site)/앱: status='published' AND isDeleted=false 만 노출 → archive·delete 모두 숨김
+  //   - 관리자: isDeleted=false 인 행은 status 무관 노출 → archive 는 보이고 delete 는 숨김
+  // =========================================================================
+
+  /** 노출 차단(archive): 게시를 내려 공개/앱 노출만 차단하고 관리자 관리 대상으로 유지. */
+  async archiveCollection(actorId: string, id: string) {
+    // 활성(비삭제) 컬렉션만 archive 대상 — 삭제된 컬렉션은 먼저 restore 해야 한다.
+    const collection = await this.requireCollection(id);
+    if (collection.status === ARCHIVED) {
+      // 멱등: 이미 archived 면 추가 write 없이 현재 상태를 반환한다.
+      return this.adminDetailResponse(collection);
+    }
+    const updated = await this.applyCollectionPatch(id, { status: ARCHIVED, updatedBy: actorId });
+    this.logger.log(`명의 컬렉션 archived id=${id} actor=${actorId}`);
+    return this.adminDetailResponse(updated);
+  }
+
+  /** Soft delete: 연결 데이터는 보존한 채 모든 기본 노출면에서 숨긴다 (복구 가능). */
+  async deleteCollection(actorId: string, id: string) {
+    // isDeleted 필터 없이 조회 — '존재한 적 없음'(404)과 '이미 삭제됨'(멱등)을 구분한다.
+    const collection = await this.requireAnyCollection(id);
+    if (collection.isDeleted) {
+      // 멱등: 이미 삭제 상태면 다시 write 하지 않고 현재 상태를 반환한다.
+      return this.adminDetailResponse(collection);
+    }
+    const updated = await this.applyCollectionPatch(id, {
+      isDeleted: true,
+      deletedAt: new Date(),
+      updatedBy: actorId,
+    });
+    this.logger.log(`명의 컬렉션 soft-deleted id=${id} actor=${actorId}`);
+    return this.adminDetailResponse(updated);
+  }
+
+  /** 복구(restore): 삭제/archive 된 컬렉션을 안전한 draft 상태로 되살린다. */
+  async restoreCollection(actorId: string, id: string) {
+    const collection = await this.requireAnyCollection(id);
+    // 이미 활성(비삭제·비archive) 상태면 변경 없이 멱등 반환 — 게시 상태를 함부로 내리지 않는다.
+    if (!collection.isDeleted && collection.status !== ARCHIVED) {
+      return this.adminDetailResponse(collection);
+    }
+    // 복구는 항상 비공개 draft 로 착지한다 — 실수로 다시 공개되지 않도록 관리자가 명시적으로 재게시한다.
+    const updated = await this.applyCollectionPatch(id, {
+      isDeleted: false,
+      deletedAt: null,
+      status: DRAFT,
+      updatedBy: actorId,
+    });
+    this.logger.log(`명의 컬렉션 restored id=${id} actor=${actorId}`);
+    return this.adminDetailResponse(updated);
   }
 
   // =========================================================================
@@ -428,6 +486,45 @@ export class DoctorCurationService {
       throw new NotFoundException("명의 컬렉션을 찾을 수 없습니다.");
     }
     return row;
+  }
+
+  /** Look up a collection in ANY state (incl. soft-deleted); 404 only if it never existed. */
+  private async requireAnyCollection(id: string) {
+    const [row] = await this.db
+      .select()
+      .from(serviceDoctorCollections)
+      .where(eq(serviceDoctorCollections.id, id))
+      .limit(1);
+    if (!row) {
+      throw new NotFoundException("명의 컬렉션을 찾을 수 없습니다.");
+    }
+    return row;
+  }
+
+  /** Apply a partial state change to a collection and return the updated row. */
+  private async applyCollectionPatch(
+    id: string,
+    patch: Partial<typeof serviceDoctorCollections.$inferInsert>,
+  ) {
+    const rows = await this.db
+      .update(serviceDoctorCollections)
+      .set(patch)
+      .where(eq(serviceDoctorCollections.id, id))
+      .returning();
+    return this.firstOrThrow(rows);
+  }
+
+  /** Admin detail response = full row + ordered 수록 의사 + admin viewer state. */
+  private async adminDetailResponse(collection: ServiceDoctorCollection) {
+    const items = await this.db
+      .select()
+      .from(serviceDoctorCollectionItems)
+      .where(eq(serviceDoctorCollectionItems.collectionId, collection.id))
+      .orderBy(asc(serviceDoctorCollectionItems.rank));
+    return {
+      ...toAdminCollectionDetail(collection, items),
+      viewerState: buildViewerState("admin"),
+    };
   }
 
   private async insertItems(
