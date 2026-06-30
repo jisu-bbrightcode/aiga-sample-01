@@ -315,12 +315,39 @@ export class CommunityController {
   @Delete(":slug")
   @UseGuards(BetterAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "커뮤니티 삭제" })
+  @ApiOperation({
+    summary: "커뮤니티 보관(archive)",
+    description:
+      "실제 삭제 대신 커뮤니티를 보관 처리한다. 게시글/댓글/멤버십/신고/감사 이력은 보존되며 복구할 수 있다. 소유자만 호출 가능.",
+  })
   @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
-  @ApiResponse({ status: 200, description: "커뮤니티 삭제 성공", type: DeleteResponseDto })
-  async delete(@Param("slug") slug: string, @CurrentUser() user: User) {
-    await this.communityService.delete(slug, user.id);
-    return { success: true };
+  @ApiQuery({ name: "reason", required: false, type: String, description: "보관 사유" })
+  @ApiResponse({ status: 200, description: "커뮤니티 보관 성공", type: CommunityResponseDto })
+  @ApiResponse({ status: 403, description: "소유자가 아님" })
+  @ApiResponse({ status: 404, description: "커뮤니티를 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "이미 보관된 커뮤니티" })
+  async archive(
+    @Param("slug") slug: string,
+    @CurrentUser() user: User,
+    @Query("reason") reason?: string,
+  ) {
+    return this.communityService.archive(slug, user.id, reason);
+  }
+
+  @Post(":slug/restore")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "커뮤니티 복구(restore)",
+    description: "보관된 커뮤니티를 다시 공개 상태로 복구한다. 소유자만 호출 가능.",
+  })
+  @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
+  @ApiResponse({ status: 200, description: "커뮤니티 복구 성공", type: CommunityResponseDto })
+  @ApiResponse({ status: 403, description: "소유자가 아님" })
+  @ApiResponse({ status: 404, description: "커뮤니티를 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "보관된 커뮤니티가 아님" })
+  async restore(@Param("slug") slug: string, @CurrentUser() user: User) {
+    return this.communityService.restore(slug, user.id);
   }
 
   @Get("me/membership/:slug")
