@@ -54,3 +54,16 @@ export const userReactionStatusSchema = z.object({
 });
 
 export class UserReactionStatusDto extends createZodDto(userReactionStatusSchema) {}
+
+/**
+ * Wire shape for the single-reaction "set" (create/change) response.
+ * `changed` is false on an idempotent no-op (same type re-applied).
+ */
+export const setReactionResponseSchema = z.object({
+  type: reactionTypeSchema,
+  changed: z.boolean(),
+  counts: reactionCountsSchema,
+});
+
+export class SetReactionResponseDto extends createZodDto(setReactionResponseSchema) {}
+

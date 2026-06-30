@@ -133,6 +133,13 @@ export interface RemoveReactionResult {
   counts: ReactionCounts;
 }
 
+export interface SetReactionResult {
+  type: ReactionType;
+  // false when the user already had this exact reaction (idempotent no-op).
+  changed: boolean;
+  counts: ReactionCounts;
+}
+
 export interface NotificationListResponse {
   items: unknown[];
   total: number;

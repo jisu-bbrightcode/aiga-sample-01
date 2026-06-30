@@ -6,6 +6,8 @@
 
 // Controller
 export { ReactionController } from "./controller";
+// DTOs
+export { SetReactionResponseDto } from "./dto";
 // Module
 export { ReactionModule } from "./reaction.module";
 // Services
