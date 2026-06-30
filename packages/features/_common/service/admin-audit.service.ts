@@ -19,6 +19,7 @@ import { and, desc, eq, lt, type SQL } from "drizzle-orm";
 /** Known admin audit actions (enforced here, not via DB enum). */
 export const AdminAuditAction = {
   user_role_changed: "user.role_changed",
+  user_status_changed: "user.status_changed",
 } as const;
 export type AdminAuditAction = (typeof AdminAuditAction)[keyof typeof AdminAuditAction];
 

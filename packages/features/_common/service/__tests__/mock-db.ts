@@ -31,7 +31,9 @@ export function makeMockDb(selectResults: any[][] = []): MockDb {
       where: () => chain,
       orderBy: () => chain,
       innerJoin: () => chain,
+      leftJoin: () => chain,
       limit: () => chain,
+      offset: () => chain,
       // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock of drizzle's awaitable query builder.
       // biome-ignore lint/suspicious/noExplicitAny: thenable.
       then: (resolve: (v: any) => any, reject?: (e: unknown) => any) =>

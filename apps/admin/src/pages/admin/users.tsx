@@ -1,56 +1,44 @@
 /**
- * Admin Users Page - core user/profile metadata list.
+ * Admin Users Page — user/profile management (BBR-684 / PB-ADMIN-USERS-001).
+ *
+ * List + search of core user/profile metadata, with a detail dialog that
+ * exposes the two audited management actions (접근 역할 변경 / 계정 상태 변경).
  *
  * User sanctions are domain-specific. Community bans stay in community
- * membership/moderation tables, not on the core Better Auth user row.
+ * membership/moderation tables, not on the core Better Auth user row; this
+ * page manages account-level access role (org membership) and active status.
  */
 
 import { cn } from "@repo/ui/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/shadcn/avatar";
 import { Button } from "@repo/ui/shadcn/button";
+import { Input } from "@repo/ui/shadcn/input";
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Search,
   ShieldCheck,
   UserCheck,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { API_URL, getAuthHeaders } from "../../lib/api";
-
-interface UserItem {
-  id: string;
-  name: string;
-  email: string;
-  image: string | null;
-  roles: string[];
-  createdAt: string;
-  emailVerified: boolean;
-  isActive: boolean;
-}
-
-interface UserListResponse {
-  users: UserItem[];
-  total: number;
-}
+import { useState } from "react";
+import type { AdminUserItem } from "../../features/users/api";
+import { ADMIN_USERS_PAGE_SIZE, useAdminUsers } from "../../features/users/use-admin-users";
+import { UserDetailDialog } from "../../features/users/user-detail-dialog";
 
 interface RoleInfo {
   label: string;
   color: string;
 }
 
-const DEFAULT_ROLE_INFO: RoleInfo = { label: "User", color: "bg-gray-100 text-gray-600" };
-
-const ROLE_LABELS: Record<string, RoleInfo> = {
-  owner: { label: "Owner", color: "bg-purple-100 text-purple-700" },
-  admin: { label: "Admin", color: "bg-blue-100 text-blue-700" },
-  member: { label: "Member", color: "bg-emerald-100 text-emerald-700" },
-  user: DEFAULT_ROLE_INFO,
+const ACCESS_ROLE_INFO: Record<string, RoleInfo> = {
+  owner: { label: "소유자", color: "bg-purple-100 text-purple-700" },
+  admin: { label: "관리자", color: "bg-blue-100 text-blue-700" },
+  member: { label: "멤버", color: "bg-emerald-100 text-emerald-700" },
+  none: { label: "일반 사용자", color: "bg-gray-100 text-gray-600" },
 };
 
-const PAGE_SIZE = 20;
 const USER_ROW_SKELETON_KEYS = [
   "user-skeleton-1",
   "user-skeleton-2",
@@ -58,84 +46,41 @@ const USER_ROW_SKELETON_KEYS = [
   "user-skeleton-4",
   "user-skeleton-5",
 ];
-const ADMIN_USERS_ERROR_MESSAGE =
-  "사용자 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
-
-async function fetchAdminUsers(page: number): Promise<UserListResponse> {
-  const params = new URLSearchParams({
-    limit: String(PAGE_SIZE),
-    offset: String(page * PAGE_SIZE),
-  });
-  const response = await fetch(`${API_URL}/api/admin/users?${params.toString()}`, {
-    headers: getAuthHeaders(),
-    credentials: "include",
-  });
-  if (!response.ok) {
-    throw new Error(`admin_users_${response.status}`);
-  }
-  return (await response.json()) as UserListResponse;
-}
 
 export function AdminUsersPage() {
-  const [users, setUsers] = useState<UserItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { users, total, page, setPage, searchInput, setSearchInput, loading, error, refetch } =
+    useAdminUsers();
+  const [selected, setSelected] = useState<AdminUserItem | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  async function refreshUsers() {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchAdminUsers(page);
-      setUsers(data.users);
-      setTotal(data.total);
-    } catch (e) {
-      console.error("[admin-users] list failed", e);
-      setError(ADMIN_USERS_ERROR_MESSAGE);
-    } finally {
-      setLoading(false);
-    }
+  const totalPages = Math.ceil(total / ADMIN_USERS_PAGE_SIZE);
+
+  function openDetail(user: AdminUserItem) {
+    setSelected(user);
+    setDialogOpen(true);
   }
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadUsers() {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await fetchAdminUsers(page);
-        if (cancelled) return;
-        setUsers(data.users);
-        setTotal(data.total);
-      } catch (e) {
-        if (cancelled) return;
-        console.error("[admin-users] list failed", e);
-        setError(ADMIN_USERS_ERROR_MESSAGE);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-    void loadUsers();
-    return () => {
-      cancelled = true;
-    };
-  }, [page]);
-
-  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <div className="p-6">
-      <AdminUsersHeader total={total} loading={loading} onRefresh={refreshUsers} />
+      <AdminUsersHeader total={total} loading={loading} onRefresh={refetch} />
+
+      <div className="mb-4 relative max-w-sm">
+        <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="이름 또는 이메일로 검색"
+          className="pl-8"
+        />
+      </div>
+
       {error ? (
         <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-[13px] text-destructive">
           {error}
         </div>
       ) : null}
 
-      <UsersTable users={users} loading={loading} />
+      <UsersTable users={users} loading={loading} onSelect={openDetail} />
 
       {totalPages > 1 ? (
         <AdminUsersPagination
@@ -145,6 +90,13 @@ export function AdminUsersPage() {
           onPageChange={setPage}
         />
       ) : null}
+
+      <UserDetailDialog
+        user={selected}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onChanged={refetch}
+      />
     </div>
   );
 }
@@ -195,7 +147,8 @@ function AdminUsersPagination({
   return (
     <div className="mt-4 flex items-center justify-between text-[13px] text-muted-foreground">
       <span>
-        {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, total)} / {total}
+        {page * ADMIN_USERS_PAGE_SIZE + 1}-{Math.min((page + 1) * ADMIN_USERS_PAGE_SIZE, total)} /{" "}
+        {total}
       </span>
       <div className="flex gap-1">
         <Button
@@ -221,14 +174,22 @@ function AdminUsersPagination({
   );
 }
 
-function UsersTable({ users, loading }: { users: UserItem[]; loading: boolean }) {
+function UsersTable({
+  users,
+  loading,
+  onSelect,
+}: {
+  users: AdminUserItem[];
+  loading: boolean;
+  onSelect: (user: AdminUserItem) => void;
+}) {
   return (
     <div className="overflow-hidden rounded-lg border">
       <table className="w-full text-[13px]">
         <thead>
           <tr className="border-b bg-muted/40">
             <th className="px-4 py-2.5 text-left font-medium">사용자</th>
-            <th className="px-4 py-2.5 text-left font-medium">역할</th>
+            <th className="px-4 py-2.5 text-left font-medium">접근 역할</th>
             <th className="px-4 py-2.5 text-left font-medium">상태</th>
             <th className="px-4 py-2.5 text-left font-medium">가입일</th>
           </tr>
@@ -237,7 +198,7 @@ function UsersTable({ users, loading }: { users: UserItem[]; loading: boolean })
           {loading ? <UserTableSkeleton /> : null}
           {!loading && users.length === 0 ? <UserTableEmpty /> : null}
           {!loading && users.length > 0
-            ? users.map((user) => <UserRow key={user.id} user={user} />)
+            ? users.map((user) => <UserRow key={user.id} user={user} onSelect={onSelect} />)
             : null}
         </tbody>
       </table>
@@ -265,13 +226,22 @@ function UserTableEmpty() {
   );
 }
 
-function UserRow({ user }: { user: UserItem }) {
-  const primaryRole =
-    user.roles.find((role) => role === "owner" || role === "admin") ?? user.roles[0] ?? "user";
-  const roleInfo = ROLE_LABELS[primaryRole] ?? DEFAULT_ROLE_INFO;
+function UserRow({
+  user,
+  onSelect,
+}: {
+  user: AdminUserItem;
+  onSelect: (user: AdminUserItem) => void;
+}) {
+  const accessRole = user.accessRole ?? "none";
+  const roleInfo = ACCESS_ROLE_INFO[accessRole] ?? ACCESS_ROLE_INFO.none;
+  const isPrivileged = accessRole === "owner" || accessRole === "admin";
 
   return (
-    <tr className="border-b last:border-0 transition-colors hover:bg-muted/30">
+    <tr
+      className="border-b last:border-0 cursor-pointer transition-colors hover:bg-muted/30"
+      onClick={() => onSelect(user)}
+    >
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <Avatar className="size-8">
@@ -291,15 +261,11 @@ function UserRow({ user }: { user: UserItem }) {
         <span
           className={cn(
             "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-            roleInfo.color,
+            roleInfo?.color,
           )}
         >
-          {primaryRole === "owner" || primaryRole === "admin" ? (
-            <ShieldCheck className="size-3" />
-          ) : (
-            <UserCheck className="size-3" />
-          )}
-          {roleInfo.label}
+          {isPrivileged ? <ShieldCheck className="size-3" /> : <UserCheck className="size-3" />}
+          {roleInfo?.label}
         </span>
       </td>
 
@@ -307,13 +273,10 @@ function UserRow({ user }: { user: UserItem }) {
         <span
           className={cn(
             "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-            user.isActive
-              ? "bg-green-100 text-green-700"
-              : "bg-gray-100 text-gray-600",
+            user.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600",
           )}
         >
-          <Check className="size-3" />
-          {user.isActive ? "활성" : "비활성"}
+          {user.isActive ? "활성" : "정지"}
         </span>
       </td>
 

@@ -37,6 +37,7 @@ const SKELETON_KEYS = ["a", "b", "c", "d", "e"];
 
 const ACTION_LABELS: Record<string, string> = {
   "user.role_changed": "사용자 역할 변경",
+  "user.status_changed": "계정 상태 변경",
 };
 
 async function fetchAuditLogs(cursor: string | null): Promise<AuditListResponse> {
@@ -185,10 +186,23 @@ function roleOf(payload: unknown): string | null {
   return null;
 }
 
+function statusOf(payload: unknown): string | null {
+  if (payload && typeof payload === "object" && "isActive" in payload) {
+    const isActive = (payload as { isActive?: unknown }).isActive;
+    if (typeof isActive === "boolean") return isActive ? "활성" : "정지";
+  }
+  return null;
+}
+
+/** Render a "before → after" summary for whichever field the action changed. */
+function changeSummary(row: AuditLogItem): string {
+  const before = roleOf(row.payloadBefore) ?? statusOf(row.payloadBefore);
+  const after = roleOf(row.payloadAfter) ?? statusOf(row.payloadAfter);
+  return before || after ? `${before ?? "-"} → ${after ?? "-"}` : "-";
+}
+
 function AuditRow({ row }: { row: AuditLogItem }) {
-  const before = roleOf(row.payloadBefore);
-  const after = roleOf(row.payloadAfter);
-  const change = before || after ? `${before ?? "-"} → ${after ?? "-"}` : "-";
+  const change = changeSummary(row);
 
   return (
     <tr className="border-b last:border-0 transition-colors hover:bg-muted/30">
