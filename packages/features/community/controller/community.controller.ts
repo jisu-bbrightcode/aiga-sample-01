@@ -15,6 +15,7 @@ import {
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -44,7 +45,10 @@ import type {
   InviteModeratorDto,
   RemoveVoteDto,
   ResolveReportDto,
+  RespondModeratorInviteDto,
+  TransferOwnershipDto,
   UpdateCommunityDto,
+  UpdateModeratorPermissionsDto,
   UpdatePostDto,
   VoteDto,
 } from "../dto";
@@ -82,17 +86,17 @@ import {
   CommunityVoteService,
 } from "../service";
 import {
-  DEFAULT_POST_LIST_LIMIT,
-  normalizePostListLimit,
-  POST_SORTS,
-  parsePostSort,
-} from "../service/post-list-options";
-import {
   MEMBER_ROLES,
   MEMBER_STATUSES,
   parseMemberRole,
   parseMemberStatus,
 } from "../service/member-list-options";
+import {
+  DEFAULT_POST_LIST_LIMIT,
+  normalizePostListLimit,
+  POST_SORTS,
+  parsePostSort,
+} from "../service/post-list-options";
 
 @ApiTags("Community")
 @Controller("community")
@@ -1238,6 +1242,81 @@ export class CommunityController {
   ) {
     await this.moderationService.removeModerator(dto.communityId, dto.userId, user.id);
     return { success: true };
+  }
+
+  @Post("moderation/moderators/respond")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "모더레이터 초대 수락/거절" })
+  @ApiResponse({ status: 200, description: "초대 응답 성공", type: ModeratorResponseDto })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["communityId", "accept"],
+      properties: {
+        communityId: { type: "string", format: "uuid", description: "커뮤니티 ID" },
+        accept: { type: "boolean", description: "초대 수락 여부 (true=수락, false=거절)" },
+      },
+    },
+  })
+  async respondModeratorInvite(@Body() dto: RespondModeratorInviteDto, @CurrentUser() user: User) {
+    return this.moderationService.respondToModeratorInvite(dto.communityId, user.id, dto.accept);
+  }
+
+  @Patch("moderation/moderators/permissions")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "모더레이터 권한 변경" })
+  @ApiResponse({ status: 200, description: "권한 변경 성공", type: ModeratorResponseDto })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["communityId", "userId", "permissions"],
+      properties: {
+        communityId: { type: "string", format: "uuid", description: "커뮤니티 ID" },
+        userId: { type: "string", format: "uuid", description: "대상 모더레이터 사용자 ID" },
+        permissions: {
+          type: "object",
+          description: "변경할 권한 (부분 지정 가능)",
+          properties: {
+            managePosts: { type: "boolean" },
+            manageComments: { type: "boolean" },
+            manageUsers: { type: "boolean" },
+            manageFlairs: { type: "boolean" },
+            manageRules: { type: "boolean" },
+            manageSettings: { type: "boolean" },
+            manageModerators: { type: "boolean" },
+            viewModLog: { type: "boolean" },
+            viewReports: { type: "boolean" },
+          },
+        },
+      },
+    },
+  })
+  async updateModeratorPermissions(
+    @Body() dto: UpdateModeratorPermissionsDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.moderationService.updateModeratorPermissions(dto, user.id);
+  }
+
+  @Post("moderation/ownership/transfer")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "커뮤니티 소유권 양도" })
+  @ApiResponse({ status: 200, description: "소유권 양도 성공" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["communityId", "newOwnerId"],
+      properties: {
+        communityId: { type: "string", format: "uuid", description: "커뮤니티 ID" },
+        newOwnerId: { type: "string", format: "uuid", description: "새 소유자 사용자 ID" },
+      },
+    },
+  })
+  async transferOwnership(@Body() dto: TransferOwnershipDto, @CurrentUser() user: User) {
+    return this.moderationService.transferOwnership(dto, user.id);
   }
 
   @Get("moderation/:communityId/logs")

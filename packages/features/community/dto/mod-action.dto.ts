@@ -67,3 +67,39 @@ export const inviteModeratorSchema = z.object({
 });
 
 export type InviteModeratorDto = z.infer<typeof inviteModeratorSchema>;
+
+export const respondModeratorInviteSchema = z.object({
+  communityId: z.string().uuid().describe("커뮤니티 ID"),
+  accept: z.boolean().describe("초대 수락 여부 (true=수락, false=거절)"),
+});
+
+export type RespondModeratorInviteDto = z.infer<typeof respondModeratorInviteSchema>;
+
+const moderatorPermissionsPatchSchema = z
+  .object({
+    managePosts: z.boolean(),
+    manageComments: z.boolean(),
+    manageUsers: z.boolean(),
+    manageFlairs: z.boolean(),
+    manageRules: z.boolean(),
+    manageSettings: z.boolean(),
+    manageModerators: z.boolean(),
+    viewModLog: z.boolean(),
+    viewReports: z.boolean(),
+  })
+  .partial();
+
+export const updateModeratorPermissionsSchema = z.object({
+  communityId: z.string().uuid().describe("커뮤니티 ID"),
+  userId: z.string().uuid().describe("대상 모더레이터 사용자 ID"),
+  permissions: moderatorPermissionsPatchSchema.describe("변경할 권한 (부분 지정 가능)"),
+});
+
+export type UpdateModeratorPermissionsDto = z.infer<typeof updateModeratorPermissionsSchema>;
+
+export const transferOwnershipSchema = z.object({
+  communityId: z.string().uuid().describe("커뮤니티 ID"),
+  newOwnerId: z.string().uuid().describe("새 소유자 사용자 ID"),
+});
+
+export type TransferOwnershipDto = z.infer<typeof transferOwnershipSchema>;

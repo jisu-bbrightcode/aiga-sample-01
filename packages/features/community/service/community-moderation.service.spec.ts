@@ -10,8 +10,8 @@
 import {
   communityBans,
   communityFlairs,
-  communityModLogs,
   communityModerators,
+  communityModLogs,
   communityPosts,
   communityReports,
   communityRules,
@@ -19,8 +19,8 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import { endTestDb, getDrizzleDb, hasDb } from "../../payment/__tests__/test-db";
 import { addExtraMember, cleanupExtraMember, setupCommunityCtx } from "./__tests__/test-helpers";
-import { CommunityModerationService } from "./community-moderation.service";
 import { CommunityService } from "./community.service";
+import { CommunityModerationService } from "./community-moderation.service";
 
 const describeIfDb = hasDb ? describe : describe.skip;
 jest.setTimeout(30_000);
@@ -169,17 +169,18 @@ describeIfDb("CommunityModerationService", () => {
     expect(post.some((x) => x.id === f.id)).toBe(true);
   });
 
-  it("inviteModerator() persists a moderator row", async () => {
+  it("inviteModerator() persists a pending moderator row", async () => {
     const m = await svc.inviteModerator(
       {
         communityId: ctx.communityId,
         userId: reporter,
-        permissions: ["manage_posts"],
+        permissions: {},
       } as never,
       ctx.ownerId,
     );
     createdIds.mods.push(m.id);
     expect(m.userId).toBe(reporter);
+    expect(m.status).toBe("pending");
   });
 
   it("getModQueue() returns reports + recently flagged content", async () => {

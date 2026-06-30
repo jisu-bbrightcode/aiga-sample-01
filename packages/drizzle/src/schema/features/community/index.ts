@@ -57,6 +57,20 @@ export const memberRoleEnum = pgEnum("community_member_role", [
   "owner",
 ]);
 
+/**
+ * Moderator appointment lifecycle status.
+ * - pending: invited, awaiting the invitee's accept/decline
+ * - active: invite accepted, moderator powers effective
+ * - declined: invitee rejected the invite
+ * - revoked: appointment removed by an authorized user
+ */
+export const moderatorStatusEnum = pgEnum("community_moderator_status", [
+  "pending",
+  "active",
+  "declined",
+  "revoked",
+]);
+
 export const ruleAppliesTo = pgEnum("community_rule_applies_to", ["posts", "comments", "both"]);
 
 export const ruleViolationActionEnum = pgEnum("community_rule_violation_action", [
@@ -494,11 +508,17 @@ export const communityModerators = pgTable(
       .notNull()
       .references(() => user.id),
     appointedAt: timestamp("appointed_at", { withTimezone: true }).notNull().defaultNow(),
+
+    // Invite lifecycle
+    status: moderatorStatusEnum("status").notNull().default("active"),
+    respondedAt: timestamp("responded_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
   },
   (table) => [
     uniqueIndex("community_moderators_unique").on(table.communityId, table.userId),
     index("idx_moderators_community").on(table.communityId),
     index("idx_moderators_user").on(table.userId),
+    index("idx_moderators_status").on(table.status),
   ],
 );
 
