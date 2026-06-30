@@ -1,12 +1,20 @@
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DRIZZLE, type DrizzleDB } from "@repo/drizzle";
-import { FileAdminController, FileListController, FileUploadController } from "./controller";
+import { AdminAuditService } from "../_common/service/admin-audit.service";
+import {
+  FileAdminController,
+  FileListController,
+  FileMetadataAdminController,
+  FileMetadataController,
+  FileUploadController,
+} from "./controller";
 import {
   createBlobClientTokenIssuer,
   createBlobDeleter,
   createBlobHeadReader,
   FileListService,
+  FileMetadataService,
   FileUploadService,
 } from "./service";
 
@@ -24,7 +32,13 @@ import {
  * endpoint (BBR-549) confirms uploads regardless.
  */
 @Module({
-  controllers: [FileUploadController, FileListController, FileAdminController],
+  controllers: [
+    FileUploadController,
+    FileListController,
+    FileAdminController,
+    FileMetadataController,
+    FileMetadataAdminController,
+  ],
   providers: [
     {
       provide: FileUploadService,
@@ -45,7 +59,16 @@ import {
       useFactory: (db: DrizzleDB) => new FileListService(db),
       inject: [DRIZZLE],
     },
+    {
+      // EXTEND (BBR-552): metadata update writes one row to the shared
+      // admin_audit_log per applied change. The DrizzleModule is global, so the
+      // audit writer is constructed inline (no module coupling), mirroring the
+      // other audited write-paths (FR-001/FR-004).
+      provide: FileMetadataService,
+      useFactory: (db: DrizzleDB) => new FileMetadataService(db, new AdminAuditService(db)),
+      inject: [DRIZZLE],
+    },
   ],
-  exports: [FileUploadService, FileListService],
+  exports: [FileUploadService, FileListService, FileMetadataService],
 })
 export class FileUploadModule {}

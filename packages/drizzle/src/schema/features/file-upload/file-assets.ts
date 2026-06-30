@@ -73,6 +73,18 @@ export const fileAssets = pgTable(
     /** Original client-provided filename (display only). */
     originalName: text("original_name").notNull(),
 
+    // -- editable presentation metadata (PB-FILE-API-UPDATE-001 / BBR-552) ----
+    /**
+     * Accessibility alt text for image assets (operator/owner editable).
+     * Distinct from the binary: never affects the stored bytes. Null = unset.
+     */
+    altText: text("alt_text"),
+    /**
+     * Display order within a target resource's file collection (owner/admin
+     * editable). Lower sorts first; default 0. Pure presentation metadata.
+     */
+    sortOrder: integer("sort_order").notNull().default(0),
+
     // -- access / lifecycle --------------------------------------------------
     /** Access policy. Default private; public requires explicit whitelist. */
     visibility: fileVisibilityEnum("visibility").notNull().default("private"),

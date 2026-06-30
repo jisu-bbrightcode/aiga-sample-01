@@ -28,4 +28,11 @@ export const fileUploadCapabilityRegistry = [
     description:
       "Owner-scoped + admin file listing with target/status/visibility/MIME filters, pagination, and consistent soft-delete exposure policy",
   },
+  {
+    capability: "file-upload.api.update",
+    issue: "BBR-552",
+    endpoint: "PATCH /files/:id, PATCH /admin/files/:id",
+    description:
+      "Metadata-only edit (display name, alt text, target link, visibility, sort order; review status admin-only) with public-visibility policy gate and owner/admin-distinguished audit trail",
+  },
 ] as const;
