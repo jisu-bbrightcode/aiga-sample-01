@@ -14,8 +14,14 @@ import {
 } from "@repo/drizzle/schema";
 import { and, asc, desc, eq, ilike, or, type SQL, sql } from "drizzle-orm";
 import {
+  type AdminDomainResourceDetail,
+  toAdminDoctorDetail,
+  toAdminHospitalDetail,
+} from "../admin-resource-detail";
+import {
   type AdminDomainResource,
   type AdminDomainResourceListResult,
+  type AdminDomainResourceType,
   type AdminDomainSortKey,
   mergeResourcePage,
   type SortOrder,
@@ -497,6 +503,87 @@ export class ServiceDomainService {
     }
 
     return { items, total, page, limit, totalPages: totalPages(total, limit) };
+  }
+
+  /**
+   * Read one catalog resource for the admin detail screen
+   * (PB-ADMIN-DOMAIN-READ-001 / BBR-679).
+   *
+   * Unlike the public detail (published-only), the admin view resolves a record
+   * in ANY lifecycle state (draft/published/archived) and even after a soft
+   * delete, so operators can inspect and recover it. The detail mapper masks
+   * sensitive identifiers (면허번호/사업자등록번호) before they leave the service.
+   */
+  getAdminDomainResourceDetail(
+    type: AdminDomainResourceType,
+    id: string,
+  ): Promise<AdminDomainResourceDetail> {
+    return type === "doctor" ? this.getAdminDoctorDetail(id) : this.getAdminHospitalDetail(id);
+  }
+
+  private async getAdminDoctorDetail(id: string): Promise<AdminDomainResourceDetail> {
+    const row = await this.db.query.serviceDoctors.findFirst({
+      where: eq(serviceDoctors.id, id),
+      with: {
+        region: true,
+        specialties: { with: { specialty: true } },
+        hospitals: { with: { hospital: true } },
+        credentials: true,
+      },
+    });
+    if (!row) {
+      throw new NotFoundException("의사를 찾을 수 없습니다.");
+    }
+
+    const specialties = row.specialties
+      .map((s) => s.specialty)
+      .filter((s): s is NonNullable<typeof s> => s != null);
+    const primarySpecialty = row.primarySpecialtyId
+      ? (specialties.find((s) => s.id === row.primarySpecialtyId) ?? null)
+      : null;
+
+    return toAdminDoctorDetail({
+      doctor: row,
+      region: row.region ?? null,
+      primarySpecialty,
+      specialties,
+      hospitals: row.hospitals
+        .filter((h) => h.hospital != null)
+        .map((h) => ({ hospital: h.hospital, role: h.role, isPrimary: h.isPrimary })),
+      // Group by section then display order — matches the public profile order.
+      credentials: row.credentials
+        .slice()
+        .sort((a, b) => a.kind.localeCompare(b.kind) || a.sortOrder - b.sortOrder),
+    });
+  }
+
+  private async getAdminHospitalDetail(id: string): Promise<AdminDomainResourceDetail> {
+    const row = await this.db.query.serviceHospitals.findFirst({
+      where: eq(serviceHospitals.id, id),
+      with: {
+        region: true,
+        doctors: { with: { doctor: true } },
+        specialties: { with: { specialty: true } },
+        hours: true,
+      },
+    });
+    if (!row) {
+      throw new NotFoundException("병원을 찾을 수 없습니다.");
+    }
+
+    return toAdminHospitalDetail({
+      hospital: row,
+      region: row.region ?? null,
+      specialties: row.specialties
+        .slice()
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((s) => s.specialty)
+        .filter((s): s is NonNullable<typeof s> => s != null),
+      doctors: row.doctors
+        .map((d) => d.doctor)
+        .filter((d): d is NonNullable<typeof d> => d != null),
+      hours: row.hours.slice().sort((a, b) => a.dayOfWeek - b.dayOfWeek),
+    });
   }
 
   private async queryDoctorResources(

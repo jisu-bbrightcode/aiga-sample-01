@@ -6,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/shadcn/table";
+import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { ArrowDown, ArrowUp, ArrowUpDown, Star } from "lucide-react";
@@ -112,7 +113,13 @@ export function DomainTable({ resources, isLoading, sort, order, onSortChange }:
         {resources.map((resource) => (
           <TableRow key={`${resource.type}:${resource.id}`}>
             <TableCell className="font-medium">
-              <div>{resource.name}</div>
+              <Link
+                to="/domain/$type/$id"
+                params={{ type: resource.type, id: resource.id }}
+                className="text-primary underline-offset-2 hover:underline"
+              >
+                {resource.name}
+              </Link>
               <div className="text-xs text-muted-foreground">{resource.slug}</div>
             </TableCell>
             <TableCell>
