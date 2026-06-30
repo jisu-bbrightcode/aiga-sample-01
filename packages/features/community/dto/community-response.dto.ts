@@ -513,6 +513,33 @@ export const reportResponseSchema = z.object({
 
 export class ReportResponseDto extends createZodDto(reportResponseSchema) {}
 
+// ============================================================================
+// Report Receipt — reporter-protected response for POST /community/reports.
+// Deliberately omits `reporterId` (and resolution/internal fields) so the
+// create response never echoes who filed the report (AC#2 — 신고자 보호).
+// ============================================================================
+
+export const reportReceiptResponseSchema = z.object({
+  id: z.string(),
+  targetType: z.enum(["post", "comment", "user"]),
+  targetId: z.string(),
+  reason: z.enum([
+    "spam",
+    "harassment",
+    "hate_speech",
+    "misinformation",
+    "nsfw",
+    "violence",
+    "copyright",
+    "other",
+  ]),
+  status: z.enum(["pending", "reviewing", "resolved", "dismissed"]),
+  severity: z.enum(["low", "medium", "high", "critical"]),
+  createdAt: z.string(),
+});
+
+export class ReportReceiptResponseDto extends createZodDto(reportReceiptResponseSchema) {}
+
 export const modQueueResponseSchema = z.object({
   reports: z.array(reportResponseSchema),
   // spam/removed are hardcoded to [] in CommunityModerationService.getModQueue

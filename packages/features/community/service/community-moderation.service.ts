@@ -23,7 +23,7 @@ import {
   communityReports,
   communityRules,
 } from "@repo/drizzle/schema";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
   BanUserDto,
   CreateFlairDto,
@@ -50,6 +50,16 @@ import {
 import { assertCommunityPermission } from "../helpers/permission";
 import { CommunityService } from "./community.service";
 
+/** Postgres unique-violation SQLSTATE — used to keep report creation idempotent. */
+const PG_UNIQUE_VIOLATION = "23505";
+
+/**
+ * Report statuses that count as "active" for the duplicate-report policy
+ * (BBR-614). A reporter may hold at most one active report per target; once a
+ * report is resolved/dismissed the slot is freed and re-reporting is allowed.
+ */
+const ACTIVE_REPORT_STATUSES = ["pending", "reviewing"] as const;
+
 @Injectable()
 export class CommunityModerationService {
   constructor(
@@ -58,16 +68,44 @@ export class CommunityModerationService {
   ) {}
 
   async createReport(dto: CreateReportDto, userId: string): Promise<CommunityReport> {
+    // 중복 신고 정책(BBR-614): 동일 신고자가 동일 대상에 대해 이미 활성
+    // (pending/reviewing) 신고를 보유한 경우, 새 신고를 만들지 않고 기존 신고를
+    // 멱등하게 반환한다 — 모더레이션 큐 중복과 감사 로그 스팸을 방지한다.
+    const existing = await this.findActiveReport(
+      userId,
+      dto.communityId,
+      dto.targetType,
+      dto.targetId,
+    );
+    if (existing) return existing;
+
     const severity = dto.severity ?? this.inferSeverity(dto.reason);
 
-    const [report] = await this.db
-      .insert(communityReports)
-      .values({
-        ...dto,
-        reporterId: userId,
-        severity,
-      })
-      .returning();
+    let report: CommunityReport;
+    try {
+      const [inserted] = await this.db
+        .insert(communityReports)
+        .values({
+          ...dto,
+          reporterId: userId,
+          severity,
+        })
+        .returning();
+      report = inserted as CommunityReport;
+    } catch (error) {
+      // 경합으로 부분 유니크 인덱스(uq_community_reports_active_dedup)가 충돌하면
+      // 멱등하게 기존 활성 신고를 반환한다.
+      if (this.isUniqueViolation(error)) {
+        const raced = await this.findActiveReport(
+          userId,
+          dto.communityId,
+          dto.targetType,
+          dto.targetId,
+        );
+        if (raced) return raced;
+      }
+      throw error;
+    }
 
     await this.logModAction({
       communityId: dto.communityId,
@@ -81,7 +119,40 @@ export class CommunityModerationService {
     // Auto-hide: 동일 target에 10건+ 신고 시 자동 숨김
     await this.checkAutoHide(dto.communityId, dto.targetType, dto.targetId);
 
-    return report as CommunityReport;
+    return report;
+  }
+
+  /** 동일 신고자·동일 대상의 활성(pending/reviewing) 신고를 조회한다. 없으면 null. */
+  private async findActiveReport(
+    reporterId: string,
+    communityId: string,
+    targetType: CreateReportDto["targetType"],
+    targetId: string,
+  ): Promise<CommunityReport | null> {
+    const [row] = await this.db
+      .select()
+      .from(communityReports)
+      .where(
+        and(
+          eq(communityReports.reporterId, reporterId),
+          eq(communityReports.communityId, communityId),
+          eq(communityReports.targetType, targetType),
+          eq(communityReports.targetId, targetId),
+          inArray(communityReports.status, [...ACTIVE_REPORT_STATUSES]),
+        ),
+      )
+      .limit(1);
+    return (row as CommunityReport) ?? null;
+  }
+
+  /** Postgres 유니크 위반(23505) 여부를 판별한다. */
+  private isUniqueViolation(error: unknown): boolean {
+    return (
+      error != null &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: string }).code === PG_UNIQUE_VIOLATION
+    );
   }
 
   /**
@@ -204,7 +275,15 @@ export class CommunityModerationService {
     return updated as CommunityReport;
   }
 
-  async getReports(communityId: string, status?: string) {
+  async getReports(communityId: string, requesterId: string, status?: string) {
+    // 신고자 보호(AC#2): 신고 레코드는 신고자 ID를 담고 있으므로, 피신고자/일반
+    // 사용자가 신고자를 역추적하지 못하도록 모더레이터 권한자에게만 노출한다.
+    await assertCommunityPermission(this.communityService, requesterId, communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+
     const conditions = [eq(communityReports.communityId, communityId)];
     if (status) {
       conditions.push(eq(communityReports.status, status as any));
@@ -231,7 +310,14 @@ export class CommunityModerationService {
     return (result as CommunityReport) ?? null;
   }
 
-  async getModQueue(communityId: string) {
+  async getModQueue(communityId: string, requesterId: string) {
+    // 신고자 보호(AC#2): Mod Queue도 신고자 ID를 노출하므로 모더레이터 전용.
+    await assertCommunityPermission(this.communityService, requesterId, communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+
     const reports = await this.db
       .select()
       .from(communityReports)

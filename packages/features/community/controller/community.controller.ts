@@ -72,10 +72,12 @@ import {
   ModQueueResponseDto,
   PostResponseDto,
   PublicPostListResponseDto,
+  ReportReceiptResponseDto,
   ReportResponseDto,
   RuleResponseDto,
   VoteResultResponseDto,
 } from "../dto";
+import { toReportReceipt } from "../helpers/report-mappers";
 import { publicPostViewerState, toBlockResponse, toPublicPostListItem } from "../mappers";
 import { OptionalUser } from "../optional-user.decorator";
 import {
@@ -999,7 +1001,7 @@ export class CommunityController {
   @UseGuards(BetterAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "신고 생성" })
-  @ApiResponse({ status: 201, description: "신고 생성 성공", type: ReportResponseDto })
+  @ApiResponse({ status: 201, description: "신고 생성 성공", type: ReportReceiptResponseDto })
   @ApiBody({
     schema: {
       type: "object",
@@ -1032,7 +1034,9 @@ export class CommunityController {
     },
   })
   async createReport(@Body() dto: CreateReportDto, @CurrentUser() user: User) {
-    return this.moderationService.createReport(dto, user.id);
+    // 신고자 보호(AC#2): 접수증만 반환 — 응답에 reporterId 를 싣지 않는다.
+    const report = await this.moderationService.createReport(dto, user.id);
+    return toReportReceipt(report);
   }
 
   @Get("moderation/:communityId/queue")
@@ -1041,8 +1045,11 @@ export class CommunityController {
   @ApiOperation({ summary: "Mod Queue 조회" })
   @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
   @ApiResponse({ status: 200, description: "Mod Queue 반환", type: ModQueueResponseDto })
-  async modQueue(@Param("communityId", ParseUUIDPipe) communityId: string) {
-    return this.moderationService.getModQueue(communityId);
+  async modQueue(
+    @Param("communityId", ParseUUIDPipe) communityId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.moderationService.getModQueue(communityId, user.id);
   }
 
   @Get("moderation/:communityId/reports")
@@ -1063,9 +1070,10 @@ export class CommunityController {
   })
   async reports(
     @Param("communityId", ParseUUIDPipe) communityId: string,
+    @CurrentUser() user: User,
     @Query("status") status?: "pending" | "reviewing" | "resolved" | "dismissed",
   ) {
-    return this.moderationService.getReports(communityId, status);
+    return this.moderationService.getReports(communityId, user.id, status);
   }
 
   @Post("moderation/reports/resolve")

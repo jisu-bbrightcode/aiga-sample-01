@@ -414,6 +414,13 @@
       "when": 1781403900000,
       "tag": "0058_community_moderator_status",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1781404400000,
+      "tag": "0059_community_report_dedup",
+      "breakpoints": true
     }
   ]
 }
