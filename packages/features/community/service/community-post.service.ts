@@ -27,6 +27,7 @@ import { combineDecision, type FilterViolation } from "./content-filter-policy";
 import { canRestore, RESTORE_TARGET_STATUS } from "./post-deletion-policy";
 import { DEFAULT_POST_SORT, normalizePostListLimit, type PostSort } from "./post-list-options";
 import { normalizePostSearchTerm } from "./post-search";
+import { evaluateRulesGate, requiresRulesAcceptance } from "./rules-acceptance-policy";
 
 type PostStatus = CommunityPost["status"];
 
@@ -102,6 +103,19 @@ export class CommunityPostService {
     const isMember = await this.communityService.isMember(dto.communityId, userId);
     if (!isMember) {
       throw new ForbiddenException("커뮤니티에 가입해야 게시글을 작성할 수 있습니다.");
+    }
+
+    // 규칙 동의 게이트(AC#1): 커뮤니티가 규칙 동의를 요구하면, 동의 전에는
+    // 게시글을 작성할 수 없다. 금칙어 정책과 동일하게 작성 경계에서 적용된다.
+    // 플래그가 켜진 경우에만 동의 여부를 조회한다(기본 경로 추가 쿼리 없음).
+    if (requiresRulesAcceptance(community.automodConfig)) {
+      const rulesGate = evaluateRulesGate(
+        community.automodConfig,
+        await this.tierService.hasAcceptedRules(dto.communityId, userId),
+      );
+      if (!rulesGate.allowed) {
+        throw new ForbiddenException(rulesGate.reason);
+      }
     }
 
     // anti-spam: 작성자(userId) 단위 레이트 리밋. 초과 시 HTTP 429.

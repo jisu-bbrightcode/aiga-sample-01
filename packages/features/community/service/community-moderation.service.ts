@@ -32,7 +32,9 @@ import type {
   InviteModeratorDto,
   ResolveReportDto,
   TransferOwnershipDto,
+  UpdateFlairDto,
   UpdateModeratorPermissionsDto,
+  UpdateRuleDto,
 } from "../dto";
 import {
   type CommunityRole,
@@ -493,6 +495,223 @@ export class CommunityModerationService {
 
     const items = await query.orderBy(communityFlairs.displayOrder);
     return items as CommunityFlair[];
+  }
+
+  /**
+   * 규칙을 수정한다(AC#2). 모더레이터 권한을 검증하고 변경을 감사 로그에 남긴다.
+   */
+  async updateRule(
+    ruleId: string,
+    patch: UpdateRuleDto,
+    moderatorId: string,
+  ): Promise<CommunityRule> {
+    const rule = await this.findRuleOrThrow(ruleId);
+    await assertCommunityPermission(this.communityService, moderatorId, rule.communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+
+    const [updated] = await this.db
+      .update(communityRules)
+      .set({
+        title: patch.title,
+        description: patch.description,
+        appliesTo: patch.appliesTo,
+        violationAction: patch.violationAction,
+        displayOrder: patch.displayOrder,
+      })
+      .where(eq(communityRules.id, ruleId))
+      .returning();
+
+    await this.logModAction({
+      communityId: rule.communityId,
+      moderatorId,
+      action: "edit_rules",
+      targetType: "community",
+      targetId: rule.communityId,
+      reason: "Rule updated",
+      details: { ruleId },
+    });
+
+    return updated as CommunityRule;
+  }
+
+  /**
+   * 규칙을 삭제한다(AC#2). 모더레이터 권한 검증 + 감사 로그.
+   */
+  async deleteRule(ruleId: string, moderatorId: string): Promise<{ deleted: true }> {
+    const rule = await this.findRuleOrThrow(ruleId);
+    await assertCommunityPermission(this.communityService, moderatorId, rule.communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+
+    await this.db.delete(communityRules).where(eq(communityRules.id, ruleId));
+
+    await this.logModAction({
+      communityId: rule.communityId,
+      moderatorId,
+      action: "edit_rules",
+      targetType: "community",
+      targetId: rule.communityId,
+      reason: "Rule deleted",
+      details: { ruleId, title: rule.title },
+    });
+
+    return { deleted: true };
+  }
+
+  /**
+   * 플레어를 수정한다(AC#2). 모더레이터 권한 검증 + 감사 로그.
+   */
+  async updateFlair(
+    flairId: string,
+    patch: UpdateFlairDto,
+    moderatorId: string,
+  ): Promise<CommunityFlair> {
+    const flair = await this.findFlairOrThrow(flairId);
+    await assertCommunityPermission(this.communityService, moderatorId, flair.communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+
+    const [updated] = await this.db
+      .update(communityFlairs)
+      .set({
+        text: patch.text,
+        color: patch.color,
+        backgroundColor: patch.backgroundColor,
+        modOnly: patch.modOnly,
+        displayOrder: patch.displayOrder,
+      })
+      .where(eq(communityFlairs.id, flairId))
+      .returning();
+
+    await this.logModAction({
+      communityId: flair.communityId,
+      moderatorId,
+      action: "add_flair",
+      targetType: "community",
+      targetId: flair.communityId,
+      reason: "Flair updated",
+      details: { flairId },
+    });
+
+    return updated as CommunityFlair;
+  }
+
+  /**
+   * 플레어를 삭제한다(AC#2). 모더레이터 권한 검증 + 감사 로그.
+   */
+  async deleteFlair(flairId: string, moderatorId: string): Promise<{ deleted: true }> {
+    const flair = await this.findFlairOrThrow(flairId);
+    await assertCommunityPermission(this.communityService, moderatorId, flair.communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+
+    await this.db.delete(communityFlairs).where(eq(communityFlairs.id, flairId));
+
+    await this.logModAction({
+      communityId: flair.communityId,
+      moderatorId,
+      action: "add_flair",
+      targetType: "community",
+      targetId: flair.communityId,
+      reason: "Flair deleted",
+      details: { flairId, text: flair.text },
+    });
+
+    return { deleted: true };
+  }
+
+  private async findRuleOrThrow(ruleId: string): Promise<CommunityRule> {
+    const [rule] = await this.db
+      .select()
+      .from(communityRules)
+      .where(eq(communityRules.id, ruleId))
+      .limit(1);
+    if (!rule) {
+      throw new NotFoundException("규칙을 찾을 수 없습니다.");
+    }
+    return rule as CommunityRule;
+  }
+
+  private async findFlairOrThrow(flairId: string): Promise<CommunityFlair> {
+    const [flair] = await this.db
+      .select()
+      .from(communityFlairs)
+      .where(eq(communityFlairs.id, flairId))
+      .limit(1);
+    if (!flair) {
+      throw new NotFoundException("플레어를 찾을 수 없습니다.");
+    }
+    return flair as CommunityFlair;
+  }
+
+  /**
+   * 커뮤니티 금칙어 목록을 조회한다(모더레이터 전용 관리 표면).
+   */
+  async getBannedWords(communityId: string, moderatorId: string): Promise<string[]> {
+    await assertCommunityPermission(this.communityService, moderatorId, communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+    const [community] = await this.db
+      .select({ bannedWords: communities.bannedWords })
+      .from(communities)
+      .where(eq(communities.id, communityId))
+      .limit(1);
+    if (!community) {
+      throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
+    }
+    return (community.bannedWords ?? []) as string[];
+  }
+
+  /**
+   * 커뮤니티 금칙어 목록을 설정한다(AC#2). 권한 검증 + 감사 로그.
+   * 저장된 금칙어는 게시글/댓글 작성 시 키워드 필터에 그대로 적용된다.
+   */
+  async setBannedWords(
+    communityId: string,
+    words: string[],
+    moderatorId: string,
+  ): Promise<string[]> {
+    await assertCommunityPermission(this.communityService, moderatorId, communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+
+    // 정규화: 공백 제거 + 빈 항목 제거 + 중복 제거.
+    const normalized = [...new Set(words.map((w) => w.trim()).filter((w) => w.length > 0))];
+
+    const [updated] = await this.db
+      .update(communities)
+      .set({ bannedWords: normalized, updatedAt: new Date() })
+      .where(eq(communities.id, communityId))
+      .returning({ bannedWords: communities.bannedWords });
+
+    if (!updated) {
+      throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
+    }
+
+    await this.logModAction({
+      communityId,
+      moderatorId,
+      action: "edit_rules",
+      targetType: "community",
+      targetId: communityId,
+      reason: "Banned words updated",
+      details: { count: normalized.length },
+    });
+
+    return (updated.bannedWords ?? []) as string[];
   }
 
   /**

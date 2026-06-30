@@ -31,7 +31,9 @@ const PUBLISHED_POST: PostRow = {
 };
 
 function buildService(post: PostRow | null = PUBLISHED_POST) {
-  const communityService = {} as unknown as CommunityService;
+  const communityService = {
+    findById: jest.fn().mockResolvedValue({ id: "community-1" }),
+  } as unknown as CommunityService;
   const keywordFilterService = {
     validateContent: jest
       .fn()
@@ -39,6 +41,7 @@ function buildService(post: PostRow | null = PUBLISHED_POST) {
   };
   const tierService = {
     getTierInfo: jest.fn().mockResolvedValue({ tier: "newcomer" }),
+    hasAcceptedRules: jest.fn().mockResolvedValue(true),
   };
   const contentModerationService = {
     assertContentAllowed: jest.fn().mockResolvedValue(undefined),

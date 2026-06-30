@@ -169,6 +169,101 @@ describeIfDb("CommunityModerationService", () => {
     expect(post.some((x) => x.id === f.id)).toBe(true);
   });
 
+  // ── Rules/flair management lifecycle (PB-COMM-RULES-FLAIR-API-001 / AC#2) ──
+
+  async function modLogsFor(reason: string) {
+    return getDrizzleDb()
+      .select()
+      .from(communityModLogs)
+      .where(eq(communityModLogs.communityId, ctx.communityId))
+      .then((rows) => rows.filter((r) => r.reason === reason));
+  }
+
+  it("updateRule() edits the rule and writes an edit_rules audit log", async () => {
+    const r = await svc.createRule(
+      { communityId: ctx.communityId, title: "Old", description: "old desc" } as never,
+      ctx.ownerId,
+    );
+    createdIds.rules.push(r.id);
+
+    const updated = await svc.updateRule(
+      r.id,
+      { title: "New title", description: "new desc", appliesTo: "posts" },
+      ctx.ownerId,
+    );
+    expect(updated.title).toBe("New title");
+    expect(updated.description).toBe("new desc");
+    expect(updated.appliesTo).toBe("posts");
+
+    const logs = await modLogsFor("Rule updated");
+    expect(logs.length).toBe(1);
+    expect(logs[0]?.action).toBe("edit_rules");
+  });
+
+  it("deleteRule() removes the rule and writes an audit log", async () => {
+    const r = await svc.createRule(
+      { communityId: ctx.communityId, title: "Doomed", description: "d" } as never,
+      ctx.ownerId,
+    );
+    await expect(svc.deleteRule(r.id, ctx.ownerId)).resolves.toEqual({ deleted: true });
+
+    const rules = await svc.getRules(ctx.communityId);
+    expect(rules.some((x) => x.id === r.id)).toBe(false);
+    expect((await modLogsFor("Rule deleted")).length).toBe(1);
+  });
+
+  it("updateFlair() edits the flair and writes an add_flair audit log", async () => {
+    const f = await svc.createFlair(
+      { communityId: ctx.communityId, text: "Old", type: "post" } as never,
+      ctx.ownerId,
+    );
+    createdIds.flairs.push(f.id);
+
+    const updated = await svc.updateFlair(
+      f.id,
+      { text: "Renamed", color: "#112233", modOnly: true },
+      ctx.ownerId,
+    );
+    expect(updated.text).toBe("Renamed");
+    expect(updated.color).toBe("#112233");
+    expect(updated.modOnly).toBe(true);
+    expect((await modLogsFor("Flair updated")).length).toBe(1);
+  });
+
+  it("deleteFlair() removes the flair and writes an audit log", async () => {
+    const f = await svc.createFlair(
+      { communityId: ctx.communityId, text: "Doomed", type: "user" } as never,
+      ctx.ownerId,
+    );
+    await expect(svc.deleteFlair(f.id, ctx.ownerId)).resolves.toEqual({ deleted: true });
+    const flairs = await svc.getFlairs(ctx.communityId);
+    expect(flairs.some((x) => x.id === f.id)).toBe(false);
+    expect((await modLogsFor("Flair deleted")).length).toBe(1);
+  });
+
+  it("setBannedWords() normalizes + persists, getBannedWords() reads them, with audit", async () => {
+    const saved = await svc.setBannedWords(
+      ctx.communityId,
+      ["  spam ", "spam", "", "scam"],
+      ctx.ownerId,
+    );
+    // trimmed + de-duplicated + empties dropped
+    expect(saved.sort()).toEqual(["scam", "spam"]);
+    await expect(svc.getBannedWords(ctx.communityId, ctx.ownerId)).resolves.toEqual(
+      expect.arrayContaining(["spam", "scam"]),
+    );
+    expect((await modLogsFor("Banned words updated")).length).toBe(1);
+  });
+
+  it("updateRule() rejects a non-moderator actor (permission gate)", async () => {
+    const r = await svc.createRule(
+      { communityId: ctx.communityId, title: "X", description: "y" } as never,
+      ctx.ownerId,
+    );
+    createdIds.rules.push(r.id);
+    await expect(svc.updateRule(r.id, { title: "hack" }, reporter)).rejects.toThrow();
+  });
+
   it("inviteModerator() persists a pending moderator row", async () => {
     const m = await svc.inviteModerator(
       {
