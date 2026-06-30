@@ -14,12 +14,18 @@ import {
   communityComments,
   communityMemberships,
   communityModerators,
+  communityModLogs,
   communityPosts,
   communitySanctions,
 } from "@repo/drizzle/schema";
 import { and, asc, count, desc, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import type { CreateCommunityDto, UpdateCommunityDto } from "../dto";
 import { buildCursorResult, decodeCursor } from "../helpers/pagination";
+import {
+  buildSettingsChanges,
+  type CommunityUpdateRole,
+  evaluateCommunityUpdate,
+} from "../helpers/update-policy";
 
 export interface PaginationOptions {
   page?: number;
@@ -404,10 +410,27 @@ export class CommunityService {
       throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
     }
 
+    // AC#1: owner/admin/moderator 역할별 수정 가능 필드 분리.
     const membership = await this.getMembership(community.id, userId);
-    if (!membership || !["owner", "admin"].includes(membership.role)) {
-      throw new ForbiddenException("커뮤니티 소유자 또는 관리자만 설정을 변경할 수 있습니다.");
+    const role =
+      membership && !membership.isBanned ? (membership.role as CommunityUpdateRole) : null;
+    const permission = evaluateCommunityUpdate(role, Object.keys(dto));
+    if (!permission.allowed) {
+      throw new ForbiddenException(
+        "커뮤니티 소유자, 관리자 또는 모더레이터만 설정을 변경할 수 있습니다.",
+      );
     }
+    if (permission.forbiddenFields.length > 0) {
+      throw new ForbiddenException(
+        `다음 항목은 커뮤니티 소유자 또는 관리자만 변경할 수 있습니다: ${permission.forbiddenFields.join(", ")}`,
+      );
+    }
+
+    // AC#2: 실제 변경된 필드의 before/after diff (감사 로그용).
+    const changes = buildSettingsChanges(
+      community as unknown as Record<string, unknown>,
+      dto as Record<string, unknown>,
+    );
 
     const [updated] = await this.db
       .update(communities)
@@ -417,6 +440,19 @@ export class CommunityService {
       })
       .where(eq(communities.id, community.id))
       .returning();
+
+    // AC#2: 설정 변경은 감사 로그(community_mod_logs)에 남긴다. 실제 변경이 없으면 기록하지 않는다.
+    if (Object.keys(changes).length > 0) {
+      await this.db.insert(communityModLogs).values({
+        communityId: community.id,
+        moderatorId: userId,
+        action: "other",
+        targetType: "community",
+        targetId: community.id,
+        reason: "community.settings.updated",
+        details: { kind: "community.settings.updated", role, changes },
+      });
+    }
 
     return updated as Community;
   }

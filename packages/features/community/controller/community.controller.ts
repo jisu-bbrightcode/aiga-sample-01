@@ -15,6 +15,7 @@ import {
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -69,6 +70,7 @@ import {
   RuleResponseDto,
   VoteResultResponseDto,
 } from "../dto";
+import { publicPostViewerState, toPublicPostListItem } from "../mappers";
 import { OptionalUser } from "../optional-user.decorator";
 import {
   CommunityBlockService,
@@ -86,7 +88,6 @@ import {
   POST_SORTS,
   parsePostSort,
 } from "../service/post-list-options";
-import { publicPostViewerState, toPublicPostListItem } from "../mappers";
 
 @ApiTags("Community")
 @Controller("community")
@@ -278,18 +279,29 @@ export class CommunityController {
   @Put(":slug")
   @UseGuards(BetterAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "커뮤니티 수정" })
+  @ApiOperation({
+    summary: "커뮤니티 수정/설정 변경",
+    description:
+      "역할별 수정 가능 필드 분리(AC#1): owner/admin 은 모든 필드, moderator 는 운영 설정만 " +
+      "변경 가능하며 name/type(공개 상태)은 owner/admin 전용이다. 변경은 감사 로그에 기록된다(AC#2).",
+  })
   @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
   @ApiResponse({ status: 200, description: "커뮤니티 수정 성공", type: CommunityResponseDto })
+  @ApiResponse({ status: 403, description: "권한 없음 또는 역할이 변경할 수 없는 필드 포함" })
+  @ApiResponse({ status: 404, description: "커뮤니티를 찾을 수 없음" })
   @ApiBody({
     schema: {
       type: "object",
       properties: {
-        name: { type: "string", description: "커뮤니티 이름" },
+        name: { type: "string", description: "커뮤니티 이름 (owner/admin 전용)" },
         description: { type: "string", description: "커뮤니티 설명" },
         iconUrl: { type: "string", format: "uri" },
         bannerUrl: { type: "string", format: "uri" },
-        type: { type: "string", enum: ["public", "restricted", "private"] },
+        type: {
+          type: "string",
+          enum: ["public", "restricted", "private"],
+          description: "공개 상태 (owner/admin 전용)",
+        },
         isNsfw: { type: "boolean" },
         automodConfig: {
           type: "object",
@@ -305,6 +317,52 @@ export class CommunityController {
     },
   })
   async update(
+    @Param("slug") slug: string,
+    @Body() dto: UpdateCommunityDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.communityService.update(slug, dto, user.id);
+  }
+
+  @Patch(":slug")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "커뮤니티 부분 수정/설정 변경 (PATCH)",
+    description: "PUT :slug 와 동일한 부분 수정 동작. 역할별 필드 분리(AC#1) + 감사 로그(AC#2).",
+  })
+  @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
+  @ApiResponse({ status: 200, description: "커뮤니티 수정 성공", type: CommunityResponseDto })
+  @ApiResponse({ status: 403, description: "권한 없음 또는 역할이 변경할 수 없는 필드 포함" })
+  @ApiResponse({ status: 404, description: "커뮤니티를 찾을 수 없음" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "커뮤니티 이름 (owner/admin 전용)" },
+        description: { type: "string", description: "커뮤니티 설명" },
+        iconUrl: { type: "string", format: "uri" },
+        bannerUrl: { type: "string", format: "uri" },
+        type: {
+          type: "string",
+          enum: ["public", "restricted", "private"],
+          description: "공개 상태 (owner/admin 전용)",
+        },
+        isNsfw: { type: "boolean" },
+        automodConfig: {
+          type: "object",
+          properties: {
+            enableSpamFilter: { type: "boolean" },
+            enableKeywordFilter: { type: "boolean" },
+            minKarmaToPost: { type: "integer" },
+            minAccountAge: { type: "integer" },
+          },
+        },
+        bannedWords: { type: "array", items: { type: "string" } },
+      },
+    },
+  })
+  async patchUpdate(
     @Param("slug") slug: string,
     @Body() dto: UpdateCommunityDto,
     @CurrentUser() user: User,

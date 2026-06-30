@@ -9,7 +9,7 @@
  */
 
 import { ForbiddenException } from "@nestjs/common";
-import { communities, communityMemberships } from "@repo/drizzle";
+import { communities, communityMemberships, communityModLogs } from "@repo/drizzle";
 import { eq } from "drizzle-orm";
 import {
   cleanupUser,
@@ -119,6 +119,68 @@ describeIfDb("CommunityService", () => {
       ).rejects.toThrow(ForbiddenException);
     } finally {
       await cleanupUser(intruder);
+    }
+  });
+
+  it("update() by owner writes an audit log row (AC#2)", async () => {
+    const c = await makeCommunity();
+    const db = getDrizzleDb();
+
+    await svc.update(c.slug, { description: "updated by owner" } as never, owner);
+
+    const logs = await db
+      .select()
+      .from(communityModLogs)
+      .where(eq(communityModLogs.communityId, c.id));
+    expect(logs.length).toBe(1);
+    expect(logs[0]?.moderatorId).toBe(owner);
+    expect(logs[0]?.action).toBe("other");
+    expect(logs[0]?.targetType).toBe("community");
+    const details = logs[0]?.details as { changes?: Record<string, unknown> };
+    expect(details.changes?.description).toEqual({ from: "desc", to: "updated by owner" });
+
+    // cleanup mod logs (FK to community is ON DELETE CASCADE, but be explicit/order-safe)
+    await db.delete(communityModLogs).where(eq(communityModLogs.communityId, c.id));
+  });
+
+  it("update() no-op (no field changes) does not write an audit log", async () => {
+    const c = await makeCommunity();
+    const db = getDrizzleDb();
+
+    await svc.update(c.slug, { description: "desc" } as never, owner);
+
+    const logs = await db
+      .select()
+      .from(communityModLogs)
+      .where(eq(communityModLogs.communityId, c.id));
+    expect(logs.length).toBe(0);
+  });
+
+  it("update() lets a moderator change settings but not name/type (AC#1)", async () => {
+    const c = await makeCommunity();
+    const db = getDrizzleDb();
+    const mod = newUserId("comm-mod");
+    await ensureUser(mod);
+    await db.insert(communityMemberships).values({
+      communityId: c.id,
+      userId: mod,
+      role: "moderator",
+    });
+    try {
+      // allowed: operational settings
+      const updated = await svc.update(c.slug, { description: "mod edit" } as never, mod);
+      expect(updated.description).toBe("mod edit");
+
+      // forbidden: identity (name) and visibility (type)
+      await expect(svc.update(c.slug, { name: "renamed" } as never, mod)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(svc.update(c.slug, { type: "private" } as never, mod)).rejects.toThrow(
+        ForbiddenException,
+      );
+    } finally {
+      await db.delete(communityModLogs).where(eq(communityModLogs.communityId, c.id));
+      await cleanupUser(mod);
     }
   });
 
