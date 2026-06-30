@@ -395,12 +395,41 @@ export const membershipResponseSchema = z.object({
 
 export class MembershipResponseDto extends createZodDto(membershipResponseSchema) {}
 
+/**
+ * 멤버 목록 아이템 (PB-COMM-MEMBER-API-001 / BBR-592).
+ * 공개 필드는 항상 존재하고, 운영 필드(ban/mute 등)는 모더레이터/관리자 뷰에서만 채워진다.
+ */
+export const memberListItemSchema = z.object({
+  // public
+  userId: z.string(),
+  role: z.enum(["member", "moderator", "admin", "owner"]),
+  tier: z.enum(["newcomer", "member", "contributor", "trusted", "leader"]),
+  flairText: z.string().nullable(),
+  flairColor: z.string().nullable(),
+  joinedAt: z.string().nullable(),
+  // operational (모더레이터/관리자 전용)
+  id: z.string().optional(),
+  communityId: z.string().optional(),
+  isBanned: z.boolean().optional(),
+  bannedAt: z.string().nullable().optional(),
+  bannedReason: z.string().nullable().optional(),
+  bannedBy: z.string().nullable().optional(),
+  banExpiresAt: z.string().nullable().optional(),
+  isMuted: z.boolean().optional(),
+  mutedUntil: z.string().nullable().optional(),
+  notificationsEnabled: z.boolean().optional(),
+  onboardingCompletedAt: z.string().nullable().optional(),
+  rulesAcceptedAt: z.string().nullable().optional(),
+});
+
 export const memberListResponseSchema = z.object({
-  items: z.array(membershipResponseSchema),
+  items: z.array(memberListItemSchema),
   total: z.number(),
   page: z.number(),
   limit: z.number(),
   hasMore: z.boolean(),
+  /** 요청자가 운영 권한자라 운영 필드가 채워졌는지 여부. */
+  operational: z.boolean(),
 });
 
 export class MemberListResponseDto extends createZodDto(memberListResponseSchema) {}
@@ -410,12 +439,14 @@ export class MemberListResponseDto extends createZodDto(memberListResponseSchema
 // ============================================================================
 
 export const moderatorResponseSchema = z.object({
-  id: z.string(),
-  communityId: z.string(),
+  // public
   userId: z.string(),
-  permissions: moderatorPermissionsSchema,
-  appointedBy: z.string(),
   appointedAt: z.string(),
+  // operational (모더레이터/관리자 전용)
+  id: z.string().optional(),
+  communityId: z.string().optional(),
+  permissions: moderatorPermissionsSchema.optional(),
+  appointedBy: z.string().optional(),
 });
 
 export class ModeratorResponseDto extends createZodDto(moderatorResponseSchema) {}

@@ -9,7 +9,7 @@
  */
 
 import { ForbiddenException } from "@nestjs/common";
-import { communities, communityMemberships } from "@repo/drizzle";
+import { communities, communityMemberships, communityModerators } from "@repo/drizzle";
 import { eq } from "drizzle-orm";
 import {
   cleanupUser,
@@ -124,5 +124,110 @@ describeIfDb("CommunityService", () => {
 
   it("findBySlug() returns null for unknown slug", async () => {
     await expect(svc.findBySlug("no-such-slug-xyz")).resolves.toBeNull();
+  });
+
+  // ── PB-COMM-MEMBER-API-001 / BBR-592 ──────────────────────────────────────
+
+  it("getMembers() public view hides banned members and operational fields", async () => {
+    const c = await makeCommunity();
+    const joiner = newUserId("comm-member");
+    const banned = newUserId("comm-banned");
+    await ensureUser(joiner);
+    await ensureUser(banned);
+    try {
+      await svc.join(c.slug, joiner);
+      await svc.join(c.slug, banned);
+      await getDrizzleDb()
+        .update(communityMemberships)
+        .set({ isBanned: true, bannedReason: "spam" })
+        .where(eq(communityMemberships.userId, banned));
+
+      const res = await svc.getMembers(c.slug, undefined, {});
+      expect(res.operational).toBe(false);
+      const userIds = res.items.map((i) => i.userId);
+      expect(userIds).toContain(joiner);
+      expect(userIds).not.toContain(banned); // banned excluded from public
+      // public items never carry operational fields
+      for (const item of res.items as unknown as Record<string, unknown>[]) {
+        expect(item).not.toHaveProperty("isBanned");
+        expect(item).not.toHaveProperty("bannedReason");
+      }
+    } finally {
+      await cleanupUser(joiner);
+      await cleanupUser(banned);
+    }
+  });
+
+  it("getMembers() operational view exposes ban fields and status=banned filter", async () => {
+    const c = await makeCommunity();
+    const banned = newUserId("comm-banned2");
+    await ensureUser(banned);
+    try {
+      await svc.join(c.slug, banned);
+      await getDrizzleDb()
+        .update(communityMemberships)
+        .set({ isBanned: true, bannedReason: "abuse" })
+        .where(eq(communityMemberships.userId, banned));
+
+      // owner (role=owner) is operational
+      const res = await svc.getMembers(c.slug, owner, { status: "banned" });
+      expect(res.operational).toBe(true);
+      const found = (res.items as unknown as Record<string, unknown>[]).find(
+        (i) => i.userId === banned,
+      );
+      expect(found).toBeDefined();
+      expect(found?.isBanned).toBe(true);
+      expect(found?.bannedReason).toBe("abuse");
+    } finally {
+      await cleanupUser(banned);
+    }
+  });
+
+  it("getMembers() role filter narrows to a single role", async () => {
+    const c = await makeCommunity();
+    const member = newUserId("comm-role");
+    await ensureUser(member);
+    try {
+      await svc.join(c.slug, member);
+      const owners = await svc.getMembers(c.slug, owner, { role: "owner" });
+      expect(owners.items.every((i) => i.role === "owner")).toBe(true);
+      expect(owners.items.map((i) => i.userId)).toContain(owner);
+      expect(owners.items.map((i) => i.userId)).not.toContain(member);
+    } finally {
+      await cleanupUser(member);
+    }
+  });
+
+  it("getModerators() separates public identity from operational permissions", async () => {
+    const c = await makeCommunity();
+    const mod = newUserId("comm-mod");
+    await ensureUser(mod);
+    try {
+      await svc.join(c.slug, mod);
+      await getDrizzleDb().insert(communityModerators).values({
+        communityId: c.id,
+        userId: mod,
+        appointedBy: owner,
+      });
+
+      const pub = await svc.getModerators(c.slug, undefined);
+      expect(pub.operational).toBe(false);
+      const pubItem = (pub.items as unknown as Record<string, unknown>[]).find(
+        (i) => i.userId === mod,
+      );
+      expect(pubItem).toBeDefined();
+      expect(pubItem).not.toHaveProperty("permissions");
+      expect(pubItem).not.toHaveProperty("appointedBy");
+
+      const ops = await svc.getModerators(c.slug, owner);
+      expect(ops.operational).toBe(true);
+      const opsItem = (ops.items as unknown as Record<string, unknown>[]).find(
+        (i) => i.userId === mod,
+      );
+      expect(opsItem).toHaveProperty("permissions");
+      expect(opsItem?.appointedBy).toBe(owner);
+    } finally {
+      await cleanupUser(mod);
+    }
   });
 });
