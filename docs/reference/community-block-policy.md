@@ -51,6 +51,21 @@ self-block 검사가 system-account 검사보다 우선한다.
 비로그인 요청에는 차단 집합이 없으므로 필터가 적용되지 않는다(차단은 로그인
 사용자의 개인 설정).
 
+## 노출 복구 정책 (BBR-616, AC#1)
+
+차단 해제(`DELETE /community/blocks/:blockedId` → `CommunityBlockService.unblock`)는
+`community_user_blocks` 행을 물리 삭제한다. 노출 제외의 단일 소스인
+`getBlockedUserIds()`는 **요청마다 라이브 테이블에서 재계산**되므로, 해제 직후의
+다음 읽기에서 해당 작성자가 차단 집합에서 빠지고 피드/상세/댓글 노출이 자동으로
+복구된다. 별도의 캐시 무효화나 재인덱싱이 필요 없으며, 노출 제외와 동일한 소스를
+공유하므로 차단/해제가 완전히 대칭이다.
+
+- 양방향(mutual mute) 의미상 한쪽이 해제하면 양쪽 모두에서 상대가 차단 집합을
+  떠난다.
+- 존재하지 않는 차단을 해제하면 `404 NotFound`(멱등 대신 명시적 부재 신호).
+- 차단 주체는 항상 `CurrentUser`에서 가져오므로 **타인의 차단 목록은 해제할 수
+  없다**(AC#2). 경로의 `:blockedId`는 해제 대상일 뿐 주체가 아니다.
+
 ## 알림 차단 정책
 
 알림 발송 게이트는 `CommunityBlockService.shouldNotify(recipientId, actorId)`:
@@ -65,4 +80,4 @@ self-block 검사가 system-account 검사보다 우선한다.
 
 - `service/block-policy.spec.ts` — 예외 정책 순수 단위 테스트(DB 불필요).
 - `service/community-block.service.spec.ts` — block/unblock/목록/`shouldNotify`
-  DB 통합 테스트(`describeIfDb`).
+  + 해제 후 노출 복구(BBR-616 AC#1) DB 통합 테스트(`describeIfDb`).
