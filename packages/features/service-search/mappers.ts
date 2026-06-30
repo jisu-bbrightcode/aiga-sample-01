@@ -70,6 +70,9 @@ export interface AdminSearchHit extends PublicSearchHit {
   weight: number;
   isPublished: boolean;
   sourceUpdatedAt: string | null;
+  /** Archive (soft-delete) state — FR-003 delete/archive (BBR-535). */
+  isDeleted: boolean;
+  deletedAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -83,7 +86,34 @@ export function toAdminSearchHit(row: ServiceSearchDocument): AdminSearchHit {
     weight: row.weight,
     isPublished: row.isPublished,
     sourceUpdatedAt: iso(row.sourceUpdatedAt),
+    isDeleted: row.isDeleted,
+    deletedAt: iso(row.deletedAt),
     createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+// ---- archive / restore result (FR-003 delete/archive / BBR-535) ------------
+
+/**
+ * The minimal post-archive/restore view returned by the DELETE and restore
+ * endpoints. It echoes the resource key plus the new archive state so the
+ * client can update its UI (and confirm 노출 차단 / 복구) without a re-fetch.
+ */
+export interface ArchiveResult {
+  entityType: ServiceSearchDocument["entityType"];
+  entityId: string;
+  isDeleted: boolean;
+  deletedAt: string | null;
+  updatedAt: string | null;
+}
+
+export function toArchiveResult(row: ServiceSearchDocument): ArchiveResult {
+  return {
+    entityType: row.entityType,
+    entityId: row.entityId,
+    isDeleted: row.isDeleted,
+    deletedAt: iso(row.deletedAt),
     updatedAt: iso(row.updatedAt),
   };
 }

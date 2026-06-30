@@ -9,7 +9,13 @@ import {
 import { and, desc, eq, gt, type SQL, sql } from "drizzle-orm";
 import type { AdminSearchQueryDto, SearchQueryDto } from "../dto";
 import { SEARCH_ENTITY_TYPES } from "../dto";
-import { type AdminSearchHit, type PublicSearchHit, toAdminSearchHit } from "../mappers";
+import {
+  type AdminSearchHit,
+  type ArchiveResult,
+  type PublicSearchHit,
+  toAdminSearchHit,
+  toArchiveResult,
+} from "../mappers";
 import { normalizeQuery, resolveSortMode, type SearchSortMode } from "../normalize";
 
 type SearchEntityType = ServiceSearchDocument["entityType"];
@@ -101,7 +107,11 @@ export class ServiceSearchService {
     query: AdminSearchQueryDto,
   ): Promise<{ items: AdminSearchHit[]; total: number; page: number; limit: number }> {
     const { page, limit } = query;
-    const where = this.buildWhere(query, { forcePublished: false, published: query.published });
+    const where = this.buildWhere(query, {
+      forcePublished: false,
+      published: query.published,
+      includeDeleted: query.includeDeleted,
+    });
     const orderBy = this.buildOrder(resolveSortMode(query.sort, Boolean(query.q)), query.q);
 
     const [rows, countRows] = await Promise.all([
@@ -139,13 +149,20 @@ export class ServiceSearchService {
   //   admin may inspect unpublished documents.
   // =========================================================================
 
-  /** Public detail: published-only, public columns. 404 if missing/unpublished. */
+  /** Public detail: published-only, non-archived, public columns. 404 if missing. */
   async getPublicDetail(entityType: string, entityId: string): Promise<PublicSearchHit> {
     const type = this.assertEntityType(entityType);
     const rows = await this.db
       .select(PUBLIC_COLUMNS)
       .from(doc)
-      .where(and(eq(doc.entityType, type), eq(doc.entityId, entityId), eq(doc.isPublished, true)))
+      .where(
+        and(
+          eq(doc.entityType, type),
+          eq(doc.entityId, entityId),
+          eq(doc.isPublished, true),
+          eq(doc.isDeleted, false),
+        ),
+      )
       .limit(1);
     const row = rows[0];
     if (!row) {
@@ -154,7 +171,11 @@ export class ServiceSearchService {
     return { ...row };
   }
 
-  /** Admin detail: full row incl. internals, published OR not. 404 if missing. */
+  /**
+   * Admin detail: full row incl. internals + archive state, published OR not,
+   * archived OR not. 404 if missing. An admin must be able to inspect an
+   * archived document (to confirm/restore it), so archived rows are returned.
+   */
   async getAdminDetail(entityType: string, entityId: string): Promise<AdminSearchHit> {
     const type = this.assertEntityType(entityType);
     const rows = await this.db
@@ -167,6 +188,93 @@ export class ServiceSearchService {
       throw new NotFoundException("검색 문서를 찾을 수 없습니다.");
     }
     return toAdminSearchHit(row);
+  }
+
+  // =========================================================================
+  // Archive / restore (FR-003 delete/archive — BBR-535)
+  //
+  // Soft-delete instead of a hard DELETE: the document row stays on disk, so a
+  // result can be 노출 차단(hidden) from public/app/admin search and later
+  // restored, and connected payment/history/audit data keyed off the source
+  // `entityId` is never touched. The flag is admin-owned and survives reindex
+  // (the reindex `set` block never writes is_deleted/deleted_at).
+  //
+  // Both operations are idempotent (REST DELETE semantics): archiving an
+  // already-archived document, or restoring a live one, succeeds and returns
+  // the current state. A missing document is 404.
+  // =========================================================================
+
+  /** Archive (soft-delete) a search document by its (entityType, entityId) key. */
+  async archiveDocument(
+    actorId: string,
+    entityType: string,
+    entityId: string,
+  ): Promise<ArchiveResult> {
+    const type = this.assertEntityType(entityType);
+    const existing = await this.findDocument(type, entityId);
+
+    // Idempotent: already archived → return current state without a re-write.
+    if (existing.isDeleted) {
+      return toArchiveResult(existing);
+    }
+
+    const [updated] = await this.db
+      .update(doc)
+      .set({ isDeleted: true, deletedAt: new Date() })
+      .where(and(eq(doc.entityType, type), eq(doc.entityId, entityId)))
+      .returning();
+    const row = updated ?? existing;
+
+    this.logger.log(
+      `[audit] search document archived id=${row.id} entityType=${type} ` +
+        `entityId=${entityId} actor=${actorId}`,
+    );
+    return toArchiveResult(row);
+  }
+
+  /** Restore a previously archived search document; idempotent for live rows. */
+  async restoreDocument(
+    actorId: string,
+    entityType: string,
+    entityId: string,
+  ): Promise<ArchiveResult> {
+    const type = this.assertEntityType(entityType);
+    const existing = await this.findDocument(type, entityId);
+
+    // Idempotent: not archived → already live, return current state.
+    if (!existing.isDeleted) {
+      return toArchiveResult(existing);
+    }
+
+    const [updated] = await this.db
+      .update(doc)
+      .set({ isDeleted: false, deletedAt: null })
+      .where(and(eq(doc.entityType, type), eq(doc.entityId, entityId)))
+      .returning();
+    const row = updated ?? existing;
+
+    this.logger.log(
+      `[audit] search document restored id=${row.id} entityType=${type} ` +
+        `entityId=${entityId} actor=${actorId}`,
+    );
+    return toArchiveResult(row);
+  }
+
+  /** Load a document by key regardless of publish/archive state, or 404. */
+  private async findDocument(
+    type: SearchEntityType,
+    entityId: string,
+  ): Promise<ServiceSearchDocument> {
+    const rows = await this.db
+      .select()
+      .from(doc)
+      .where(and(eq(doc.entityType, type), eq(doc.entityId, entityId)))
+      .limit(1);
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundException("검색 문서를 찾을 수 없습니다.");
+    }
+    return row;
   }
 
   /**
@@ -230,13 +338,19 @@ export class ServiceSearchService {
 
   private buildWhere(
     filters: SearchFilters,
-    scope: { forcePublished: boolean; published?: boolean },
+    scope: { forcePublished: boolean; published?: boolean; includeDeleted?: boolean },
   ): SQL | undefined {
     const conditions: (SQL | undefined)[] = [];
     if (scope.forcePublished) {
       conditions.push(eq(doc.isPublished, true));
     } else if (scope.published !== undefined) {
       conditions.push(eq(doc.isPublished, scope.published));
+    }
+    // Archived (soft-deleted) documents are excluded by default — 노출 차단 —
+    // on every public and admin read. Only an explicit admin includeDeleted
+    // (to audit/restore) widens the scope.
+    if (!scope.includeDeleted) {
+      conditions.push(eq(doc.isDeleted, false));
     }
     if (filters.type) conditions.push(eq(doc.entityType, filters.type));
     if (filters.regionId) conditions.push(eq(doc.regionId, filters.regionId));
