@@ -35,6 +35,17 @@ export const toggleReactionResponseSchema = z.object({
 export class ToggleReactionResponseDto extends createZodDto(toggleReactionResponseSchema) {}
 
 /**
+ * Wire shape for the idempotent remove (cancel) response.
+ * Carries fresh derived counts so the client can sync without a follow-up read.
+ */
+export const removeReactionResponseSchema = z.object({
+  removed: z.boolean(),
+  counts: reactionCountsSchema,
+});
+
+export class RemoveReactionResponseDto extends createZodDto(removeReactionResponseSchema) {}
+
+/**
  * Wire shape for getUserStatus / getUserStatusBatch entries.
  */
 export const userReactionStatusSchema = z.object({

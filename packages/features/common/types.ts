@@ -128,6 +128,11 @@ export interface ToggleReactionResult {
   type: ReactionType;
 }
 
+export interface RemoveReactionResult {
+  removed: boolean;
+  counts: ReactionCounts;
+}
+
 export interface NotificationListResponse {
   items: unknown[];
   total: number;
