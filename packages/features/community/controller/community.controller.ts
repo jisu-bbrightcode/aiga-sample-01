@@ -49,6 +49,7 @@ import type {
   RemoveVoteDto,
   ResolveReportDto,
   RespondModeratorInviteDto,
+  RestoreHiddenContentDto,
   TransferOwnershipDto,
   UpdateCommunityDto,
   UpdateModeratorPermissionsDto,
@@ -1001,6 +1002,56 @@ export class CommunityController {
   async unhideContent(@Body() dto: RemoveHiddenContentDto, @CurrentUser() user: User) {
     await this.hiddenContentService.unhideForUser(user.id, dto.targetType, dto.targetId);
     return { success: true };
+  }
+
+  @Delete("hidden-content/:id")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "콘텐츠 숨김 해제 (레코드 id)",
+    description:
+      "본인이 숨긴 게시글/댓글 숨김 레코드를 id 로 해제한다. 본인 소유 레코드만 " +
+      "해제할 수 있으며, 전역 숨김은 이 경로로 해제되지 않는다(AC#2).",
+  })
+  @ApiParam({ name: "id", format: "uuid", description: "숨김 레코드 ID" })
+  @ApiResponse({ status: 200, description: "숨김 해제 성공 — 노출 복구" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 404, description: "숨김 기록을 찾을 수 없음" })
+  async unhideContentById(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+  ) {
+    const restored = await this.hiddenContentService.unhideByIdForUser(user.id, id);
+    return { success: true, restored };
+  }
+
+  @Post("hidden-content/restore")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "전역 숨김 복구 (관리자/모더레이터)",
+    description:
+      "전역 숨김으로 비공개 처리된 게시글/댓글을 공개 상태로 복구한다. 커뮤니티 " +
+      "권한이 필요하며 일반 사용자 숨김 해제와 권한·저장소가 분리된다(AC#2).",
+  })
+  @ApiResponse({ status: 201, description: "전역 숨김 복구 성공" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "전역 숨김 복구 권한 없음" })
+  @ApiResponse({ status: 404, description: "대상 콘텐츠를 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "전역 숨김 상태가 아님" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["targetType", "targetId"],
+      properties: {
+        targetType: { type: "string", enum: ["post", "comment"], description: "복구 대상 유형" },
+        targetId: { type: "string", format: "uuid", description: "복구 대상 ID" },
+        reason: { type: "string", description: "복구 사유 (선택)" },
+      },
+    },
+  })
+  async restoreGlobalHide(@Body() dto: RestoreHiddenContentDto, @CurrentUser() user: User) {
+    return this.hiddenContentService.restoreGlobally(user.id, dto);
   }
 
   @Get("hidden-content")
