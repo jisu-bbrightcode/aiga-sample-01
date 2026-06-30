@@ -44,6 +44,8 @@ export interface CommentListOptions {
   cursor?: string;
   limit?: number;
   blockedUserIds?: string[];
+  /** 뷰어가 숨긴 댓글 id (사용자별 숨김 제외, BBR-617). */
+  hiddenCommentIds?: string[];
   /** 조회자 id. 키워드 숨김 댓글은 작성자 본인에게만 원문을 노출한다. */
   viewerId?: string;
 }
@@ -162,6 +164,12 @@ export class CommunityCommentService {
     // 차단된 유저의 댓글 제외
     if (options.blockedUserIds && options.blockedUserIds.length > 0) {
       visibilityConditions.push(notInArray(communityComments.authorId, options.blockedUserIds));
+    }
+
+    // 뷰어가 숨긴 댓글 제외 (사용자별 숨김, BBR-617). 노출 목록과 총 개수가
+    // 동일 조건을 공유하므로 "댓글 수"도 일관되게 줄어든다.
+    if (options.hiddenCommentIds && options.hiddenCommentIds.length > 0) {
+      visibilityConditions.push(notInArray(communityComments.id, options.hiddenCommentIds));
     }
 
     const pageConditions = [...visibilityConditions];
