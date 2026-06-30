@@ -1,3 +1,4 @@
+export * from "./community-reaction-response.dto";
 export * from "./community-response.dto";
 export * from "./create-comment.dto";
 export * from "./create-community.dto";

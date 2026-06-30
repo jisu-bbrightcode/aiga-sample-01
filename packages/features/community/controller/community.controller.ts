@@ -65,6 +65,8 @@ import {
   ModQueueResponseDto,
   PostResponseDto,
   PublicPostListResponseDto,
+  ReactionSummaryResponseDto,
+  ReactionTypesResponseDto,
   ReportResponseDto,
   RuleResponseDto,
   VoteResultResponseDto,
@@ -78,6 +80,7 @@ import {
   CommunityKarmaService,
   CommunityModerationService,
   CommunityPostService,
+  CommunityReactionService,
   CommunityService,
   CommunityVoteService,
 } from "../service";
@@ -106,6 +109,7 @@ export class CommunityController {
     private readonly moderationService: CommunityModerationService,
     private readonly feedService: CommunityFeedService,
     private readonly blockService: CommunityBlockService,
+    private readonly reactionService: CommunityReactionService,
   ) {}
 
   // ==========================================================================
@@ -184,6 +188,20 @@ export class CommunityController {
       return [];
     }
     return this.karmaService.getBatchKarma(parsedUserIds);
+  }
+
+  @Get("reactions/types")
+  @ApiOperation({
+    summary: "지원 리액션 타입 목록",
+    description: "게시글/댓글에 사용할 수 있는 reaction type 목록을 반환한다.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "지원 리액션 타입 목록 반환",
+    type: ReactionTypesResponseDto,
+  })
+  reactionTypes() {
+    return { types: this.reactionService.getSupportedTypes() };
   }
 
   @Get(":slug")
@@ -511,6 +529,34 @@ export class CommunityController {
       blockedUserIds,
       viewerId: user?.id,
     });
+  }
+
+  @Get("posts/:id/reactions")
+  @ApiOperation({
+    summary: "게시물 리액션 조회",
+    description:
+      "게시물의 리액션 count, 로그인 사용자의 내 리액션 상태, 지원 타입 목록을 반환한다. " +
+      "숨김/삭제/제거/미게시 게시물은 404 로 응답해 리액션 상태를 노출하지 않는다 (AC#2).",
+  })
+  @ApiParam({ name: "id", description: "게시물 ID" })
+  @ApiResponse({ status: 200, description: "리액션 요약 반환", type: ReactionSummaryResponseDto })
+  @ApiResponse({ status: 404, description: "게시물을 찾을 수 없거나 비공개 상태" })
+  async postReactions(@Param("id", ParseUUIDPipe) id: string, @OptionalUser() user?: User) {
+    return this.reactionService.getPostReactionSummary(id, user?.id);
+  }
+
+  @Get("comments/:id/reactions")
+  @ApiOperation({
+    summary: "댓글 리액션 조회",
+    description:
+      "댓글의 리액션 count, 로그인 사용자의 내 리액션 상태, 지원 타입 목록을 반환한다. " +
+      "숨김/삭제/제거 댓글 또는 비공개 게시물의 댓글은 404 로 응답한다 (AC#2).",
+  })
+  @ApiParam({ name: "id", description: "댓글 ID" })
+  @ApiResponse({ status: 200, description: "리액션 요약 반환", type: ReactionSummaryResponseDto })
+  @ApiResponse({ status: 404, description: "댓글을 찾을 수 없거나 비공개 상태" })
+  async commentReactions(@Param("id", ParseUUIDPipe) id: string, @OptionalUser() user?: User) {
+    return this.reactionService.getCommentReactionSummary(id, user?.id);
   }
 
   // ==========================================================================
