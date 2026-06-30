@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { createMockDb } from "../../__test-utils__/mock-db";
+import { SessionRevocationService } from "../../_common/service/session-revocation.service";
 import type { UserDirectoryRow } from "../mappers";
 import { UserDirectoryService } from "./user-directory.service";
 
@@ -50,7 +51,8 @@ describe("UserDirectoryService", () => {
   beforeEach(() => {
     db = createMockDb();
     audit = { log: jest.fn(), list: jest.fn() };
-    service = new UserDirectoryService(db as never, audit as never);
+    const sessionRevocation = new SessionRevocationService(db as never);
+    service = new UserDirectoryService(db as never, audit as never, sessionRevocation as never);
   });
 
   describe("listUsers (public)", () => {
@@ -194,8 +196,9 @@ describe("UserDirectoryService", () => {
   });
 
   describe("archiveUser (soft delete)", () => {
-    it("archives an active user and records an audit entry", async () => {
+    it("archives an active user, revokes its sessions, and records an audit entry", async () => {
       db._queueResolve("limit", [makeRow()]);
+      db._queueResolve("returning", [{ id: "sess-1" }, { id: "sess-2" }]); // revoked sessions
 
       const result = await service.archiveUser({
         id: "u1",
@@ -209,6 +212,8 @@ describe("UserDirectoryService", () => {
       expect(result.isActive).toBe(false);
       expect(result.deletedAt).not.toBeNull();
       expect(db.update).toHaveBeenCalledTimes(1);
+      // archiving signs the user out everywhere (AC: 세션·권한 일관 정리)
+      expect(db.delete).toHaveBeenCalledTimes(1);
       expect(audit.log).toHaveBeenCalledWith(
         expect.objectContaining({
           action: "user.archived",
@@ -216,6 +221,7 @@ describe("UserDirectoryService", () => {
           targetType: "user",
           targetId: "u1",
           reason: "스팸 계정",
+          payloadAfter: expect.objectContaining({ revokedSessions: 2 }),
         }),
       );
     });
@@ -252,6 +258,8 @@ describe("UserDirectoryService", () => {
       expect(result.isActive).toBe(true);
       expect(result.deletedAt).toBeNull();
       expect(db.update).toHaveBeenCalledTimes(1);
+      // restore does not recreate sessions — the user signs in again
+      expect(db.delete).not.toHaveBeenCalled();
       expect(audit.log).toHaveBeenCalledWith(
         expect.objectContaining({
           action: "user.restored",

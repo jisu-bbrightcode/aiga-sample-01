@@ -31,6 +31,12 @@ export interface AdminUserItem {
   lastActiveAt: string | null;
   emailVerified: boolean;
   isActive: boolean;
+  /**
+   * Soft-delete (archive) timestamp, or null when not archived. Lets the UI
+   * distinguish a 정지(deactivated) account from a 보관(archived) one — both
+   * reversible.
+   */
+  deletedAt: string | null;
 }
 
 export interface AdminUserListResponse {
@@ -99,6 +105,20 @@ export function maskEmail(email: string): string {
   return `${visible}${"*".repeat(Math.max(local.length - 1, 2))}@${domain}`;
 }
 
+/**
+ * Lifecycle status shown in the UI. 보관(archived) takes priority over the
+ * active/정지 flag because an archived account is always inactive but should
+ * read as "보관" rather than a plain "정지".
+ */
+export type UserLifecycleStatus = "archived" | "active" | "suspended";
+
+export function userLifecycleStatus(
+  user: Pick<AdminUserItem, "isActive" | "deletedAt">,
+): UserLifecycleStatus {
+  if (user.deletedAt) return "archived";
+  return user.isActive ? "active" : "suspended";
+}
+
 export function changeUserRole(
   userId: string,
   role: AssignableRole,
@@ -118,6 +138,25 @@ export function changeUserStatus(
   return send(`/api/admin/users/${encodeURIComponent(userId)}/status`, {
     method: "PATCH",
     body: JSON.stringify({ isActive, reason: reason?.trim() || undefined }),
+  });
+}
+
+/**
+ * Archive (soft-delete) a user. Reversible: the row and all linked data are
+ * preserved and can be restored. The server also revokes the user's sessions.
+ */
+export function archiveUser(userId: string, reason: string | undefined): Promise<unknown> {
+  return send(`/api/admin/users/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+    body: JSON.stringify({ reason: reason?.trim() || undefined }),
+  });
+}
+
+/** Restore a previously archived user (re-enables and un-hides the account). */
+export function restoreUser(userId: string, reason: string | undefined): Promise<unknown> {
+  return send(`/api/admin/users/${encodeURIComponent(userId)}/restore`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason?.trim() || undefined }),
   });
 }
 

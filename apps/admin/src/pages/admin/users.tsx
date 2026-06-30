@@ -37,7 +37,12 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
-import { type AdminUserItem, maskEmail, type UserSortField } from "../../features/users/api";
+import {
+  type AdminUserItem,
+  maskEmail,
+  type UserSortField,
+  userLifecycleStatus,
+} from "../../features/users/api";
 import {
   type AccessRoleFilterValue,
   ADMIN_USERS_PAGE_SIZE,
@@ -63,6 +68,12 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilterValue; label: string }[] = [
   { value: "active", label: "활성" },
   { value: "inactive", label: "정지" },
 ];
+
+const STATUS_BADGE: Record<string, { label: string; color: string }> = {
+  active: { label: "활성", color: "bg-green-100 text-green-700" },
+  suspended: { label: "정지", color: "bg-gray-100 text-gray-600" },
+  archived: { label: "보관", color: "bg-amber-100 text-amber-700" },
+};
 
 const ROLE_FILTER_OPTIONS: { value: AccessRoleFilterValue; label: string }[] = [
   { value: "all", label: "전체 역할" },
@@ -416,10 +427,10 @@ function UserRow({
         <span
           className={cn(
             "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-            user.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600",
+            STATUS_BADGE[userLifecycleStatus(user)]?.color,
           )}
         >
-          {user.isActive ? "활성" : "정지"}
+          {STATUS_BADGE[userLifecycleStatus(user)]?.label}
         </span>
       </td>
 

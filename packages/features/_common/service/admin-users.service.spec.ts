@@ -1,14 +1,17 @@
 import { makeMockDb } from "./__tests__/mock-db";
 import { AdminAuditService } from "./admin-audit.service";
 import { AdminUsersService } from "./admin-users.service";
+import { SessionRevocationService } from "./session-revocation.service";
 
 // biome-ignore lint/suspicious/noExplicitAny: test helper.
-function build(selectResults: any[][]) {
-  const db = makeMockDb(selectResults);
+function build(selectResults: any[][], deleteResults: any[][] = []) {
+  const db = makeMockDb(selectResults, deleteResults);
   // biome-ignore lint/suspicious/noExplicitAny: inject test double.
   const audit = new AdminAuditService(db as any);
   // biome-ignore lint/suspicious/noExplicitAny: inject test double.
-  const svc = new AdminUsersService(db as any, audit);
+  const sessionRevocation = new SessionRevocationService(db as any);
+  // biome-ignore lint/suspicious/noExplicitAny: inject test double.
+  const svc = new AdminUsersService(db as any, audit, sessionRevocation);
   return { db, svc };
 }
 
@@ -68,6 +71,8 @@ describe("AdminUsersService.list", () => {
       emailVerified: true,
     });
     expect(result.users[0]!.createdAt).toBe(CREATED.toISOString());
+    // not archived → deletedAt null (distinguishes 정지 from 보관)
+    expect(result.users[0]!.deletedAt).toBeNull();
     // falls back to user row + defaults when no profile/roles
     expect(result.users[1]).toMatchObject({
       id: "u2",
@@ -151,10 +156,13 @@ describe("AdminUsersService.list", () => {
 
 describe("AdminUsersService.setActive", () => {
   it("deactivates an account, persists the flag, and writes an audit row", async () => {
-    const { db, svc } = build([
-      [{ id: "t1", isActive: true }], // target profile
-      [], // owner-membership check (not an owner)
-    ]);
+    const { db, svc } = build(
+      [
+        [{ id: "t1", isActive: true }], // target profile
+        [], // owner-membership check (not an owner)
+      ],
+      [[{ id: "sess-1" }, { id: "sess-2" }]], // revoked sessions
+    );
 
     const result = await svc.setActive({
       actorUserId: "actor",
@@ -165,9 +173,16 @@ describe("AdminUsersService.setActive", () => {
       userAgent: "jest",
     });
 
-    expect(result).toEqual({ targetUserId: "t1", previousActive: true, isActive: false });
+    expect(result).toEqual({
+      targetUserId: "t1",
+      previousActive: true,
+      isActive: false,
+      revokedSessions: 2,
+    });
     expect(db.updates).toHaveLength(1);
     expect(db.updates[0]!.set).toEqual({ isActive: false });
+    // deactivation revokes the account's live sessions (AC: 세션·권한 일관 정리)
+    expect(db.deletes).toHaveLength(1);
     expect(db.inserts).toHaveLength(1);
     expect(db.inserts[0]!.values).toMatchObject({
       actorUserId: "actor",
@@ -175,9 +190,20 @@ describe("AdminUsersService.setActive", () => {
       targetType: "user",
       targetId: "t1",
       payloadBefore: { isActive: true },
-      payloadAfter: { isActive: false },
+      payloadAfter: { isActive: false, revokedSessions: 2 },
       reason: "abuse",
     });
+  });
+
+  it("does not revoke sessions when reactivating (sessions stay cleared)", async () => {
+    const { db, svc } = build([
+      [{ id: "t1", isActive: false }], // currently inactive
+    ]);
+    const result = await svc.setActive({ actorUserId: "a", targetUserId: "t1", isActive: true });
+    expect(result.isActive).toBe(true);
+    expect(result.revokedSessions).toBe(0);
+    expect(db.deletes).toHaveLength(0);
+    expect(db.updates).toHaveLength(1);
   });
 
   it("audits a no-op reactivation without a DB update", async () => {

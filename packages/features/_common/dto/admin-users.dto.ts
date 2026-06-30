@@ -34,6 +34,12 @@ export class AdminUserListItemDto {
 
   @ApiProperty()
   isActive!: boolean;
+
+  @ApiProperty({
+    nullable: true,
+    description: "보관(soft-delete) 시각. null = 보관되지 않음. 정지(isActive=false)와 구분",
+  })
+  deletedAt!: string | null;
 }
 
 export class AdminUserListResponseDto {
@@ -61,4 +67,7 @@ export class ChangeUserStatusResponseDto {
 
   @ApiProperty()
   isActive!: boolean;
+
+  @ApiProperty({ description: "이 변경으로 해제된 로그인 세션 수 (활성화 시 0)" })
+  revokedSessions!: number;
 }

@@ -12,6 +12,7 @@ import type { DrizzleDB, Profile } from "@repo/drizzle";
 import { InjectDrizzle, profiles, userGradeDefinitions, userGrades } from "@repo/drizzle";
 import { and, asc, desc, eq, ilike, isNotNull, isNull, or, type SQL, sql } from "drizzle-orm";
 import { AdminAuditService } from "../../_common/service/admin-audit.service";
+import { SessionRevocationService } from "../../_common/service/session-revocation.service";
 import type { ListAdminUsersQueryDto, ListUsersQueryDto } from "../dto";
 import {
   type AdminUser,
@@ -105,6 +106,7 @@ export class UserDirectoryService {
   constructor(
     @InjectDrizzle() private readonly db: DrizzleDB,
     private readonly audit: AdminAuditService,
+    private readonly sessionRevocation: SessionRevocationService,
   ) {}
 
   private baseQuery() {
@@ -313,6 +315,11 @@ export class UserDirectoryService {
       .set({ deletedAt: archivedAt, isActive: false, updatedAt: archivedAt })
       .where(eq(profiles.id, input.id));
 
+    // Soft-deleting an account revokes its live sessions so the archived user
+    // is signed out everywhere; restore does not recreate them (AC: 세션·권한
+    // 상태 일관 정리). Data itself is preserved — only sessions are removed.
+    const revokedSessions = await this.sessionRevocation.revokeAllForUser(input.id);
+
     const afterRow: UserDirectoryRow = {
       ...directoryRow,
       profile: { ...before, deletedAt: archivedAt, isActive: false, updatedAt: archivedAt },
@@ -324,7 +331,7 @@ export class UserDirectoryService {
       targetType: "user",
       targetId: input.id,
       payloadBefore: { isActive: before.isActive, deletedAt: before.deletedAt },
-      payloadAfter: { isActive: false, deletedAt: archivedAt },
+      payloadAfter: { isActive: false, deletedAt: archivedAt, revokedSessions },
       reason: input.reason,
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
