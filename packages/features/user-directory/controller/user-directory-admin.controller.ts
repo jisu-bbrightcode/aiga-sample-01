@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -18,7 +19,15 @@ import {
   CurrentUser,
   type User,
 } from "@repo/core/nestjs/auth";
-import { AdminUserDto, AdminUserListDto, ArchiveUserBodyDto, ListAdminUsersQueryDto } from "../dto";
+import { AdminAuditListResponseDto } from "../../_common/dto/admin-audit.dto";
+import {
+  AdminUserDto,
+  AdminUserListDto,
+  ArchiveUserBodyDto,
+  ListAdminUsersQueryDto,
+  UpdateAdminUserDto,
+  UserHistoryQueryDto,
+} from "../dto";
 import { UserDirectoryService } from "../service";
 
 /** Minimal request shape for capturing audit metadata (ip / user-agent). */
@@ -65,6 +74,47 @@ export class UserDirectoryAdminController {
   @ApiResponse({ status: 404, description: "사용자를 찾을 수 없음" })
   getUser(@Param("id") id: string) {
     return this.service.getAdminUser(id);
+  }
+
+  @Get(":id/history")
+  @ApiOperation({
+    summary: "사용자 변경 이력 (감사 로그). 수정/상태변경/보관/복구가 최신순으로 기록됩니다.",
+  })
+  @ApiResponse({ status: 200, type: AdminAuditListResponseDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
+  getUserHistory(@Param("id") id: string, @Query() query: UserHistoryQueryDto) {
+    return this.service.getUserHistory(id, query);
+  }
+
+  @Patch(":id")
+  @ApiOperation({
+    summary:
+      "사용자 부분 수정 (허용 필드: 이름/핸들/소개/아바타). 변경 내역은 감사 로그에 기록됩니다.",
+  })
+  @ApiResponse({ status: 200, type: AdminUserDto, description: "수정된 사용자(관리자 뷰)" })
+  @ApiResponse({ status: 400, description: "변경할 내용이 없음 / 잘못된 값" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
+  @ApiResponse({ status: 404, description: "사용자를 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "이미 사용 중인 핸들" })
+  updateUser(
+    @Param("id") id: string,
+    @Body() body: UpdateAdminUserDto,
+    @CurrentUser() actor: User,
+    @Req() req: RequestLike,
+  ) {
+    return this.service.updateAdminUser({
+      id,
+      actorUserId: actor.id,
+      name: body.name,
+      handle: body.handle,
+      bio: body.bio,
+      avatar: body.avatar,
+      reason: body.reason,
+      ipAddress: req.ip,
+      userAgent: headerValue(req, "user-agent"),
+    });
   }
 
   @Delete(":id")

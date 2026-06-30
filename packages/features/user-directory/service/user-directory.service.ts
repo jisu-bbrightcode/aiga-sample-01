@@ -1,5 +1,11 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import type { DrizzleDB } from "@repo/drizzle";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import type { DrizzleDB, Profile } from "@repo/drizzle";
 // Import tables from the top-level barrel (NOT `@repo/drizzle/schema`): jest
 // maps only `^@repo/drizzle$` to the workspace source, so the subpath would
 // resolve to a stale checkout in an isolated worktree.
@@ -44,6 +50,17 @@ const userSelection = {
 const ARCHIVE_AUDIT_ACTION = "user.archived";
 const RESTORE_AUDIT_ACTION = "user.restored";
 
+/**
+ * Admin audit action for the in-place edit path (BBR-529). 필드 수정은
+ * archive/restore 와 동일하게 `admin_audit_log` 에 한 행씩 남겨 "변경 이력" 으로
+ * 조회할 수 있게 한다. (활성/비활성 상태 변경은 `_common` AdminUsersService 의
+ * `PATCH /admin/users/:id/status` 가 담당 — BBR-684 — 하므로 중복 구현하지 않는다.)
+ */
+const UPDATE_AUDIT_ACTION = "user.updated";
+
+/** Postgres unique-violation SQLSTATE — handle 충돌을 친화적인 409 로 매핑. */
+const PG_UNIQUE_VIOLATION = "23505";
+
 /** Operator context for an archive/restore mutation. */
 export interface ArchiveUserInput {
   /** profiles.id of the target user. */
@@ -53,6 +70,34 @@ export interface ArchiveUserInput {
   reason?: string;
   ipAddress?: string;
   userAgent?: string;
+}
+
+/**
+ * 관리자 부분 수정 입력 (BBR-529). 허용 필드(name/handle/bio/avatar)만 받는다.
+ * `undefined` 인 필드는 변경하지 않으며(부분 업데이트), nullable 필드는 `null` 로
+ * 비울 수 있다. email/인증수단/등급/활성여부/삭제부기는 이 경로로 수정할 수 없다.
+ */
+export interface UpdateAdminUserInput {
+  id: string;
+  actorUserId: string;
+  name?: string;
+  handle?: string | null;
+  bio?: string | null;
+  avatar?: string | null;
+  reason?: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+/** 변경 이력 조회 옵션 (admin_audit_log cursor 페이지네이션). */
+export interface UserHistoryQuery {
+  cursor?: string;
+  limit?: number;
+}
+
+/** 감사 payload 에 담을 수정 가능 필드 스냅샷(diff 가능하도록 동일 키 집합). */
+function editableSnapshot(p: Profile): Pick<Profile, "name" | "handle" | "bio" | "avatar"> {
+  return { name: p.name, handle: p.handle, bio: p.bio, avatar: p.avatar };
 }
 
 @Injectable()
@@ -329,5 +374,94 @@ export class UserDirectoryService {
     });
 
     return toAdminUser(afterRow);
+  }
+
+  // =========================================================================
+  // Admin — 부분 수정 (field update) / 활성 상태 변경 / 변경 이력
+  // =========================================================================
+
+  /**
+   * 관리자 부분 수정(PATCH). 허용 필드(name/handle/bio/avatar)만 교체하고,
+   * 변경된 값은 `admin_audit_log` 에 before/after 스냅샷으로 남긴다.
+   *
+   * - 빈 패치(수정할 필드 없음) → 400.
+   * - 없는 사용자 → 404.
+   * - handle 유니크 충돌 → 409 (다른 사용자가 이미 사용 중).
+   *
+   * 활성여부/삭제(보관)·등급·이메일·인증수단은 이 경로로 바꿀 수 없다(허용 필드 외).
+   * 활성/비활성 상태 변경은 `_common` 의 `PATCH /admin/users/:id/status`(BBR-684),
+   * 삭제/복구는 archive/restore 가 담당한다.
+   */
+  async updateAdminUser(input: UpdateAdminUserInput): Promise<AdminUser> {
+    const patch: Partial<Pick<Profile, "name" | "handle" | "bio" | "avatar">> = {};
+    if (input.name !== undefined) patch.name = input.name;
+    if (input.handle !== undefined) patch.handle = input.handle;
+    if (input.bio !== undefined) patch.bio = input.bio;
+    if (input.avatar !== undefined) patch.avatar = input.avatar;
+
+    if (Object.keys(patch).length === 0) {
+      throw new BadRequestException("변경할 내용이 없습니다.");
+    }
+
+    const [row] = await this.baseQuery().where(eq(profiles.id, input.id)).limit(1);
+    if (!row) {
+      throw new NotFoundException("사용자를 찾을 수 없습니다.");
+    }
+    const directoryRow = row as UserDirectoryRow;
+    const before = directoryRow.profile;
+
+    const updatedAt = new Date();
+    try {
+      await this.db
+        .update(profiles)
+        .set({ ...patch, updatedAt })
+        .where(eq(profiles.id, input.id));
+    } catch (error) {
+      throw this.mapHandleConflict(error);
+    }
+
+    const afterProfile: Profile = { ...before, ...patch, updatedAt };
+    const afterRow: UserDirectoryRow = { ...directoryRow, profile: afterProfile };
+
+    await this.audit.log({
+      actorUserId: input.actorUserId,
+      action: UPDATE_AUDIT_ACTION,
+      targetType: "user",
+      targetId: input.id,
+      payloadBefore: editableSnapshot(before),
+      payloadAfter: editableSnapshot(afterProfile),
+      reason: input.reason,
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+    });
+
+    return toAdminUser(afterRow);
+  }
+
+  /**
+   * 사용자 변경 이력 조회. 공용 `admin_audit_log` 에서 이 사용자를 대상으로 한
+   * 모든 운영 변경(수정/상태변경/보관/복구)을 최신순으로 돌려준다. 별도 이력
+   * 테이블 없이 감사 로그를 단일 출처로 재사용한다.
+   */
+  getUserHistory(id: string, query: UserHistoryQuery = {}) {
+    return this.audit.list({
+      targetType: "user",
+      targetId: id,
+      cursor: query.cursor,
+      limit: query.limit,
+    });
+  }
+
+  /** handle 유니크 위반(23505)을 사용자 친화 409 로 매핑. 그 외는 원본 오류 전파. */
+  private mapHandleConflict(error: unknown): Error {
+    if (
+      error != null &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: string }).code === PG_UNIQUE_VIOLATION
+    ) {
+      return new ConflictException("이미 사용 중인 핸들입니다.");
+    }
+    return error instanceof Error ? error : new Error(String(error));
   }
 }
