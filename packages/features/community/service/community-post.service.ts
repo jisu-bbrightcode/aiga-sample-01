@@ -1,3 +1,5 @@
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { type RateLimitConfig, RateLimitService } from "@repo/core/rate-limit";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
 import {
@@ -6,7 +8,6 @@ import {
   communityPosts,
   user as userTable,
 } from "@repo/drizzle/schema";
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { and, desc, eq, inArray, notInArray, type SQL, sql } from "drizzle-orm";
 import type { CreatePostDto, UpdatePostDto } from "../dto";
 import { decodeCursor } from "../helpers/pagination";
@@ -39,6 +40,17 @@ export interface PostListOptions {
   blockedUserIds?: string[];
 }
 
+/**
+ * 게시글 작성 anti-spam 레이트 리밋.
+ * 인증된 작성자(userId) 기준으로 윈도우당 작성 횟수를 제한한다.
+ * `RATE_LIMIT_ENABLED=false`면 RateLimitService가 우회한다(개발/테스트).
+ */
+export const POST_CREATE_RATE_LIMIT: RateLimitConfig = {
+  action: "community:post:create",
+  maxRequests: 5,
+  windowSeconds: 300,
+};
+
 @Injectable()
 export class CommunityPostService {
   constructor(
@@ -47,6 +59,7 @@ export class CommunityPostService {
     private readonly keywordFilterService: CommunityKeywordFilterService,
     private readonly tierService: CommunityTierService,
     private readonly contentModerationService: CommunityContentModerationService,
+    private readonly rateLimitService: RateLimitService,
   ) {}
 
   async create(dto: CreatePostDto, userId: string): Promise<CommunityPost> {
@@ -59,6 +72,10 @@ export class CommunityPostService {
     if (!isMember) {
       throw new ForbiddenException("커뮤니티에 가입해야 게시글을 작성할 수 있습니다.");
     }
+
+    // anti-spam: 작성자(userId) 단위 레이트 리밋. 초과 시 HTTP 429.
+    // 정책 필터/Moderation API 호출 전에 검사해 남용을 조기 차단한다.
+    await this.rateLimitService.assertRateLimit(userId, POST_CREATE_RATE_LIMIT);
 
     // 등급 기반 키워드 필터 우회 확인
     const tierInfo = await this.tierService.getTierInfo(dto.communityId, userId);

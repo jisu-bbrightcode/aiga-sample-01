@@ -6,15 +6,16 @@
  * moderation skipped via missing OPENAI_API_KEY.
  */
 
-import { communityMemberships, communityPosts } from "@repo/drizzle";
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, HttpException, NotFoundException } from "@nestjs/common";
+import { RateLimitService } from "@repo/core/rate-limit";
+import { communityMemberships, communityPosts, rateLimits } from "@repo/drizzle";
 import { eq, inArray } from "drizzle-orm";
 import { endTestDb, getDrizzleDb, hasDb } from "../../payment/__tests__/test-db";
 import { addExtraMember, cleanupExtraMember, setupCommunityCtx } from "./__tests__/test-helpers";
 import { CommunityService } from "./community.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
-import { CommunityPostService } from "./community-post.service";
+import { CommunityPostService, POST_CREATE_RATE_LIMIT } from "./community-post.service";
 import { CommunityTierService } from "./community-tier.service";
 
 const describeIfDb = hasDb ? describe : describe.skip;
@@ -29,6 +30,7 @@ describeIfDb("CommunityPostService", () => {
 
   beforeAll(() => {
     delete process.env.OPENAI_API_KEY;
+    delete process.env.RATE_LIMIT_ENABLED;
     const db = getDrizzleDb();
     svc = new CommunityPostService(
       db,
@@ -36,6 +38,7 @@ describeIfDb("CommunityPostService", () => {
       new CommunityKeywordFilterService(db),
       new CommunityTierService(db),
       new CommunityContentModerationService(),
+      new RateLimitService(db),
     );
   });
 
@@ -55,6 +58,9 @@ describeIfDb("CommunityPostService", () => {
       await db.delete(communityPosts).where(inArray(communityPosts.id, createdPostIds));
     }
     await db.delete(communityPosts).where(eq(communityPosts.communityId, ctx.communityId));
+    await db
+      .delete(rateLimits)
+      .where(eq(rateLimits.key, `${POST_CREATE_RATE_LIMIT.action}:${author}`));
     await db.delete(communityMemberships).where(eq(communityMemberships.userId, author));
     await cleanupExtraMember(author);
     await teardown();
@@ -72,6 +78,53 @@ describeIfDb("CommunityPostService", () => {
     createdPostIds.push(p.id);
     expect(p.authorId).toBe(author);
     expect(p.title).toBe("Hello");
+  });
+
+  it("create() rejects with HTTP 429 once the per-user rate limit is exceeded", async () => {
+    for (let i = 0; i < POST_CREATE_RATE_LIMIT.maxRequests; i++) {
+      const p = await svc.create(
+        { communityId: ctx.communityId, title: `RL ${i}`, type: "text" } as never,
+        author,
+      );
+      createdPostIds.push(p.id);
+    }
+
+    await expect(
+      svc.create(
+        { communityId: ctx.communityId, title: "RL over limit", type: "text" } as never,
+        author,
+      ),
+    ).rejects.toMatchObject({ status: 429 });
+
+    // 다른 작성자는 동일 윈도우에서도 영향을 받지 않는다(키가 userId별 분리).
+    const other = await addExtraMember("post-rl", ctx.communityId);
+    try {
+      const p = await svc.create(
+        { communityId: ctx.communityId, title: "Other author", type: "text" } as never,
+        other,
+      );
+      createdPostIds.push(p.id);
+      expect(p.authorId).toBe(other);
+    } finally {
+      const db = getDrizzleDb();
+      await db
+        .delete(rateLimits)
+        .where(eq(rateLimits.key, `${POST_CREATE_RATE_LIMIT.action}:${other}`));
+      await cleanupExtraMember(other);
+    }
+  });
+
+  it("create() surfaces the 429 as an HttpException instance", async () => {
+    for (let i = 0; i < POST_CREATE_RATE_LIMIT.maxRequests; i++) {
+      const p = await svc.create(
+        { communityId: ctx.communityId, title: `H ${i}`, type: "text" } as never,
+        author,
+      );
+      createdPostIds.push(p.id);
+    }
+    await expect(
+      svc.create({ communityId: ctx.communityId, title: "over", type: "text" } as never, author),
+    ).rejects.toBeInstanceOf(HttpException);
   });
 
   it("findById() returns null for an unknown id", async () => {

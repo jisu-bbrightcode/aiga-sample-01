@@ -4,8 +4,6 @@
  * 커뮤니티, 게시글, 댓글, 투표, 피드, 모더레이션 공개/인증 엔드포인트
  */
 
-import type { User } from "@repo/core/nestjs/auth";
-import { BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import {
   BadRequestException,
   Body,
@@ -33,6 +31,8 @@ import {
   ApiTags,
   getSchemaPath,
 } from "@nestjs/swagger";
+import type { User } from "@repo/core/nestjs/auth";
+import { BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import type {
   BanUserDto,
   CreateCommentDto,
@@ -448,6 +448,9 @@ export class CommunityController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "게시물 생성" })
   @ApiResponse({ status: 201, description: "게시물 생성 성공", type: PostResponseDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "커뮤니티 미가입 또는 금지어 차단" })
+  @ApiResponse({ status: 429, description: "작성 레이트 리밋 초과" })
   @ApiBody({
     schema: {
       type: "object",
