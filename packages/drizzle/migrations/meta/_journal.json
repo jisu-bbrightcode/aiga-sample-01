@@ -421,6 +421,13 @@
       "when": 1781404400000,
       "tag": "0059_community_report_dedup",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1781404900000,
+      "tag": "0060_community_comment_last_edited_by",
+      "breakpoints": true
     }
   ]
 }

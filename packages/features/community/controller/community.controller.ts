@@ -24,6 +24,7 @@ import {
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiExcludeEndpoint,
   ApiExtraModels,
   ApiOperation,
   ApiParam,
@@ -48,6 +49,7 @@ import type {
   ResolveReportDto,
   RespondModeratorInviteDto,
   TransferOwnershipDto,
+  UpdateCommentDto,
   UpdateCommunityDto,
   UpdateModeratorPermissionsDto,
   UpdatePostDto,
@@ -791,10 +793,10 @@ export class CommunityController {
     return this.commentService.create({ ...dto, postId }, user.id);
   }
 
-  @Put("comments/:id")
+  @Patch("comments/:id")
   @UseGuards(BetterAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "댓글 수정" })
+  @ApiOperation({ summary: "댓글 수정 (작성자 또는 모더레이터)" })
   @ApiParam({ name: "id", description: "댓글 ID" })
   @ApiResponse({ status: 200, description: "댓글 수정 성공", type: CommunityCommentResponseDto })
   @ApiBody({
@@ -804,9 +806,21 @@ export class CommunityController {
       properties: { content: { type: "string", description: "댓글 내용" } },
     },
   })
+  async patchComment(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCommentDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.commentService.update(id, dto.content, user.id);
+  }
+
+  // 레거시 호환: 기존 PUT 클라이언트를 위한 alias. 동작은 PATCH와 동일하다.
+  @Put("comments/:id")
+  @UseGuards(BetterAuthGuard)
+  @ApiExcludeEndpoint()
   async updateComment(
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: { content: string },
+    @Body() dto: UpdateCommentDto,
     @CurrentUser() user: User,
   ) {
     return this.commentService.update(id, dto.content, user.id);
