@@ -205,4 +205,89 @@ describeIfDb("CommunityPostService", () => {
     const list = await svc.findAll({ communityId: ctx.communityId });
     expect(list.items.find((x) => x.id === p.id)).toBeUndefined();
   });
+
+  // -- BBR-594: search + block/hide reflection + admin field separation -------
+
+  it("findAll() filters by a case-insensitive search on the title", async () => {
+    const a = await svc.create(
+      { communityId: ctx.communityId, title: "Apple pie recipe" } as never,
+      author,
+    );
+    const b = await svc.create(
+      { communityId: ctx.communityId, title: "Banana bread" } as never,
+      author,
+    );
+    createdPostIds.push(a.id, b.id);
+
+    const list = await svc.findAll({ communityId: ctx.communityId, search: "apple" });
+    const ids = list.items.map((x) => x.id);
+    expect(ids).toContain(a.id);
+    expect(ids).not.toContain(b.id);
+  });
+
+  it("findAll() search also matches the post content", async () => {
+    const a = await svc.create(
+      {
+        communityId: ctx.communityId,
+        title: "Untitled",
+        content: "uniquetokenxyz inside",
+      } as never,
+      author,
+    );
+    createdPostIds.push(a.id);
+
+    const list = await svc.findAll({ communityId: ctx.communityId, search: "uniquetokenxyz" });
+    expect(list.items.map((x) => x.id)).toContain(a.id);
+  });
+
+  it("findAll() excludes posts authored by blocked users", async () => {
+    const p = await svc.create(
+      { communityId: ctx.communityId, title: "from a blocked author" } as never,
+      author,
+    );
+    createdPostIds.push(p.id);
+
+    const visible = await svc.findAll({ communityId: ctx.communityId });
+    expect(visible.items.map((x) => x.id)).toContain(p.id);
+
+    const filtered = await svc.findAll({
+      communityId: ctx.communityId,
+      blockedUserIds: [author],
+    });
+    expect(filtered.items.map((x) => x.id)).not.toContain(p.id);
+  });
+
+  it("adminFindAll() surfaces non-published posts that the public findAll hides", async () => {
+    const p = await svc.create(
+      { communityId: ctx.communityId, title: "hidden one" } as never,
+      author,
+    );
+    createdPostIds.push(p.id);
+
+    const db = getDrizzleDb();
+    await db.update(communityPosts).set({ status: "hidden" }).where(eq(communityPosts.id, p.id));
+
+    const publicList = await svc.findAll({ communityId: ctx.communityId });
+    expect(publicList.items.map((x) => x.id)).not.toContain(p.id);
+
+    const adminList = await svc.adminFindAll({ communityId: ctx.communityId });
+    expect(adminList.items.map((x) => x.id)).toContain(p.id);
+    expect(adminList.total).toBeGreaterThanOrEqual(1);
+    expect(adminList.page).toBe(1);
+  });
+
+  it("adminFindAll() can filter by status and search together", async () => {
+    const p = await svc.create(
+      { communityId: ctx.communityId, title: "ZZsearchable admin post" } as never,
+      author,
+    );
+    createdPostIds.push(p.id);
+
+    const list = await svc.adminFindAll({
+      communityId: ctx.communityId,
+      status: "published",
+      search: "ZZsearchable",
+    });
+    expect(list.items.map((x) => x.id)).toContain(p.id);
+  });
 });

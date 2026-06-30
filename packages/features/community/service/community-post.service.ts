@@ -8,7 +8,7 @@ import {
   communityPosts,
   user as userTable,
 } from "@repo/drizzle/schema";
-import { and, desc, eq, inArray, notInArray, type SQL, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, notInArray, or, type SQL, sql } from "drizzle-orm";
 import type { CreatePostDto, UpdatePostDto } from "../dto";
 import { decodeCursor } from "../helpers/pagination";
 import { assertCommunityPermission } from "../helpers/permission";
@@ -17,6 +17,13 @@ import { CommunityContentModerationService } from "./community-content-moderatio
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
 import { CommunityTierService, TIER_PRIVILEGES } from "./community-tier.service";
 import { DEFAULT_POST_SORT, normalizePostListLimit, type PostSort } from "./post-list-options";
+import { normalizePostSearchTerm } from "./post-search";
+
+type PostStatus = CommunityPost["status"];
+
+const DEFAULT_ADMIN_POST_LIST_PAGE = 1;
+const DEFAULT_ADMIN_POST_LIST_LIMIT = 20;
+const MAX_ADMIN_POST_LIST_LIMIT = 100;
 
 type PostCursorPayload =
   | { sort: "new"; createdAt: string; id: string }
@@ -38,6 +45,18 @@ export interface PostListOptions {
   cursor?: string;
   limit?: number;
   blockedUserIds?: string[];
+  /** title/content 부분일치 검색어 (정규화 후 ILIKE). */
+  search?: string;
+}
+
+export interface AdminPostListOptions {
+  communityId?: string;
+  communitySlug?: string;
+  /** 지정 시 해당 상태만, 생략 시 모든 상태(미게시/숨김/삭제 포함)를 반환. */
+  status?: PostStatus;
+  search?: string;
+  page?: number;
+  limit?: number;
 }
 
 /**
@@ -140,6 +159,17 @@ export class CommunityPostService {
       conditions.push(notInArray(communityPosts.authorId, options.blockedUserIds));
     }
 
+    // title/content 부분일치 검색
+    const searchPattern = normalizePostSearchTerm(options.search);
+    if (searchPattern) {
+      conditions.push(
+        or(
+          ilike(communityPosts.title, searchPattern),
+          ilike(communityPosts.content, searchPattern),
+        ) as SQL,
+      );
+    }
+
     if (options.communityId) {
       conditions.push(eq(communityPosts.communityId, options.communityId));
     } else if (options.communitySlug) {
@@ -162,7 +192,72 @@ export class CommunityPostService {
 
     const items = (await query.limit(limit + 1)) as CommunityPost[];
 
-    // Enrich with author data
+    const enrichedItems = await this.enrichAuthors(items);
+
+    return this.buildSortedCursorResult(enrichedItems, limit, sort);
+  }
+
+  /**
+   * 관리자 게시글 목록 (PB-COMM-POST-API-LIST-001 / BBR-594).
+   *
+   * 공개 findAll 과 달리 status='published' 로 제한하지 않으므로 미게시/숨김/제거/
+   * 삭제 게시글까지 모두 조회된다. 차단 필터를 적용하지 않고 offset 페이지네이션과
+   * 총건수(total)를 반환한다. 응답 필드 분리는 controller 의 admin mapper 가 담당한다.
+   */
+  async adminFindAll(options: AdminPostListOptions = {}) {
+    const page = Math.max(options.page ?? DEFAULT_ADMIN_POST_LIST_PAGE, 1);
+    const rawLimit = options.limit ?? DEFAULT_ADMIN_POST_LIST_LIMIT;
+    const limit = Math.min(Math.max(rawLimit, 1), MAX_ADMIN_POST_LIST_LIMIT);
+    const offset = (page - 1) * limit;
+
+    const conditions: SQL[] = [];
+
+    if (options.status) {
+      conditions.push(eq(communityPosts.status, options.status));
+    }
+
+    if (options.communityId) {
+      conditions.push(eq(communityPosts.communityId, options.communityId));
+    } else if (options.communitySlug) {
+      const community = await this.communityService.findBySlug(options.communitySlug);
+      if (!community) {
+        return { items: [], total: 0, page, limit };
+      }
+      conditions.push(eq(communityPosts.communityId, community.id));
+    }
+
+    const searchPattern = normalizePostSearchTerm(options.search);
+    if (searchPattern) {
+      conditions.push(
+        or(
+          ilike(communityPosts.title, searchPattern),
+          ilike(communityPosts.content, searchPattern),
+        ) as SQL,
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [totalRow] = await this.db
+      .select({ value: count() })
+      .from(communityPosts)
+      .where(whereClause);
+
+    const rows = (await this.db
+      .select()
+      .from(communityPosts)
+      .where(whereClause)
+      .orderBy(desc(communityPosts.createdAt), desc(communityPosts.id))
+      .limit(limit)
+      .offset(offset)) as CommunityPost[];
+
+    const items = await this.enrichAuthors(rows);
+
+    return { items, total: Number(totalRow?.value ?? 0), page, limit };
+  }
+
+  /** author id 들을 name/avatar 로 한 번에 enrich 한다. */
+  private async enrichAuthors<T extends CommunityPost>(items: T[]) {
     const authorIds = [...new Set(items.map((item) => item.authorId))];
     const authors =
       authorIds.length > 0
@@ -172,13 +267,11 @@ export class CommunityPostService {
             .where(inArray(userTable.id, authorIds))
         : [];
     const authorMap = new Map(authors.map((a) => [a.id, a]));
-    const enrichedItems = items.map((item) => ({
+    return items.map((item) => ({
       ...item,
       authorName: authorMap.get(item.authorId)?.name ?? null,
       authorAvatar: authorMap.get(item.authorId)?.avatar ?? null,
     }));
-
-    return this.buildSortedCursorResult(enrichedItems, limit, sort);
   }
 
   private buildCursorCondition(cursor: string | undefined, sort: PostSort) {
