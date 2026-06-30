@@ -108,6 +108,21 @@ export interface IEmailService {
 
 export type ReactionType = "like" | "love" | "haha" | "wow" | "sad" | "angry";
 
+/**
+ * Canonical ordered list of supported reaction types.
+ * `satisfies` ties every entry to {@link ReactionType} so the array and the
+ * union cannot drift apart. Used by reaction read surfaces that expose the
+ * "supported reaction type" list (PB-COMM-REACTION-API-LIST-001).
+ */
+export const REACTION_TYPES = [
+  "like",
+  "love",
+  "haha",
+  "wow",
+  "sad",
+  "angry",
+] as const satisfies readonly ReactionType[];
+
 export interface ReactionTypeCount {
   type: ReactionType;
   count: number;
