@@ -42,6 +42,19 @@ export type IdentityVerificationMode = z.infer<typeof identityVerificationModeSc
 export type IdentityVerificationStatus = z.infer<typeof identityVerificationStatusSchema>;
 export type KcbBlockerCode = z.infer<typeof kcbBlockerCodeSchema>;
 
+// Coarse, user-facing verification status (PB-IDV-KCB-API-STATUS-001). Distinct from the
+// internal request lifecycle (identityVerificationStatusSchema, 7 states) and from admin
+// codes: the end user sees exactly one of five states + a friendly message, never raw
+// provider/failure codes. `canceled` and `failed` both fold into `failed` for the user.
+export const kcbUserVerificationStatusSchema = z.enum([
+  "required", // 필요 — no verification on record
+  "in_progress", // 진행중 — created/redirected/pending within the session window
+  "verified", // 완료
+  "failed", // 실패 — provider rejection or user cancellation
+  "expired", // 만료 — session window elapsed
+]);
+export type KcbUserVerificationStatus = z.infer<typeof kcbUserVerificationStatusSchema>;
+
 export const kcbTargetActionSchema = z.object({
   action: z.string().min(1).max(120),
   resourceType: z.string().max(120).optional(),
@@ -75,6 +88,17 @@ export const linkKcbVerificationInputSchema = z.object({
   state: z.string().min(16),
 });
 export type LinkKcbVerificationInput = z.infer<typeof linkKcbVerificationInputSchema>;
+
+// Retry a failed/canceled/expired verification (PB-IDV-KCB-API-STATUS-001). Both fields
+// are optional: with no `sessionId` the user's most recent request is retried; `target`
+// lets the client refine the protected-action resume context (otherwise the source
+// request's stored targetAction is reused). The retry is user-scoped (BetterAuthGuard) —
+// ownership is enforced in the service, so a sessionId never leaks another user's request.
+export const retryKcbVerificationInputSchema = z.object({
+  sessionId: z.string().uuid().optional(),
+  target: kcbTargetActionSchema.optional(),
+});
+export type RetryKcbVerificationInput = z.infer<typeof retryKcbVerificationInputSchema>;
 
 export const kcbCallbackInputSchema = z.object({
   sessionId: z.string().uuid(),
