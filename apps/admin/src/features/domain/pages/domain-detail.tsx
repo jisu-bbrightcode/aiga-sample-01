@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { ShieldAlert, Star } from "lucide-react";
 import type { ReactNode } from "react";
+import { DomainLifecycleActions } from "../components/domain-lifecycle-actions";
 import { DomainStatusBadge } from "../components/domain-status-badge";
 import { DomainTypeBadge } from "../components/domain-type-badge";
 import type {
@@ -367,6 +368,9 @@ export function DomainDetail({ detail }: { detail: DomainResourceDetail }) {
         <DomainTypeBadge type={detail.type} />
         <DomainStatusBadge status={detail.status} />
         <span className="text-sm text-muted-foreground">{detail.slug}</span>
+        <div className="ml-auto">
+          <DomainLifecycleActions detail={detail} />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

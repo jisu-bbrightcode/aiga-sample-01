@@ -76,7 +76,7 @@ describe("listDoctors — 검색·필터·정렬 contract (FR-004 QA / BBR-493)"
 
   beforeEach(() => {
     db = createMockDb();
-    service = new ServiceDomainService(db as never);
+    service = new ServiceDomainService(db as never, { log: jest.fn() } as never);
     db._queueResolve("offset", [makeRow()]); // items query terminal
     db._queueResolve("where", [{ count: 1 }]); // count query terminal
   });
@@ -130,12 +130,14 @@ describe("listDoctors — 검색·필터·정렬 contract (FR-004 QA / BBR-493)"
   });
 
   it("the count query reuses the same WHERE as the items query (consistent total)", async () => {
-    await service.listDoctors({ page: 2, limit: 5, regionId: "33333333-3333-3333-3333-333333333333" } as never);
+    await service.listDoctors({
+      page: 2,
+      limit: 5,
+      regionId: "33333333-3333-3333-3333-333333333333",
+    } as never);
 
     // both items + count chains call .where() with the identical fragment
     expect(db.where.mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(columnsOf(db.where.mock.calls[0]?.[0])).toEqual(
-      columnsOf(db.where.mock.calls[1]?.[0]),
-    );
+    expect(columnsOf(db.where.mock.calls[0]?.[0])).toEqual(columnsOf(db.where.mock.calls[1]?.[0]));
   });
 });

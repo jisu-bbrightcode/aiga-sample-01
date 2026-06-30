@@ -1,4 +1,5 @@
 import { Module, type OnModuleInit } from "@nestjs/common";
+import { AdminAuditService } from "@repo/features/_common";
 import {
   ServiceDomainAdminController,
   ServiceDomainAdminResourcesController,
@@ -13,6 +14,11 @@ import { setServiceDomainService } from "./service-registry";
  * Capability: `domain.service-api` — the core CRUD / browse / status-change
  * API for the 의사·병원 큐레이션 catalog defined by PB-DATA-001. Public read
  * controller + admin-gated mutation controller share one service.
+ *
+ * `AdminAuditService` is provided locally (it only depends on Drizzle) so the
+ * admin archive/restore lifecycle (PB-ADMIN-DOMAIN-DELETE-001 / BBR-682) can
+ * append to the shared `admin_audit_log` — REUSED from the admin shell
+ * (PB-ADMIN-001), so no new migration is required.
  */
 @Module({
   controllers: [
@@ -20,7 +26,7 @@ import { setServiceDomainService } from "./service-registry";
     ServiceDomainAdminController,
     ServiceDomainAdminResourcesController,
   ],
-  providers: [ServiceDomainService],
+  providers: [ServiceDomainService, AdminAuditService],
   exports: [ServiceDomainService],
 })
 export class ServiceDomainModule implements OnModuleInit {

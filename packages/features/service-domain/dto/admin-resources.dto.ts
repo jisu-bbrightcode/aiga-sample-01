@@ -49,3 +49,22 @@ export const adminDomainResourceListSchema = z.object({
   totalPages: z.number(),
 });
 export class AdminDomainResourceListDto extends createZodDto(adminDomainResourceListSchema) {}
+
+// ---- lifecycle (archive / restore) — PB-ADMIN-DOMAIN-DELETE-001 / BBR-682 ----
+
+/**
+ * Compact result of an archive/restore transition. The console only needs the
+ * new lifecycle state to update its row + invalidate the detail query; the full
+ * record is re-fetched via the detail endpoint when needed.
+ */
+export const adminDomainResourceLifecycleSchema = z.object({
+  type: z.enum(ADMIN_DOMAIN_RESOURCE_TYPES),
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  status: z.enum(SERVICE_PUBLISH_STATUSES),
+  isDeleted: z.boolean(),
+});
+export class AdminDomainResourceLifecycleDto extends createZodDto(
+  adminDomainResourceLifecycleSchema,
+) {}

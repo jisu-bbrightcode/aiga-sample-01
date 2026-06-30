@@ -203,6 +203,58 @@ export async function fetchDomainResourceDetail(
   return domainResourceDetailSchema.parse(await response.json());
 }
 
+// ---------------------------------------------------------------------------
+// Archive / restore lifecycle — PB-ADMIN-DOMAIN-DELETE-001 / BBR-682
+//
+// 비활성/archive 는 실제 삭제가 아니라 게시 상태만 내려 공개/앱 노출을 차단하고
+// (연결 데이터는 보존), restore 는 비공개 draft 로 되살린다. 모든 전이는 서버에서
+// `admin_audit_log` 에 감사 기록된다.
+// ---------------------------------------------------------------------------
+
+const domainResourceLifecycleSchema = z.object({
+  type: domainResourceTypeSchema,
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  status: domainResourceStatusSchema,
+  isDeleted: z.boolean(),
+});
+
+export type DomainResourceLifecycleResult = z.infer<typeof domainResourceLifecycleSchema>;
+
+/** archive | restore — the lifecycle transitions the console can trigger. */
+export type DomainLifecycleAction = "archive" | "restore";
+
+const LIFECYCLE_ERROR_MESSAGE: Record<DomainLifecycleAction, string> = {
+  archive: "리소스를 보관하지 못했습니다",
+  restore: "리소스를 복구하지 못했습니다",
+};
+
+/**
+ * Trigger an archive/restore transition for one domain resource.
+ *
+ * @throws Error with a Korean operator-facing message on non-2xx responses.
+ */
+export async function mutateDomainResourceLifecycle(
+  action: DomainLifecycleAction,
+  type: DomainResourceType,
+  id: string,
+): Promise<DomainResourceLifecycleResult> {
+  const url = `${API_URL}${DOMAIN_ADMIN_RESOURCES_ENDPOINT}/${type}/${id}/${action}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { Accept: "application/json", ...getAuthHeaders() },
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error(`${LIFECYCLE_ERROR_MESSAGE[action]} (HTTP ${response.status})`);
+  }
+
+  return domainResourceLifecycleSchema.parse(await response.json());
+}
+
 export const adminDomainQueryKeys = {
   resourcesPrefix: () => ["admin", "domain", "resources"] as const,
   resources: (filters: DomainResourceFilters) =>

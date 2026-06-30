@@ -12,6 +12,7 @@ import {
   serviceRegions,
   serviceSpecialties,
 } from "@repo/drizzle/schema";
+import { AdminAuditService } from "@repo/features/_common";
 import { and, asc, desc, eq, ilike, or, type SQL, sql } from "drizzle-orm";
 import {
   type AdminDomainResourceDetail,
@@ -60,6 +61,34 @@ import { resolveStatusChange, type ServicePublishStatus } from "../status";
 const PG_UNIQUE_VIOLATION = "23505";
 
 const PUBLISHED: ServicePublishStatus = "published";
+const DRAFT: ServicePublishStatus = "draft";
+const ARCHIVED: ServicePublishStatus = "archived";
+
+/**
+ * Audit descriptors written to the shared `admin_audit_log` (append-only).
+ * The archive/restore lifecycle is the one admin mutation in this domain that
+ * leaves a durable change trail (PB-ADMIN-DOMAIN-DELETE-001 / BBR-682).
+ */
+const ServiceDomainAuditAction = {
+  archived: "service_domain.archived",
+  restored: "service_domain.restored",
+} as const;
+
+/** Free-form `admin_audit_log.targetType` per resource kind. */
+const RESOURCE_TARGET_TYPE: Record<AdminDomainResourceType, string> = {
+  doctor: "service_doctor",
+  hospital: "service_hospital",
+};
+
+/** Compact lifecycle result returned by archive/restore. */
+export interface DomainResourceLifecycleResult {
+  type: AdminDomainResourceType;
+  id: string;
+  name: string;
+  slug: string;
+  status: ServicePublishStatus;
+  isDeleted: boolean;
+}
 
 /** The transaction handle drizzle hands to a `db.transaction(...)` callback. */
 type ServiceDbTx = Parameters<Parameters<DrizzleDB["transaction"]>[0]>[0];
@@ -78,7 +107,10 @@ interface ResourceQueryOpts {
 export class ServiceDomainService {
   private readonly logger = new Logger(ServiceDomainService.name);
 
-  constructor(@InjectDrizzle() private readonly db: DrizzleDB) {}
+  constructor(
+    @InjectDrizzle() private readonly db: DrizzleDB,
+    private readonly audit: AdminAuditService,
+  ) {}
 
   // =========================================================================
   // Taxonomy (public read-only reference data)
@@ -519,6 +551,124 @@ export class ServiceDomainService {
     id: string,
   ): Promise<AdminDomainResourceDetail> {
     return type === "doctor" ? this.getAdminDoctorDetail(id) : this.getAdminHospitalDetail(id);
+  }
+
+  // =========================================================================
+  // Admin — archive / restore lifecycle (PB-ADMIN-DOMAIN-DELETE-001 / BBR-682)
+  //
+  // 도메인 리소스(의사·병원)를 실제 삭제하지 않고 비활성/archive 한다. 게시 상태만
+  // 내려 공개/앱 노출을 차단하고, 연결 데이터(진료과·소속·이력·운영시간 등)와
+  // 하위 이력/감사 참조는 행을 그대로 두어 보존한다. 물리 DELETE 는 발생하지 않는다.
+  //
+  //   archive  → status='archived', publishedAt=null : 공개/앱 노출 차단, 관리자엔 유지
+  //   restore  → status='draft',    publishedAt=null : 안전한 비공개 draft 로 복구(자동 재게시 X)
+  //
+  // 노출 정책 (acceptance criteria #1): 공개 browse/detail 은 status='published'
+  // AND isDeleted=false 만 노출하므로 archive 즉시 공개/앱에서 사라진다.
+  // 모든 전이는 `admin_audit_log` 에 append-only 로 기록된다 (acceptance #2).
+  // =========================================================================
+
+  /** 노출 차단(archive): 게시를 내려 공개/앱 노출만 막고 관리 대상으로 유지한다. */
+  async archiveDomainResource(
+    actorId: string,
+    type: AdminDomainResourceType,
+    id: string,
+  ): Promise<DomainResourceLifecycleResult> {
+    const current = await this.requireResource(type, id);
+    if (current.status === ARCHIVED) {
+      // 멱등: 이미 archived 면 추가 write·감사 없이 현재 상태를 반환한다.
+      return this.toLifecycleResult(type, current);
+    }
+    return this.transitionResourceStatus({ actorId, type, id, current, next: ARCHIVED });
+  }
+
+  /** 복구(restore): archive 된 리소스를 안전한 비공개 draft 로 되살린다. */
+  async restoreDomainResource(
+    actorId: string,
+    type: AdminDomainResourceType,
+    id: string,
+  ): Promise<DomainResourceLifecycleResult> {
+    const current = await this.requireResource(type, id);
+    if (current.status !== ARCHIVED) {
+      // 멱등: archive 상태가 아니면 게시 상태를 함부로 내리지 않고 그대로 반환한다.
+      return this.toLifecycleResult(type, current);
+    }
+    return this.transitionResourceStatus({ actorId, type, id, current, next: DRAFT });
+  }
+
+  /**
+   * Apply a status transition + write the audit trail. Shared by archive/restore.
+   * `publishedAt` is recomputed via {@link resolveStatusChange} (both archived and
+   * draft drop the publish stamp), so the record is no longer publicly visible.
+   */
+  private async transitionResourceStatus(opts: {
+    actorId: string;
+    type: AdminDomainResourceType;
+    id: string;
+    current: { status: ServicePublishStatus; publishedAt: Date | null };
+    next: ServicePublishStatus;
+  }): Promise<DomainResourceLifecycleResult> {
+    const { actorId, type, id, current, next } = opts;
+    const patch = resolveStatusChange(next, new Date(), current.publishedAt);
+    const updated = await this.writeResourceStatus(type, id, { ...patch, updatedBy: actorId });
+    await this.audit.log({
+      actorUserId: actorId,
+      action:
+        next === ARCHIVED ? ServiceDomainAuditAction.archived : ServiceDomainAuditAction.restored,
+      targetType: RESOURCE_TARGET_TYPE[type],
+      targetId: id,
+      payloadBefore: { status: current.status, publishedAt: current.publishedAt },
+      payloadAfter: { status: updated.status, publishedAt: updated.publishedAt },
+    });
+    this.logger.log(`도메인 리소스 ${next} type=${type} id=${id} actor=${actorId}`);
+    return this.toLifecycleResult(type, updated);
+  }
+
+  /** Load an active (non-deleted) catalog row in any lifecycle state, or 404. */
+  private requireResource(type: AdminDomainResourceType, id: string) {
+    return type === "doctor" ? this.requireDoctor(id) : this.requireHospital(id);
+  }
+
+  /** Write a status patch to the correct table and return the updated row. */
+  private async writeResourceStatus(
+    type: AdminDomainResourceType,
+    id: string,
+    patch: { status: ServicePublishStatus; publishedAt: Date | null; updatedBy: string },
+  ) {
+    if (type === "doctor") {
+      const rows = await this.db
+        .update(serviceDoctors)
+        .set(patch)
+        .where(eq(serviceDoctors.id, id))
+        .returning();
+      return this.firstOrThrow(rows);
+    }
+    const rows = await this.db
+      .update(serviceHospitals)
+      .set(patch)
+      .where(eq(serviceHospitals.id, id))
+      .returning();
+    return this.firstOrThrow(rows);
+  }
+
+  private toLifecycleResult(
+    type: AdminDomainResourceType,
+    row: {
+      id: string;
+      name: string;
+      slug: string;
+      status: ServicePublishStatus;
+      isDeleted: boolean;
+    },
+  ): DomainResourceLifecycleResult {
+    return {
+      type,
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      status: row.status,
+      isDeleted: row.isDeleted,
+    };
   }
 
   private async getAdminDoctorDetail(id: string): Promise<AdminDomainResourceDetail> {
