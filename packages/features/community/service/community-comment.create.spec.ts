@@ -58,6 +58,9 @@ function buildService(post: PostRow | null = PUBLISHED_POST) {
     })),
   };
   const rateLimitService = { assertRateLimit: jest.fn().mockResolvedValue(undefined) };
+  const filterService = {
+    recordFilterDecision: jest.fn().mockResolvedValue(null),
+  };
 
   const svc = new CommunityCommentService(
     db as never,
@@ -66,6 +69,7 @@ function buildService(post: PostRow | null = PUBLISHED_POST) {
     tierService as unknown as CommunityTierService,
     contentModerationService as unknown as CommunityContentModerationService,
     rateLimitService as never,
+    filterService as never,
   );
 
   return {

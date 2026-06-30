@@ -21,8 +21,10 @@ import { assertCommunityPermission } from "../helpers/permission";
 import { assertCommentablePost } from "./comment-creation-policy";
 import { CommunityService } from "./community.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
+import { CommunityFilterService } from "./community-filter.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
 import { CommunityTierService, TIER_PRIVILEGES } from "./community-tier.service";
+import { combineDecision, type FilterViolation } from "./content-filter-policy";
 
 /** 댓글 본문 최대 길이(create-comment.dto.ts의 zod 스키마와 일치). */
 const COMMENT_CONTENT_MAX_LENGTH = 10000;
@@ -59,6 +61,7 @@ export class CommunityCommentService {
     private readonly tierService: CommunityTierService,
     private readonly contentModerationService: CommunityContentModerationService,
     private readonly rateLimitService: RateLimitService,
+    private readonly filterService: CommunityFilterService,
   ) {}
 
   async create(dto: CreateCommentDto, userId: string): Promise<CommunityComment> {
@@ -110,15 +113,30 @@ export class CommunityCommentService {
       { bypassFilter: commentBypass },
     );
 
-    let isHidden = false;
+    // 금칙어 위반을 필터 결정으로 변환 (URL/첨부는 게시글 전용 정책 표면).
+    const violations: FilterViolation[] = [];
     if (!filterResult.passed) {
-      if (filterResult.action === "block") {
-        throw new ForbiddenException(
-          `금지어가 포함되어 있습니다: ${filterResult.matchedWords.join(", ")}`,
-        );
-      }
-      isHidden = true;
+      violations.push({
+        ruleType: "keyword",
+        action: filterResult.action === "block" ? "block" : "review",
+        matchedTerms: filterResult.matchedWords,
+        reason: `금지어: ${filterResult.matchedWords.join(", ")}`,
+      });
     }
+    const decision = combineDecision(violations);
+
+    if (decision.action === "block") {
+      await this.filterService.recordFilterDecision({
+        communityId: post.communityId,
+        authorId: userId,
+        target: null,
+        decision,
+      });
+      throw new ForbiddenException(
+        `금지어가 포함되어 있습니다: ${filterResult.matchedWords.join(", ")}`,
+      );
+    }
+    const isHidden = decision.action === "review";
 
     // Layer 2: OpenAI Moderation API
     await this.contentModerationService.assertContentAllowed([content]);
@@ -133,6 +151,16 @@ export class CommunityCommentService {
         ...(isHidden && { isHidden: true }),
       })
       .returning();
+
+    // 자동 숨김된 댓글을 감사 로그 + 검토 큐에 기록 (AC#1/AC#2).
+    if (isHidden && comment) {
+      await this.filterService.recordFilterDecision({
+        communityId: post.communityId,
+        authorId: userId,
+        target: { type: "comment", id: comment.id },
+        decision,
+      });
+    }
 
     await this.db
       .update(communityPosts)

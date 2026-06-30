@@ -5,6 +5,7 @@ export * from "./create-community.dto";
 export * from "./create-hidden-content.dto";
 export * from "./create-post.dto";
 export * from "./create-report.dto";
+export * from "./filter.dto";
 export * from "./mod-action.dto";
 export * from "./update-community.dto";
 export * from "./update-post.dto";
