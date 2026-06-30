@@ -1,5 +1,6 @@
 import { Module, type OnModuleInit } from "@nestjs/common";
 import { RateLimitService } from "@repo/core/rate-limit";
+import { ReactionModule } from "@repo/features/reaction";
 import { CommunityAdminController, CommunityController } from "./controller";
 import {
   CommunityBlockService,
@@ -11,6 +12,7 @@ import {
   CommunityKeywordFilterService,
   CommunityModerationService,
   CommunityPostService,
+  CommunityReactionService,
   CommunitySanctionService,
   CommunityService,
   CommunityTierService,
@@ -25,12 +27,14 @@ import { injectCommunityServices } from "./service-registry";
  * voting, moderation, and feed algorithms.
  */
 @Module({
+  imports: [ReactionModule],
   controllers: [CommunityController, CommunityAdminController],
   providers: [
     CommunityService,
     CommunityPostService,
     CommunityCommentService,
     CommunityVoteService,
+    CommunityReactionService,
     CommunityKarmaService,
     CommunityModerationService,
     CommunityFeedService,

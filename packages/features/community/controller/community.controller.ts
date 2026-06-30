@@ -34,6 +34,7 @@ import {
 } from "@nestjs/swagger";
 import type { User } from "@repo/core/nestjs/auth";
 import { BetterAuthGuard, CurrentUser, SuspendedUserGuard } from "@repo/core/nestjs/auth";
+import { SetReactionResponseDto } from "@repo/features/reaction";
 import type {
   BanUserDto,
   CreateBlockDto,
@@ -50,6 +51,7 @@ import type {
   ResolveReportDto,
   RespondModeratorInviteDto,
   RestoreHiddenContentDto,
+  SetReactionDto,
   TransferOwnershipDto,
   UpdateCommunityDto,
   UpdateModeratorPermissionsDto,
@@ -91,6 +93,7 @@ import {
   CommunityKarmaService,
   CommunityModerationService,
   CommunityPostService,
+  CommunityReactionService,
   CommunityService,
   CommunityVoteService,
 } from "../service";
@@ -120,6 +123,7 @@ export class CommunityController {
     private readonly feedService: CommunityFeedService,
     private readonly blockService: CommunityBlockService,
     private readonly hiddenContentService: CommunityHiddenContentService,
+    private readonly reactionService: CommunityReactionService,
   ) {}
 
   // ==========================================================================
@@ -934,6 +938,44 @@ export class CommunityController {
   })
   async removeVote(@Body() dto: RemoveVoteDto, @CurrentUser() user: User) {
     return this.voteService.removeVote(dto, user.id);
+  }
+
+  // ==========================================================================
+  // 리액션 — Auth (PB-COMM-REACTION-API-SET-001 / BBR-612)
+  // ==========================================================================
+
+  @Put("reactions")
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "리액션 생성/변경 (set)",
+    description:
+      "게시글/댓글에 대한 현재 사용자의 단일 리액션을 생성하거나 변경한다. " +
+      "동일 (사용자, 대상)에는 중복 리액션이 생성되지 않으며(AC#1), 같은 타입을 다시 " +
+      "보내면 멱등 no-op(changed=false)이다. 차단/숨김/삭제 대상에는 반응할 수 없다(AC#2).",
+  })
+  @ApiResponse({ status: 200, description: "리액션 set 완료", type: SetReactionResponseDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "차단/숨김 대상에는 반응할 수 없음" })
+  @ApiResponse({ status: 404, description: "삭제되었거나 존재하지 않는 대상" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["targetType", "targetId"],
+      properties: {
+        targetType: { type: "string", enum: ["post", "comment"], description: "리액션 대상 유형" },
+        targetId: { type: "string", format: "uuid", description: "리액션 대상 ID" },
+        type: {
+          type: "string",
+          enum: ["like", "love", "haha", "wow", "sad", "angry"],
+          description: "리액션 유형 (기본 like)",
+        },
+      },
+    },
+  })
+  async setReaction(@Body() dto: SetReactionDto, @CurrentUser() user: User) {
+    // zod 런타임 파이프 미연결 환경을 고려해 type 기본값을 컨트롤러에서 보정한다.
+    return this.reactionService.set(user.id, { ...dto, type: dto.type ?? "like" });
   }
 
   // ==========================================================================

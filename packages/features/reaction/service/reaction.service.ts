@@ -7,6 +7,7 @@ import type {
   ReactionCounts,
   ReactionType,
   RemoveReactionResult,
+  SetReactionResult,
   ToggleReactionResult,
   UserReactionStatus,
 } from "../../common/types";
@@ -50,6 +51,68 @@ export class ReactionService {
     });
 
     return { added: true, type };
+  }
+
+  /**
+   * Set (create or change) the current user's reaction on a target — a single
+   * authoritative reaction per (user, target).
+   *
+   * This is the "set" semantics that backs PUT-style endpoints, distinct from
+   * `toggle` (which lets a user hold multiple reaction types at once):
+   *
+   * - 중복 방지: at most one row per (targetType, targetId, userId). A second
+   *   call never creates a duplicate — an existing reaction is changed in place.
+   * - 타입 변경: switching type updates the existing row rather than inserting.
+   * - idempotency: setting the same type the user already has is a no-op that
+   *   returns `changed: false` with unchanged, freshly-derived counts.
+   *
+   * Visibility/permission gating (blocked/hidden/deleted targets) is the
+   * caller's responsibility — this method only owns the storage invariant.
+   */
+  async set(
+    targetType: string,
+    targetId: string,
+    userId: string,
+    type: ReactionType = "like",
+  ): Promise<SetReactionResult> {
+    const [existing] = await this.db
+      .select()
+      .from(reactions)
+      .where(
+        and(
+          eq(reactions.targetType, targetType),
+          eq(reactions.targetId, targetId),
+          eq(reactions.userId, userId),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      if (existing.type === type) {
+        const counts = await this.getReactionCounts(targetType, targetId);
+        return { type, changed: false, counts };
+      }
+
+      // Update the existing row in place so the (user, target) pair can never
+      // hold two reactions — duplicate prevention by construction.
+      await this.db
+        .update(reactions)
+        .set({ type, updatedAt: new Date() })
+        .where(eq(reactions.id, existing.id));
+
+      const counts = await this.getReactionCounts(targetType, targetId);
+      return { type, changed: true, counts };
+    }
+
+    await this.db.insert(reactions).values({
+      targetType,
+      targetId,
+      userId,
+      type,
+    });
+
+    const counts = await this.getReactionCounts(targetType, targetId);
+    return { type, changed: true, counts };
   }
 
   /**

@@ -8,6 +8,7 @@ export * from "./community-karma.service";
 export * from "./community-keyword-filter.service";
 export * from "./community-moderation.service";
 export * from "./community-post.service";
+export * from "./community-reaction.service";
 export * from "./community-sanction.service";
 export * from "./community-tier.service";
 export * from "./community-vote.service";

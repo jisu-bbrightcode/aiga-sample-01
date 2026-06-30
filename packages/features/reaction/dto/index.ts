@@ -3,6 +3,8 @@ export {
   RemoveReactionResponseDto,
   reactionCountsSchema,
   removeReactionResponseSchema,
+  SetReactionResponseDto,
+  setReactionResponseSchema,
   ToggleReactionResponseDto,
   toggleReactionResponseSchema,
   UserReactionStatusDto,
