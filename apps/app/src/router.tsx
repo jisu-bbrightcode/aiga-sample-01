@@ -15,6 +15,7 @@ import { createIdentityVerificationRoutes } from "@/features/identity-verificati
 import { createNotificationRoutes } from "@/features/notification";
 import { createOnboardingRoutes } from "@/features/onboarding";
 import { createPaymentAuthRoutes, createPaymentPublicRoutes } from "@/features/payment";
+import { createServiceFlowRoutes } from "@/features/service-flow";
 import { createStoryRoutes } from "@/features/story/routes/index";
 // [/ATLAS:IMPORTS]
 import { AppLayout } from "./layouts";
@@ -286,6 +287,8 @@ const routeTree = rootRoute.addChildren([
   ...createIdentityVerificationRoutes(rootRoute),
   ...createOnboardingRoutes(rootRoute),
   ...createPaymentPublicRoutes(rootRoute),
+  // Service flow (PB-WEB-002): public /explore + private /me (own auth guard, no workspace).
+  ...createServiceFlowRoutes(rootRoute),
 ]);
 
 // ============================================================================
