@@ -16,6 +16,13 @@ export class AdminUserListItemDto {
   @ApiProperty({ type: [String] })
   roles!: string[];
 
+  @ApiProperty({
+    enum: ["owner", "admin", "member"],
+    nullable: true,
+    description: "관리자 접근 역할 (조직 멤버십). 멤버가 아니면 null",
+  })
+  accessRole!: "owner" | "admin" | "member" | null;
+
   @ApiProperty()
   createdAt!: string;
 
@@ -32,4 +39,23 @@ export class AdminUserListResponseDto {
 
   @ApiProperty()
   total!: number;
+}
+
+export class ChangeUserStatusBodyDto {
+  @ApiProperty({ description: "활성 여부 (false = 계정 정지)" })
+  isActive!: boolean;
+
+  @ApiProperty({ required: false, description: "변경 사유 (감사 로그에 기록)" })
+  reason?: string;
+}
+
+export class ChangeUserStatusResponseDto {
+  @ApiProperty()
+  targetUserId!: string;
+
+  @ApiProperty()
+  previousActive!: boolean;
+
+  @ApiProperty()
+  isActive!: boolean;
 }
