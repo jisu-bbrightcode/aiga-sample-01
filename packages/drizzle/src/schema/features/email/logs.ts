@@ -1,6 +1,16 @@
 import { baseColumns, user } from "@repo/drizzle/schema";
-import { relations } from "drizzle-orm";
-import { index, integer, jsonb, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+  varchar,
+} from "drizzle-orm/pg-core";
 import { emailStatusEnum, emailTemplateEnum } from "./enums";
 import { emailTemplateVersions } from "./templates";
 
@@ -38,6 +48,11 @@ export const emailLogs = pgTable(
     failureReason: text("failure_reason"),
     retryCount: integer("retry_count").notNull().default(0),
 
+    // 중복 발송 방지 키 (PB-NOTI-EMAIL-SEND-001 델타). caller가 제공한 키로
+    // 트랜잭션 발송을 멱등하게 처리한다. nullable/additive 이므로 기존 발송
+    // 경로와 호환되며, 부분 unique index 가 NULL 행은 무시한다.
+    idempotencyKey: varchar("idempotency_key", { length: 200 }),
+
     // 시간 추적
     sentAt: timestamp("sent_at", { withTimezone: true }),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
@@ -51,6 +66,9 @@ export const emailLogs = pgTable(
     statusIdx: index("idx_email_logs_status").on(table.status, table.createdAt),
     templateIdx: index("idx_email_logs_template").on(table.templateType, table.createdAt),
     templateKeyIdx: index("idx_email_logs_template_key").on(table.templateKey, table.createdAt),
+    idempotencyKeyIdx: uniqueIndex("uq_email_logs_idempotency_key")
+      .on(table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} IS NOT NULL`),
   }),
 );
 

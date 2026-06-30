@@ -113,6 +113,24 @@ export const publishEmailTemplateSchema = z.object({
 });
 export class PublishEmailTemplateDto extends createZodDto(publishEmailTemplateSchema) {}
 
+/**
+ * Request body for an operator test send (PB-NOTI-EMAIL-SEND-001 / BBR-661).
+ *
+ * `variables` is optional — when omitted the service synthesizes a type-correct
+ * sample from the template's schema. `idempotencyKey` lets a retried test reuse
+ * the prior result instead of re-sending.
+ */
+export const testSendEmailSchema = z.object({
+  recipientEmail: z.string().trim().email().max(320).describe("테스트 수신자 이메일 주소"),
+  recipientName: z.string().trim().min(1).max(200).optional().describe("테스트 수신자 이름"),
+  variables: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe("렌더링에 사용할 변수 (생략 시 스키마에서 샘플 자동 생성)"),
+  idempotencyKey: z.string().trim().min(1).max(200).optional().describe("중복 발송 방지 키"),
+});
+export class TestSendEmailDto extends createZodDto(testSendEmailSchema) {}
+
 const validationIssueSchema = z.object({
   variable: z.string(),
   code: z.enum(["missing_required", "type_mismatch"]),

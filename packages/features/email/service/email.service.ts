@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -11,12 +13,36 @@ import { InjectDrizzle } from "@repo/drizzle";
 import type { EmailLog, EmailStatus, EmailTemplateType } from "@repo/drizzle/schema";
 import { emailLogs } from "@repo/drizzle/schema";
 import { and, desc, eq, gte, ilike, type SQL } from "drizzle-orm";
-import type { EmailLogsFilters, SendEmailInput, SendTemplateEmailInput } from "../../common/types";
+import type {
+  EmailLogsFilters,
+  SendEmailInput,
+  SendTemplateEmailInput,
+  TestSendEmailInput,
+} from "../../common/types";
+import { buildSampleVariables } from "../template-registry";
 import type { ResendWebhookPayload } from "../webhooks/resend.payload.schema";
 import { mapResendEvent, resolveStatusUpdate } from "../webhooks/resend-event-mapper";
 import { EmailProviderService } from "./email-provider.service";
 import { EmailTemplateService } from "./email-template.service";
-import { EmailTemplateRegistryService } from "./email-template-registry.service";
+import {
+  EmailTemplateRegistryService,
+  type RenderedTemplate,
+} from "./email-template-registry.service";
+
+/** Postgres unique-constraint violation (e.g. concurrent idempotency-key insert). */
+const PG_UNIQUE_VIOLATION = "23505";
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === PG_UNIQUE_VIOLATION
+  );
+}
+
+/** Test-send rate limit: at most N sends per (template, recipient) per window. */
+const TEST_SEND_RATE_LIMIT = 5;
+const TEST_SEND_RATE_WINDOW_MS = 60 * 1000;
 
 /**
  * Email Service
@@ -110,22 +136,122 @@ export class EmailService {
       throw new BadRequestException(`템플릿 "${input.key}"는 발송 가능한 본문 렌더러가 없습니다.`);
     }
 
-    // 2. 중복 발송 체크 (1분 이내)
-    await this.checkDuplicateSend(input.recipientEmail, rendered.renderer);
+    // 2. 멱등성 가드 (AC: 중복 발송 방지). idempotencyKey 가 주어지면 동일 키로
+    //    기록된 이전 발송을 그대로 반환해 재발송하지 않는다. 키가 없으면 기존
+    //    수신자+타입 1분 중복 윈도우(equivalent guard)로 폴백한다.
+    if (input.idempotencyKey) {
+      const existing = await this.findLogByIdempotencyKey(input.idempotencyKey);
+      if (existing) {
+        return existing;
+      }
+    } else {
+      await this.checkDuplicateSend(input.recipientEmail, rendered.renderer);
+    }
 
-    // 3. 로그 생성 (어떤 템플릿/버전으로 발송했는지 기록)
+    // 3. 로그 생성 + provider 발송 + 상태 갱신
+    try {
+      return await this.dispatchRendered(
+        {
+          rendered,
+          recipientEmail: input.recipientEmail,
+          recipientName: input.recipientName,
+          recipientId: input.recipientId,
+          metadata: input.variables,
+          idempotencyKey: input.idempotencyKey,
+        },
+        { rethrowOnFailure: true },
+      );
+    } catch (error) {
+      // 동시에 같은 키로 들어온 발송이 unique index 에서 충돌하면 패배한 쪽은
+      // 멱등 처리: 500 대신 이미 기록된 로그를 반환한다.
+      if (input.idempotencyKey && isUniqueViolation(error)) {
+        const existing = await this.findLogByIdempotencyKey(input.idempotencyKey);
+        if (existing) {
+          return existing;
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 운영자 테스트 발송 (PB-NOTI-EMAIL-SEND-001 / BBR-661).
+   *
+   * 게시된 템플릿을 렌더링해 실제 provider 로 발송하고 결과를 발송 이력에 남긴다
+   * (AC: 운영자가 테스트 발송 수행 + 결과/provider id/실패 사유 기록). 변수를
+   * 주지 않으면 스키마에서 타입에 맞는 샘플을 합성한다. 테스트 발송은 중복 발송
+   * 윈도우를 우회하되, 같은 (템플릿, 수신자) 기준 rate limit 을 적용한다. provider
+   * 실패 시에도 throw 하지 않고 실패가 기록된 로그를 반환해 운영자가 사유를 본다.
+   */
+  async sendTestEmail(input: TestSendEmailInput): Promise<EmailLog> {
+    // 1. rate limit (운영자가 반복 테스트로 provider 를 폭주시키지 않도록)
+    await this.assertTestSendRate(input.key, input.recipientEmail);
+
+    // 2. 변수 확정: 주어진 변수가 없으면 게시 스키마에서 샘플 합성
+    let variables = input.variables;
+    if (!variables) {
+      const resolved = await this.templateRegistry.resolvePublishedVersion(input.key);
+      variables = buildSampleVariables(resolved.schema);
+    }
+
+    // 3. 렌더링 (발송 전 검증; 검증 실패 시 throw)
+    const rendered = await this.templateRegistry.renderByKey(input.key, variables, {
+      requireValid: true,
+    });
+    if (!rendered.renderer) {
+      throw new BadRequestException(`템플릿 "${input.key}"는 발송 가능한 본문 렌더러가 없습니다.`);
+    }
+
+    // 4. 발송 + 기록 (중복 윈도우 우회, 실패해도 로그 반환)
+    return this.dispatchRendered(
+      {
+        rendered,
+        recipientEmail: input.recipientEmail,
+        recipientName: input.recipientName,
+        metadata: { ...variables, test: true, sentBy: input.actorUserId ?? null },
+        idempotencyKey: input.idempotencyKey,
+      },
+      { rethrowOnFailure: false },
+    );
+  }
+
+  /**
+   * 렌더링된 이메일을 로그로 남기고 provider 로 발송한 뒤 상태를 갱신한다.
+   * sendByKey / sendTestEmail 공통 경로. `rethrowOnFailure` 가 true 면 provider
+   * 실패를 그대로 throw 하고(트랜잭션 발송), false 면 실패가 기록된 로그를 반환한다
+   * (테스트 발송).
+   */
+  private async dispatchRendered(
+    params: {
+      rendered: RenderedTemplate;
+      recipientEmail: string;
+      recipientName?: string | null;
+      recipientId?: string;
+      metadata: Record<string, unknown>;
+      idempotencyKey?: string;
+    },
+    options: { rethrowOnFailure: boolean },
+  ): Promise<EmailLog> {
+    const { rendered, recipientEmail, recipientName, recipientId, metadata, idempotencyKey } =
+      params;
+    const renderer = rendered.renderer;
+    if (!renderer) {
+      throw new InternalServerErrorException("본문 렌더러가 없는 템플릿은 발송할 수 없습니다.");
+    }
+
     const [log] = await this.db
       .insert(emailLogs)
       .values({
-        recipientEmail: input.recipientEmail,
-        recipientName: input.recipientName,
-        recipientId: input.recipientId,
-        templateType: rendered.renderer,
-        templateKey: input.key,
+        recipientEmail,
+        recipientName,
+        recipientId,
+        templateType: renderer,
+        templateKey: rendered.key,
         templateVersionId: rendered.templateVersionId,
         subject: rendered.subject,
         status: "pending",
-        metadata: input.variables,
+        idempotencyKey: idempotencyKey ?? null,
+        metadata,
       })
       .returning();
 
@@ -133,34 +259,36 @@ export class EmailService {
       throw new InternalServerErrorException("이메일 로그 생성에 실패했습니다");
     }
 
-    // 4. 발송 시도
     try {
       const result = await this.providerService.send({
-        to: input.recipientEmail,
+        to: recipientEmail,
         subject: rendered.subject,
         html: rendered.html,
       });
 
-      await this.updateLogStatus(log.id, {
+      const update: Partial<EmailLog> = {
         status: "sent",
         sentAt: new Date(),
         providerMessageId: result.messageId,
-      });
+      };
+      await this.updateLogStatus(log.id, update);
+      return { ...log, ...update };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-
-      await this.updateLogStatus(log.id, {
+      const update: Partial<EmailLog> = {
         status: "failed",
         failureReason: errorMessage,
         retryCount: log.retryCount + 1,
-      });
+      };
+      await this.updateLogStatus(log.id, update);
 
-      console.error(`[EmailService] sendByKey failed: ${log.id}`, error);
+      console.error(`[EmailService] dispatch failed: ${log.id}`, error);
 
-      throw error;
+      if (options.rethrowOnFailure) {
+        throw error;
+      }
+      return { ...log, ...update };
     }
-
-    return log;
   }
 
   /**
@@ -452,6 +580,44 @@ export class EmailService {
 
     if (recentLog) {
       throw new ConflictException("이미 발송된 이메일이 있습니다. 1분 후 다시 시도해주세요.");
+    }
+  }
+
+  /** idempotencyKey 로 기록된 발송 로그를 조회한다 (없으면 null). */
+  private async findLogByIdempotencyKey(idempotencyKey: string): Promise<EmailLog | null> {
+    const [log] = await this.db
+      .select()
+      .from(emailLogs)
+      .where(eq(emailLogs.idempotencyKey, idempotencyKey))
+      .limit(1);
+
+    return log ?? null;
+  }
+
+  /**
+   * 테스트 발송 rate limit (AC: rate limit). 같은 (템플릿 키, 수신자) 조합으로
+   * 윈도우 안에 누적된 발송이 한도 이상이면 429 로 거부한다.
+   */
+  private async assertTestSendRate(key: string, recipientEmail: string): Promise<void> {
+    const windowStart = new Date(Date.now() - TEST_SEND_RATE_WINDOW_MS);
+
+    const recent = await this.db
+      .select({ id: emailLogs.id })
+      .from(emailLogs)
+      .where(
+        and(
+          eq(emailLogs.templateKey, key),
+          eq(emailLogs.recipientEmail, recipientEmail),
+          gte(emailLogs.createdAt, windowStart),
+        ),
+      )
+      .limit(TEST_SEND_RATE_LIMIT);
+
+    if (recent.length >= TEST_SEND_RATE_LIMIT) {
+      throw new HttpException(
+        "테스트 발송이 너무 잦습니다. 잠시 후 다시 시도해주세요.",
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
   }
 
