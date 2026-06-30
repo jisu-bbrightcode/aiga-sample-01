@@ -1,10 +1,13 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import {
+  accounts,
   type DrizzleDB,
   InjectDrizzle,
   members,
+  paymentSubscriptions,
   profiles,
   roles,
+  sessions,
   user,
   userRoles,
 } from "@repo/drizzle";
@@ -66,6 +69,60 @@ export interface AdminUserListItem {
 export interface AdminUsersListResponse {
   users: AdminUserListItem[];
   total: number;
+}
+
+/** A linked login method (e.g. google / credential). Secret-free. */
+export interface AdminUserAuthProvider {
+  providerId: string;
+  linkedAt: string;
+}
+
+/** Session activity rollup — never carries the session token. */
+export interface AdminUserSessionSummary {
+  activeCount: number;
+  lastActiveAt: string | null;
+  lastIpAddress: string | null;
+  lastUserAgent: string | null;
+}
+
+/** Lightweight billing summary for the operations view. */
+export interface AdminUserSubscriptionSummary {
+  status: string;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+/** Slim audit row for the user's change history. */
+export interface AdminUserAuditEntry {
+  id: string;
+  action: string;
+  actorUserId: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+/**
+ * Full operational detail for one user (admin detail screen).
+ *
+ * Deliberately excludes every credential: account access/refresh/id tokens,
+ * password hashes, scopes and session tokens are never selected, so they
+ * cannot reach this surface (AC: 세션 token / provider secret 미노출).
+ */
+export interface AdminUserDetail {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+  emailVerified: boolean;
+  isActive: boolean;
+  createdAt: string;
+  lastActiveAt: string | null;
+  accessRole: AdminAccessRole | null;
+  roles: string[];
+  authProviders: AdminUserAuthProvider[];
+  sessions: AdminUserSessionSummary;
+  subscription: AdminUserSubscriptionSummary | null;
+  recentAudit: AdminUserAuditEntry[];
 }
 
 export interface ChangeUserStatusCommand {
@@ -144,6 +201,160 @@ export class AdminUsersService {
     }));
 
     return { users, total: totalRow?.count ?? 0 };
+  }
+
+  /**
+   * Full operational detail for one user — auth providers, session/activity
+   * rollup, billing summary, permission summary and recent admin history.
+   *
+   * Secret-free by construction: only non-sensitive columns are selected, so
+   * account tokens/password and session tokens never reach the response.
+   */
+  async getDetail(userId: string): Promise<AdminUserDetail> {
+    const [row] = await this.db
+      .select({
+        id: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userImage: user.image,
+        emailVerified: user.emailVerified,
+        createdAt: user.createdAt,
+        profileName: profiles.name,
+        profileEmail: profiles.email,
+        profileAvatar: profiles.avatar,
+        profileUpdatedAt: profiles.updatedAt,
+        isActive: profiles.isActive,
+      })
+      .from(user)
+      .leftJoin(profiles, eq(profiles.id, user.id))
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    if (!row) {
+      throw new NotFoundException("사용자를 찾을 수 없습니다.");
+    }
+
+    const rolesByUserId = await this.loadRbacRoles([userId]);
+    const accessRoleByUserId = await this.loadAccessRoles([userId]);
+    const authProviders = await this.loadAuthProviders(userId);
+    const sessionSummary = await this.loadSessionSummary(userId);
+    const subscription = await this.loadSubscriptionSummary(userId);
+    const recentAudit = await this.loadRecentAudit(userId);
+
+    return {
+      id: row.id,
+      name: row.profileName ?? row.userName,
+      email: row.profileEmail ?? row.userEmail,
+      image: row.profileAvatar ?? row.userImage,
+      emailVerified: row.emailVerified,
+      isActive: row.isActive ?? true,
+      createdAt: row.createdAt.toISOString(),
+      lastActiveAt: row.profileUpdatedAt ? row.profileUpdatedAt.toISOString() : null,
+      accessRole: accessRoleByUserId.get(userId) ?? null,
+      roles: rolesByUserId.get(userId) ?? ["user"],
+      authProviders,
+      sessions: sessionSummary,
+      subscription,
+      recentAudit,
+    };
+  }
+
+  /**
+   * Linked auth providers (login methods). Selects only the provider id and
+   * link time — access/refresh/id tokens, password hashes and scopes are never
+   * read, so a provider secret cannot leak here. Duplicates collapse to the
+   * earliest link.
+   */
+  private async loadAuthProviders(userId: string): Promise<AdminUserAuthProvider[]> {
+    const rows = await this.db
+      .select({ providerId: accounts.providerId, createdAt: accounts.createdAt })
+      .from(accounts)
+      .where(eq(accounts.userId, userId))
+      .orderBy(asc(accounts.createdAt));
+
+    const earliestByProvider = new Map<string, string>();
+    for (const r of rows) {
+      if (!earliestByProvider.has(r.providerId)) {
+        earliestByProvider.set(r.providerId, r.createdAt.toISOString());
+      }
+    }
+    return [...earliestByProvider].map(([providerId, linkedAt]) => ({ providerId, linkedAt }));
+  }
+
+  /**
+   * Session activity rollup. The session token column is never selected (AC:
+   * 세션 token 미노출) — only the active count, last-seen time and the latest
+   * client fingerprint (ip/user-agent) used to spot anomalies.
+   */
+  private async loadSessionSummary(userId: string): Promise<AdminUserSessionSummary> {
+    const rows = await this.db
+      .select({
+        expiresAt: sessions.expiresAt,
+        updatedAt: sessions.updatedAt,
+        createdAt: sessions.createdAt,
+        ipAddress: sessions.ipAddress,
+        userAgent: sessions.userAgent,
+      })
+      .from(sessions)
+      .where(eq(sessions.userId, userId));
+
+    const now = Date.now();
+    let activeCount = 0;
+    let latest: { at: Date; ip: string | null; ua: string | null } | null = null;
+
+    for (const r of rows) {
+      if (r.expiresAt.getTime() > now) activeCount += 1;
+      const seenAt = r.updatedAt ?? r.createdAt;
+      if (!latest || seenAt.getTime() > latest.at.getTime()) {
+        latest = { at: seenAt, ip: r.ipAddress, ua: r.userAgent };
+      }
+    }
+
+    return {
+      activeCount,
+      lastActiveAt: latest ? latest.at.toISOString() : null,
+      lastIpAddress: latest?.ip ?? null,
+      lastUserAgent: latest?.ua ?? null,
+    };
+  }
+
+  /** Most recent subscription as a lightweight billing summary, if any. */
+  private async loadSubscriptionSummary(
+    userId: string,
+  ): Promise<AdminUserSubscriptionSummary | null> {
+    const [row] = await this.db
+      .select({
+        status: paymentSubscriptions.status,
+        currentPeriodEnd: paymentSubscriptions.currentPeriodEnd,
+        cancelAtPeriodEnd: paymentSubscriptions.cancelAtPeriodEnd,
+      })
+      .from(paymentSubscriptions)
+      .where(eq(paymentSubscriptions.userId, userId))
+      .orderBy(desc(paymentSubscriptions.currentPeriodEnd))
+      .limit(1);
+
+    if (!row) return null;
+    return {
+      status: row.status,
+      currentPeriodEnd: row.currentPeriodEnd ? row.currentPeriodEnd.toISOString() : null,
+      cancelAtPeriodEnd: row.cancelAtPeriodEnd,
+    };
+  }
+
+  /** Recent admin actions targeting this user (change history). */
+  private async loadRecentAudit(userId: string): Promise<AdminUserAuditEntry[]> {
+    const { rows } = await this.audit.list({
+      targetType: "user",
+      targetId: userId,
+      limit: 20,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      action: r.action,
+      actorUserId: r.actorUserId,
+      reason: r.reason,
+      createdAt: r.createdAt,
+    }));
   }
 
   /**
