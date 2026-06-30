@@ -35,9 +35,9 @@ export interface DomainResource {
   /** 명의 badge / featured hospital flag. */
   isFeatured: boolean;
   /** ISO timestamp of the last edit (operational "recent change" signal). */
-  updatedAt: string;
+  updatedAt: string | null;
   /** ISO timestamp of creation. */
-  createdAt: string;
+  createdAt: string | null;
 }
 
 /** Query parameters accepted by the admin list endpoint. */

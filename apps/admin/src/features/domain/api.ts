@@ -27,8 +27,8 @@ const domainResourceSchema = z.object({
   regionName: z.string().nullable().default(null),
   specialtyName: z.string().nullable().default(null),
   isFeatured: z.boolean().default(false),
-  updatedAt: z.string(),
-  createdAt: z.string(),
+  updatedAt: z.string().nullable().default(null),
+  createdAt: z.string().nullable().default(null),
 });
 
 const domainResourceListSchema = z.object({

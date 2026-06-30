@@ -21,7 +21,8 @@ interface DomainTableProps {
   onSortChange: (field: DomainResourceSortField) => void;
 }
 
-function formatDateTime(iso: string): string {
+function formatDateTime(iso: string | null): string {
+  if (!iso) return "-";
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return "-";
   return format(parsed, "yyyy.MM.dd HH:mm", { locale: ko });
