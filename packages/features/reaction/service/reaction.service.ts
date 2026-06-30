@@ -6,15 +6,14 @@ import { and, count, eq, inArray } from "drizzle-orm";
 import type {
   ReactionCounts,
   ReactionType,
+  RemoveReactionResult,
   ToggleReactionResult,
   UserReactionStatus,
 } from "../../common/types";
 
 @Injectable()
 export class ReactionService {
-  constructor(
-		@Inject(DRIZZLE_TOKEN) private readonly db: DrizzleDB
-	) {}
+  constructor(@Inject(DRIZZLE_TOKEN) private readonly db: DrizzleDB) {}
 
   /**
    * Toggle reaction
@@ -51,6 +50,47 @@ export class ReactionService {
     });
 
     return { added: true, type };
+  }
+
+  /**
+   * Remove (cancel) the current user's reaction on a target — idempotent.
+   *
+   * Scoped to `userId`, so a caller can only ever delete their own reaction
+   * (a user can never cancel another user's reaction).
+   *
+   * Idempotent: calling repeatedly leaves the target in the same removed
+   * state. The second call simply deletes 0 rows (`removed: false`). Because
+   * counts are derived via aggregation (no denormalized counter column), the
+   * returned count can never drift or go negative no matter how many times
+   * delete is called.
+   *
+   * @param type - when provided, only that reaction type is removed; when
+   *   omitted, every reaction this user has on the target is removed.
+   */
+  async remove(
+    targetType: string,
+    targetId: string,
+    userId: string,
+    type?: ReactionType,
+  ): Promise<RemoveReactionResult> {
+    const conditions = [
+      eq(reactions.targetType, targetType),
+      eq(reactions.targetId, targetId),
+      eq(reactions.userId, userId),
+    ];
+
+    if (type) {
+      conditions.push(eq(reactions.type, type));
+    }
+
+    const deleted = await this.db
+      .delete(reactions)
+      .where(and(...conditions))
+      .returning({ id: reactions.id });
+
+    const counts = await this.getReactionCounts(targetType, targetId);
+
+    return { removed: deleted.length > 0, counts };
   }
 
   /**
