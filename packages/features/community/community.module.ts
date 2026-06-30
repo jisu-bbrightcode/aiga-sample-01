@@ -6,6 +6,7 @@ import {
   CommunityCommentService,
   CommunityContentModerationService,
   CommunityFeedService,
+  CommunityHiddenContentService,
   CommunityKarmaService,
   CommunityKeywordFilterService,
   CommunityModerationService,
@@ -38,6 +39,7 @@ import { injectCommunityServices } from "./service-registry";
     CommunitySanctionService,
     CommunityTierService,
     CommunityContentModerationService,
+    CommunityHiddenContentService,
     RateLimitService,
   ],
   exports: [
@@ -53,6 +55,7 @@ import { injectCommunityServices } from "./service-registry";
     CommunitySanctionService,
     CommunityTierService,
     CommunityContentModerationService,
+    CommunityHiddenContentService,
   ],
 })
 export class CommunityModule implements OnModuleInit {

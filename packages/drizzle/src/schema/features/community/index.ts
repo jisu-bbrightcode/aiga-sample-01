@@ -168,6 +168,11 @@ export const appealStatusEnum = pgEnum("community_appeal_status", [
   "modified",
 ]);
 
+export const hiddenContentTargetTypeEnum = pgEnum("community_hidden_target_type", [
+  "post",
+  "comment",
+]);
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -804,6 +809,37 @@ export const communityUserBlocks = pgTable(
   ],
 );
 
+/**
+ * Community Hidden Content Table
+ *
+ * 사용자별 콘텐츠 숨김(per-viewer mute). 관리자 전역 숨김(post.status='hidden',
+ * comment.is_hidden)과 달리, 이 테이블은 "이 뷰어에게만" 특정 게시글/댓글을
+ * 노출 제외한다. (user_id, target_type, target_id) 유니크로 멱등 보장.
+ */
+export const communityHiddenContent = pgTable(
+  "community_hidden_content",
+  {
+    ...baseColumns(),
+
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    targetType: hiddenContentTargetTypeEnum("target_type").notNull(),
+    targetId: uuid("target_id").notNull(),
+    reason: text("reason"),
+  },
+  (table) => [
+    uniqueIndex("community_hidden_content_unique").on(
+      table.userId,
+      table.targetType,
+      table.targetId,
+    ),
+    index("idx_hidden_content_user").on(table.userId),
+    index("idx_hidden_content_target").on(table.targetType, table.targetId),
+  ],
+);
+
+
 // ============================================================================
 // Type Exports
 // ============================================================================
@@ -881,6 +917,11 @@ export type NewUserKarma = typeof userKarma.$inferInsert;
 
 export type CommunityUserBlock = typeof communityUserBlocks.$inferSelect;
 export type NewCommunityUserBlock = typeof communityUserBlocks.$inferInsert;
+
+export type CommunityHiddenContent = typeof communityHiddenContent.$inferSelect;
+export type NewCommunityHiddenContent = typeof communityHiddenContent.$inferInsert;
+export type HiddenContentTargetType = "post" | "comment";
+
 
 export type CommunitySanction = typeof communitySanctions.$inferSelect;
 export type NewCommunitySanction = typeof communitySanctions.$inferInsert;

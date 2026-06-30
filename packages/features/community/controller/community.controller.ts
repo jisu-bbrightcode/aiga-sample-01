@@ -40,10 +40,12 @@ import type {
   CreateCommentDto,
   CreateCommunityDto,
   CreateFlairDto,
+  CreateHiddenContentDto,
   CreatePostDto,
   CreateReportDto,
   CreateRuleDto,
   InviteModeratorDto,
+  RemoveHiddenContentDto,
   RemoveVoteDto,
   ResolveReportDto,
   RespondModeratorInviteDto,
@@ -82,6 +84,7 @@ import {
   CommunityBlockService,
   CommunityCommentService,
   CommunityFeedService,
+  CommunityHiddenContentService,
   CommunityKarmaService,
   CommunityModerationService,
   CommunityPostService,
@@ -113,6 +116,7 @@ export class CommunityController {
     private readonly moderationService: CommunityModerationService,
     private readonly feedService: CommunityFeedService,
     private readonly blockService: CommunityBlockService,
+    private readonly hiddenContentService: CommunityHiddenContentService,
   ) {}
 
   // ==========================================================================
@@ -513,6 +517,10 @@ export class CommunityController {
 
     // 로그인 사용자는 차단(양방향) 작성자의 글을 피드에서 제외한다 (AC#1).
     const blockedUserIds = user ? await this.blockService.getBlockedUserIds(user.id) : undefined;
+    // 로그인 사용자가 숨긴 게시글을 목록에서 제외한다 (BBR-617 AC#2).
+    const hiddenPostIds = user
+      ? await this.hiddenContentService.getHiddenPostIds(user.id)
+      : undefined;
 
     const page = await this.postService.findAll({
       communitySlug,
@@ -522,6 +530,7 @@ export class CommunityController {
       cursor,
       limit: normalizePostListLimit(limit),
       blockedUserIds,
+      hiddenPostIds,
     });
 
     return {
@@ -536,9 +545,13 @@ export class CommunityController {
   @ApiParam({ name: "id", description: "게시물 ID" })
   @ApiResponse({ status: 200, description: "게시물 상세 정보", type: PostResponseDto })
   @ApiResponse({ status: 404, description: "게시물을 찾을 수 없음" })
-  async postById(@Param("id", ParseUUIDPipe) id: string) {
+  async postById(@Param("id", ParseUUIDPipe) id: string, @OptionalUser() user?: User) {
     const post = await this.postService.findById(id);
     if (!post) throw new NotFoundException("게시물을 찾을 수 없음");
+    // 뷰어가 숨긴 게시글은 상세에서도 노출 제외한다 (BBR-617 AC#2).
+    if (user && (await this.hiddenContentService.isHidden(user.id, "post", id))) {
+      throw new NotFoundException("게시물을 찾을 수 없음");
+    }
     return post;
   }
 
@@ -562,6 +575,10 @@ export class CommunityController {
   ) {
     // 로그인 사용자는 차단(양방향) 작성자의 댓글을 목록에서 제외한다 (AC#1).
     const blockedUserIds = user ? await this.blockService.getBlockedUserIds(user.id) : undefined;
+    // 로그인 사용자가 숨긴 댓글을 목록에서 제외한다 (BBR-617 AC#2).
+    const hiddenCommentIds = user
+      ? await this.hiddenContentService.getHiddenCommentIds(user.id)
+      : undefined;
 
     return this.commentService.findByPost({
       postId,
@@ -569,6 +586,7 @@ export class CommunityController {
       cursor,
       limit,
       blockedUserIds,
+      hiddenCommentIds,
       viewerId: user?.id,
     });
   }
@@ -891,6 +909,8 @@ export class CommunityController {
     },
   })
   async castVote(@Body() dto: VoteDto, @CurrentUser() user: User) {
+    // 본인이 숨긴 콘텐츠에는 반응할 수 없다 (BBR-617 AC#2: 리액션 정책 반영).
+    await this.hiddenContentService.assertReactable(user.id, dto.targetType, dto.targetId);
     return this.voteService.vote(dto, user.id);
   }
 
@@ -911,6 +931,88 @@ export class CommunityController {
   })
   async removeVote(@Body() dto: RemoveVoteDto, @CurrentUser() user: User) {
     return this.voteService.removeVote(dto, user.id);
+  }
+
+  // ==========================================================================
+  // 콘텐츠 숨김 — Auth (PB-COMM-HIDE-API-CREATE-001 / BBR-617)
+  // ==========================================================================
+
+  @Post("hidden-content")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "콘텐츠 숨김",
+    description:
+      "scope='user'(기본)=사용자별 숨김(본인 시야에서만 목록/상세/댓글/리액션 제외). " +
+      "scope='global'=관리자/모더레이터 전역 숨김(커뮤니티 권한 필요).",
+  })
+  @ApiResponse({ status: 201, description: "숨김 처리 성공" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "전역 숨김 권한 없음" })
+  @ApiResponse({ status: 404, description: "대상 콘텐츠를 찾을 수 없음" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["targetType", "targetId"],
+      properties: {
+        targetType: { type: "string", enum: ["post", "comment"], description: "숨김 대상 유형" },
+        targetId: { type: "string", format: "uuid", description: "숨김 대상 ID" },
+        scope: {
+          type: "string",
+          enum: ["user", "global"],
+          description: "user=사용자별 숨김(기본), global=관리자 전역 숨김",
+        },
+        reason: { type: "string", description: "숨김 사유 (선택)" },
+      },
+    },
+  })
+  async hideContent(@Body() dto: CreateHiddenContentDto, @CurrentUser() user: User) {
+    // zod 런타임 파이프 미연결 환경을 고려해 scope 기본값을 컨트롤러에서 보정한다.
+    const scope = dto.scope ?? "user";
+    if (scope === "global") {
+      return this.hiddenContentService.hideGlobally(user.id, { ...dto, scope });
+    }
+    const hidden = await this.hiddenContentService.hideForUser(user.id, { ...dto, scope: "user" });
+    return { scope: "user", ...hidden };
+  }
+
+  @Delete("hidden-content")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "콘텐츠 숨김 해제 (사용자별)",
+    description: "본인이 숨긴 게시글/댓글의 숨김을 해제한다.",
+  })
+  @ApiResponse({ status: 200, description: "숨김 해제 성공" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 404, description: "숨김 기록을 찾을 수 없음" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["targetType", "targetId"],
+      properties: {
+        targetType: { type: "string", enum: ["post", "comment"], description: "대상 유형" },
+        targetId: { type: "string", format: "uuid", description: "대상 ID" },
+      },
+    },
+  })
+  async unhideContent(@Body() dto: RemoveHiddenContentDto, @CurrentUser() user: User) {
+    await this.hiddenContentService.unhideForUser(user.id, dto.targetType, dto.targetId);
+    return { success: true };
+  }
+
+  @Get("hidden-content")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "내가 숨긴 콘텐츠 목록",
+    description: "본인이 사용자별로 숨긴 게시글/댓글 목록을 반환한다.",
+  })
+  @ApiResponse({ status: 200, description: "숨김 목록 반환" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  async listHiddenContent(@CurrentUser() user: User) {
+    const items = await this.hiddenContentService.listForUser(user.id);
+    return { items };
   }
 
   // ==========================================================================

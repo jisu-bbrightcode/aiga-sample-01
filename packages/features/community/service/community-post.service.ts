@@ -52,6 +52,8 @@ export interface PostListOptions {
   cursor?: string;
   limit?: number;
   blockedUserIds?: string[];
+  /** 뷰어가 숨긴 게시글 id (사용자별 숨김 제외, BBR-617). */
+  hiddenPostIds?: string[];
   /** title/content 부분일치 검색어 (정규화 후 ILIKE). */
   search?: string;
 }
@@ -164,6 +166,11 @@ export class CommunityPostService {
     // 차단된 유저의 게시물 제외
     if (options.blockedUserIds && options.blockedUserIds.length > 0) {
       conditions.push(notInArray(communityPosts.authorId, options.blockedUserIds));
+    }
+
+    // 뷰어가 숨긴 게시글 제외 (사용자별 숨김, BBR-617)
+    if (options.hiddenPostIds && options.hiddenPostIds.length > 0) {
+      conditions.push(notInArray(communityPosts.id, options.hiddenPostIds));
     }
 
     // title/content 부분일치 검색
