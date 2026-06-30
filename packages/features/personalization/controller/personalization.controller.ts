@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import type { User } from "@repo/core/nestjs/auth";
 import { BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
@@ -11,6 +22,7 @@ import {
   SavedItemDto,
   SavedItemListDto,
   SearchHistoryListDto,
+  UpdateSavedItemDto,
 } from "../dto";
 import { PersonalizationService } from "../service";
 
@@ -44,6 +56,22 @@ export class PersonalizationController {
   @ApiResponse({ status: 401, description: "인증 필요" })
   createSavedItem(@CurrentUser() user: User, @Body() dto: CreateSavedItemDto) {
     return this.service.createSavedItem(user.id, dto);
+  }
+
+  @Patch("saved-items/:id")
+  @ApiOperation({
+    summary: "저장 항목 변경 — 메모/태그 수정 (로그인 필요, 본인 항목만)",
+  })
+  @ApiResponse({ status: 200, type: SavedItemDto, description: "변경된 저장 항목" })
+  @ApiResponse({ status: 400, description: "잘못된 id 또는 빈 변경 요청" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 404, description: "저장 항목 없음 (미존재 또는 타인 소유)" })
+  updateSavedItem(
+    @CurrentUser() user: User,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateSavedItemDto,
+  ) {
+    return this.service.updateSavedItem(user.id, id, dto);
   }
 
   @Post("interests")
