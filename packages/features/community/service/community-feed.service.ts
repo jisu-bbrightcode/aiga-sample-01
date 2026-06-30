@@ -22,6 +22,48 @@ export interface FeedOptions {
   blockedUserIds?: string[];
 }
 
+/** 콘텐츠 등급 기본 허용값: 일반 + 민감(성인/폭력 등은 명시 요청 시에만). */
+const DEFAULT_ALLOWED_RATINGS: ContentRatingFilter[] = ["general", "sensitive"];
+
+/**
+ * home/all/popular 피드 공통 게시물 가시성 필터.
+ *
+ * 세 피드가 동일한 invariant(공개 상태·콘텐츠 등급·차단 작성자 제외)를
+ * 적용하도록 한 곳에서 조건을 생성한다. 커뮤니티 범위(membership / public)는
+ * 피드마다 다르므로 호출부에서 별도로 합성한다.
+ */
+function buildPostVisibilityConditions(opts: {
+  allowedRatings: ContentRatingFilter[];
+  blockedUserIds: string[];
+}) {
+  return [
+    eq(communityPosts.status, "published"),
+    inArray(communityPosts.contentRating, opts.allowedRatings),
+    ...(opts.blockedUserIds.length > 0
+      ? [notInArray(communityPosts.authorId, opts.blockedUserIds)]
+      : []),
+  ];
+}
+
+/** popular 피드의 시간 윈도우 시작점. "all" / 미지정은 epoch(0) → 무제한. */
+function resolvePopularWindowStart(timeFilter: NonNullable<FeedOptions["timeFilter"]>): Date {
+  const now = Date.now();
+  switch (timeFilter) {
+    case "hour":
+      return new Date(now - 60 * 60 * 1000);
+    case "day":
+      return new Date(now - 24 * 60 * 60 * 1000);
+    case "week":
+      return new Date(now - 7 * 24 * 60 * 60 * 1000);
+    case "month":
+      return new Date(now - 30 * 24 * 60 * 60 * 1000);
+    case "year":
+      return new Date(now - 365 * 24 * 60 * 60 * 1000);
+    default:
+      return new Date(0);
+  }
+}
+
 @Injectable()
 export class CommunityFeedService {
   constructor(@InjectDrizzle() private readonly db: DrizzleDB) {}
@@ -48,49 +90,29 @@ export class CommunityFeedService {
   }
 
   async getAllFeed(options: FeedOptions = {}) {
-    const publicCommunities = await this.db
-      .select({ id: communities.id })
-      .from(communities)
-      .where(eq(communities.type, "public"));
-
-    const communityIds = publicCommunities.map((c) => c.id);
-
+    const communityIds = await this.getPublicCommunityIds();
     return this.getFeed(options, communityIds);
   }
 
   async getPopularFeed(options: FeedOptions = {}) {
     const limit = options.limit ?? 25;
-    const timeFilter = options.timeFilter ?? "day";
+    const startDate = resolvePopularWindowStart(options.timeFilter ?? "day");
 
-    let startDate = new Date();
-    switch (timeFilter) {
-      case "hour":
-        startDate = new Date(Date.now() - 60 * 60 * 1000);
-        break;
-      case "day":
-        startDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        break;
-      case "week":
-        startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case "month":
-        startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case "year":
-        startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        startDate = new Date(0);
+    // popular은 all 피드와 동일하게 "공개(public) 커뮤니티"로만 한정한다.
+    // 이전에는 communityPosts를 직접 조회해 restricted/private 커뮤니티의
+    // 게시물까지 노출될 수 있었다(다른 피드와의 가시성 invariant 불일치).
+    const publicCommunityIds = await this.getPublicCommunityIds();
+    if (publicCommunityIds.length === 0) {
+      return [];
     }
 
-    const allowedRatings = options.allowedRatings ?? ["general", "sensitive"];
+    const allowedRatings = options.allowedRatings ?? DEFAULT_ALLOWED_RATINGS;
     const blockedUserIds = options.blockedUserIds ?? [];
 
     const conditions = [
-      eq(communityPosts.status, "published"),
+      ...buildPostVisibilityConditions({ allowedRatings, blockedUserIds }),
+      inArray(communityPosts.communityId, publicCommunityIds),
       gte(communityPosts.createdAt, startDate),
-      inArray(communityPosts.contentRating, allowedRatings),
-      ...(blockedUserIds.length > 0 ? [notInArray(communityPosts.authorId, blockedUserIds)] : []),
     ];
 
     const items = await this.db
@@ -103,19 +125,26 @@ export class CommunityFeedService {
     return items as CommunityPost[];
   }
 
+  /** 공개(public) 커뮤니티 ID 목록 — all / popular 피드의 가시 범위. */
+  private async getPublicCommunityIds(): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: communities.id })
+      .from(communities)
+      .where(eq(communities.type, "public"));
+    return rows.map((c) => c.id);
+  }
+
   private async getFeed(options: FeedOptions, communityIds: string[]) {
     const page = options.page ?? 1;
     const limit = options.limit ?? 25;
     const offset = (page - 1) * limit;
-    const allowedRatings = options.allowedRatings ?? ["general", "sensitive"];
+    const allowedRatings = options.allowedRatings ?? DEFAULT_ALLOWED_RATINGS;
 
     const blockedUserIds = options.blockedUserIds ?? [];
 
     const baseConditions = [
-      eq(communityPosts.status, "published"),
+      ...buildPostVisibilityConditions({ allowedRatings, blockedUserIds }),
       inArray(communityPosts.communityId, communityIds),
-      inArray(communityPosts.contentRating, allowedRatings),
-      ...(blockedUserIds.length > 0 ? [notInArray(communityPosts.authorId, blockedUserIds)] : []),
     ];
 
     // 시간 필터 조건을 baseConditions에 합성 (덮어쓰기 방지)

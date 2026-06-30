@@ -6,10 +6,13 @@
  *   - empty-membership home feed short-circuits
  *   - getAllFeed only includes public communities
  *   - getPopularFeed honours the time filter window
+ *   - getPopularFeed shares the same visibility/filter invariants as home/all
+ *     (public-community scope, published-only, blocked authors, content rating)
  *   - blockedUserIds filter excludes those authors
  */
 
-import { communityPosts } from "@repo/drizzle";
+import { randomUUID } from "node:crypto";
+import { communities, communityMemberships, communityPosts } from "@repo/drizzle";
 import { eq, inArray } from "drizzle-orm";
 import {
   cleanupUser,
@@ -21,6 +24,56 @@ import {
 } from "../../payment/__tests__/test-db";
 import { addExtraMember, cleanupExtraMember, setupCommunityCtx } from "./__tests__/test-helpers";
 import { CommunityFeedService } from "./community-feed.service";
+
+type CommunityType = "public" | "restricted" | "private";
+
+/** Seed a standalone community of a given type with a single published post. */
+async function setupCommunityWithPost(
+  prefix: string,
+  type: CommunityType,
+): Promise<{ postId: string; cleanup: () => Promise<void> }> {
+  const db = getDrizzleDb();
+  const ownerId = newUserId(`${prefix}-owner`);
+  await ensureUser(ownerId);
+
+  const [community] = await db
+    .insert(communities)
+    .values({
+      name: `${prefix}-${randomUUID().slice(0, 6)}`,
+      slug: `${prefix}-${randomUUID().slice(0, 8)}`,
+      description: `${prefix} community`,
+      ownerId,
+      type: type as never,
+    })
+    .returning({ id: communities.id });
+  const communityId = community!.id;
+
+  await db
+    .insert(communityMemberships)
+    .values({ communityId, userId: ownerId, role: "owner" })
+    .onConflictDoNothing();
+
+  const [post] = await db
+    .insert(communityPosts)
+    .values({
+      communityId,
+      authorId: ownerId,
+      title: `${prefix} post`,
+      contentRating: "general" as never,
+      status: "published",
+    })
+    .returning({ id: communityPosts.id });
+
+  return {
+    postId: post!.id,
+    cleanup: async () => {
+      await db.delete(communityPosts).where(eq(communityPosts.communityId, communityId));
+      await db.delete(communityMemberships).where(eq(communityMemberships.communityId, communityId));
+      await db.delete(communities).where(eq(communities.id, communityId));
+      await cleanupUser(ownerId);
+    },
+  };
+}
 
 const describeIfDb = hasDb ? describe : describe.skip;
 jest.setTimeout(30_000);
@@ -57,7 +110,10 @@ describeIfDb("CommunityFeedService", () => {
     await endTestDb();
   });
 
-  async function seedPost(authorId: string, opts: { title?: string; contentRating?: string } = {}) {
+  async function seedPost(
+    authorId: string,
+    opts: { title?: string; contentRating?: string; status?: string } = {},
+  ) {
     const [post] = await getDrizzleDb()
       .insert(communityPosts)
       .values({
@@ -65,7 +121,7 @@ describeIfDb("CommunityFeedService", () => {
         authorId,
         title: opts.title ?? "test post",
         contentRating: (opts.contentRating ?? "general") as never,
-        status: "published",
+        status: (opts.status ?? "published") as never,
       })
       .returning({ id: communityPosts.id });
     createdPostIds.push(post!.id);
@@ -126,5 +182,46 @@ describeIfDb("CommunityFeedService", () => {
     const ids = items.map((p) => p.id);
     expect(ids).toContain(recent);
     expect(ids).not.toContain(old);
+  });
+
+  // --- BBR-1066: popular feed visibility/filter invariants must match home/all ---
+
+  it("getPopularFeed() excludes posts from non-public communities", async () => {
+    const publicPostId = await seedPost(memberId); // ctx community is public
+    const priv = await setupCommunityWithPost("feed-private", "private");
+    const restricted = await setupCommunityWithPost("feed-restricted", "restricted");
+    try {
+      const ids = (await svc.getPopularFeed({ timeFilter: "all" })).map((p) => p.id);
+      expect(ids).toContain(publicPostId);
+      expect(ids).not.toContain(priv.postId);
+      expect(ids).not.toContain(restricted.postId);
+    } finally {
+      await priv.cleanup();
+      await restricted.cleanup();
+    }
+  });
+
+  it("getPopularFeed() excludes non-published posts (draft)", async () => {
+    const published = await seedPost(memberId);
+    const draft = await seedPost(memberId, { title: "draft post", status: "draft" });
+    const ids = (await svc.getPopularFeed({ timeFilter: "all" })).map((p) => p.id);
+    expect(ids).toContain(published);
+    expect(ids).not.toContain(draft);
+  });
+
+  it("getPopularFeed() excludes posts from blocked authors", async () => {
+    const blockedPost = await seedPost(memberId);
+    const ids = (
+      await svc.getPopularFeed({ timeFilter: "all", blockedUserIds: [memberId] })
+    ).map((p) => p.id);
+    expect(ids).not.toContain(blockedPost);
+  });
+
+  it("getPopularFeed() excludes nsfw posts by default (rating filter)", async () => {
+    const nsfwId = await seedPost(memberId, { contentRating: "nsfw" });
+    const cleanId = await seedPost(memberId, { contentRating: "general" });
+    const ids = (await svc.getPopularFeed({ timeFilter: "all" })).map((p) => p.id);
+    expect(ids).toContain(cleanId);
+    expect(ids).not.toContain(nsfwId);
   });
 });
