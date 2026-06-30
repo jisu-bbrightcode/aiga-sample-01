@@ -15,6 +15,7 @@ import {
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -23,6 +24,7 @@ import {
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiExcludeEndpoint,
   ApiExtraModels,
   ApiOperation,
   ApiParam,
@@ -69,6 +71,7 @@ import {
   RuleResponseDto,
   VoteResultResponseDto,
 } from "../dto";
+import { publicPostViewerState, toPublicPostListItem } from "../mappers";
 import { OptionalUser } from "../optional-user.decorator";
 import {
   CommunityBlockService,
@@ -86,7 +89,6 @@ import {
   POST_SORTS,
   parsePostSort,
 } from "../service/post-list-options";
-import { publicPostViewerState, toPublicPostListItem } from "../mappers";
 
 @ApiTags("Community")
 @Controller("community")
@@ -525,10 +527,10 @@ export class CommunityController {
     return this.postService.create(dto, user.id);
   }
 
-  @Put("posts/:id")
+  @Patch("posts/:id")
   @UseGuards(BetterAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "게시물 수정" })
+  @ApiOperation({ summary: "게시물 수정 (작성자 또는 모더레이터)" })
   @ApiParam({ name: "id", description: "게시물 ID" })
   @ApiResponse({ status: 200, description: "게시물 수정 성공", type: PostResponseDto })
   @ApiBody({
@@ -540,10 +542,28 @@ export class CommunityController {
         isNsfw: { type: "boolean" },
         isSpoiler: { type: "boolean" },
         flairId: { type: "string", format: "uuid", nullable: true },
+        contentRating: {
+          type: "string",
+          enum: ["general", "sensitive", "nsfw", "violence"],
+          description: "콘텐츠 성숙도",
+        },
       },
     },
   })
   async updatePost(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePostDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.postService.update(id, dto, user.id);
+  }
+
+  /** Legacy PUT alias for {@link updatePost} (kept for backward compatibility). */
+  @Put("posts/:id")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiExcludeEndpoint()
+  async updatePostLegacy(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdatePostDto,
     @CurrentUser() user: User,

@@ -282,6 +282,11 @@ export const communityPosts = pgTable(
     removalReason: text("removal_reason"),
     removedBy: text("removed_by").references(() => user.id),
 
+    // Edit revision trail (author self-edit or moderator edit)
+    isEdited: boolean("is_edited").notNull().default(false),
+    editedAt: timestamp("edited_at", { withTimezone: true }),
+    lastEditedBy: text("last_edited_by").references(() => user.id),
+
     // Statistics
     viewCount: integer("view_count").notNull().default(0),
     upvoteCount: integer("upvote_count").notNull().default(0),

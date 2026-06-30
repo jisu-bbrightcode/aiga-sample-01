@@ -6,9 +6,14 @@
  * moderation skipped via missing OPENAI_API_KEY.
  */
 
-import { BadRequestException, HttpException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  NotFoundException,
+} from "@nestjs/common";
 import { RateLimitService } from "@repo/core/rate-limit";
-import { communityMemberships, communityPosts, rateLimits } from "@repo/drizzle";
+import { communityMemberships, communityModLogs, communityPosts, rateLimits } from "@repo/drizzle";
 import { eq, inArray } from "drizzle-orm";
 import { endTestDb, getDrizzleDb, hasDb } from "../../payment/__tests__/test-db";
 import { addExtraMember, cleanupExtraMember, setupCommunityCtx } from "./__tests__/test-helpers";
@@ -190,6 +195,59 @@ describeIfDb("CommunityPostService", () => {
     createdPostIds.push(p.id);
     const u = await svc.update(p.id, { title: "New" } as never, author);
     expect(u.title).toBe("New");
+  });
+
+  it("update() marks an author self-edit as edited without a mod-log entry", async () => {
+    const p = await svc.create({ communityId: ctx.communityId, title: "Old" } as never, author);
+    createdPostIds.push(p.id);
+
+    const u = await svc.update(p.id, { title: "New" } as never, author);
+
+    expect(u.isEdited).toBe(true);
+    expect(u.editedAt).toBeTruthy();
+    expect(u.lastEditedBy).toBe(author);
+
+    const logs = await getDrizzleDb()
+      .select()
+      .from(communityModLogs)
+      .where(eq(communityModLogs.targetId, p.id));
+    expect(logs).toHaveLength(0);
+  });
+
+  it("update() lets a moderator edit another user's post and writes an audit log", async () => {
+    // ctx.ownerId is the community owner → counts as moderator.
+    const p = await svc.create({ communityId: ctx.communityId, title: "Old" } as never, author);
+    createdPostIds.push(p.id);
+
+    const u = await svc.update(p.id, { title: "Moderated" } as never, ctx.ownerId);
+
+    expect(u.title).toBe("Moderated");
+    expect(u.isEdited).toBe(true);
+    expect(u.lastEditedBy).toBe(ctx.ownerId);
+
+    const logs = await getDrizzleDb()
+      .select()
+      .from(communityModLogs)
+      .where(eq(communityModLogs.targetId, p.id));
+    expect(logs).toHaveLength(1);
+    expect(logs[0]?.action).toBe("other");
+    expect(logs[0]?.targetType).toBe("post");
+    expect(logs[0]?.moderatorId).toBe(ctx.ownerId);
+    expect((logs[0]?.details as { kind?: string })?.kind).toBe("edit_post");
+    expect((logs[0]?.details as { changedFields?: string[] })?.changedFields).toContain("title");
+  });
+
+  it("update() forbids a non-author non-moderator member", async () => {
+    const p = await svc.create(
+      { communityId: ctx.communityId, title: "Old" } as never,
+      ctx.ownerId,
+    );
+    createdPostIds.push(p.id);
+
+    // `author` is a plain member (not the author of this post, not a moderator).
+    await expect(svc.update(p.id, { title: "Nope" } as never, author)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 
   it("delete() throws NotFound for unknown id", async () => {

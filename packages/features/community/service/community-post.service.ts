@@ -5,6 +5,7 @@ import { InjectDrizzle } from "@repo/drizzle";
 import {
   type CommunityPost,
   communities,
+  communityModLogs,
   communityPosts,
   user as userTable,
 } from "@repo/drizzle/schema";
@@ -12,6 +13,7 @@ import { and, count, desc, eq, ilike, inArray, notInArray, or, type SQL, sql } f
 import type { CreatePostDto, UpdatePostDto } from "../dto";
 import { decodeCursor } from "../helpers/pagination";
 import { assertCommunityPermission } from "../helpers/permission";
+import { diffPostEdit, resolvePostEditAccess } from "../helpers/post-edit-policy";
 import { CommunityService } from "./community.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
@@ -481,8 +483,17 @@ export class CommunityPostService {
       throw new NotFoundException("게시글을 찾을 수 없습니다.");
     }
 
-    if (post.authorId !== userId) {
-      throw new ForbiddenException("작성자만 게시글을 수정할 수 있습니다.");
+    // AC#1: 작성자와 관리자(모더레이터) 수정 권한 분리.
+    // 작성자는 본인 글을 수정하고, owner/admin/moderator는 모더레이션 수정으로 분리 추적한다.
+    const isAuthor = post.authorId === userId;
+    const access = resolvePostEditAccess({
+      isAuthor,
+      isModerator: isAuthor
+        ? false
+        : await this.communityService.isModerator(post.communityId, userId),
+    });
+    if (access === "denied") {
+      throw new ForbiddenException("작성자 또는 모더레이터만 게시글을 수정할 수 있습니다.");
     }
 
     const updateValues: UpdatePostDto & {
@@ -496,7 +507,7 @@ export class CommunityPostService {
       TIER_PRIVILEGES[updateTierInfo.tier as keyof typeof TIER_PRIVILEGES]?.bypassKeywordFilter ??
       false;
 
-    // 키워드 필터 검사
+    // 정책 필터 재검사 (키워드 필터 + OpenAI Moderation)
     const textsToCheck = [dto.title, dto.content].filter(Boolean) as string[];
     if (textsToCheck.length > 0) {
       const filterResult = await this.keywordFilterService.validateContent(
@@ -518,14 +529,48 @@ export class CommunityPostService {
       await this.contentModerationService.assertContentAllowed(textsToCheck);
     }
 
+    // AC#2: 수정 이력 — 변경 전/후 diff를 계산해 둔다(모더레이터 감사 로그용).
+    const editDiff = diffPostEdit(
+      {
+        title: post.title,
+        content: post.content,
+        isNsfw: post.isNsfw,
+        isSpoiler: post.isSpoiler,
+        flairId: post.flairId,
+        contentRating: post.contentRating,
+      },
+      dto,
+    );
+
     const [updated] = await this.db
       .update(communityPosts)
       .set({
         ...updateValues,
+        isEdited: true,
+        editedAt: new Date(),
+        lastEditedBy: userId,
         updatedAt: new Date(),
       })
       .where(eq(communityPosts.id, id))
       .returning();
+
+    // AC#2: 모더레이터 수정은 community_mod_logs 감사 로그에 append (append-only).
+    if (access === "moderator") {
+      await this.db.insert(communityModLogs).values({
+        communityId: post.communityId,
+        moderatorId: userId,
+        action: "other",
+        targetType: "post",
+        targetId: id,
+        reason: "edit_post",
+        details: {
+          kind: "edit_post",
+          changedFields: editDiff.changedFields,
+          before: editDiff.before,
+          after: editDiff.after,
+        },
+      });
+    }
 
     return updated as CommunityPost;
   }
