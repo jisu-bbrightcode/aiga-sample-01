@@ -7,24 +7,29 @@
  * loading / error / 권한 없음 states from a single mapped code.
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
-  getFeaturedDoctors,
+  getDoctors,
   getInterests,
   getPopularTerms,
   getRecentTerms,
+  getRegions,
   getSavedItems,
   getSearchHistory,
+  getSpecialties,
   searchUnified,
 } from "../api/service-flow-api";
 import type {
   CursorPage,
   DoctorListPage,
   Interest,
+  PublicRegion,
+  PublicSpecialty,
   SavedItem,
   SearchHistoryEntry,
 } from "../api/types";
 import type { PopularTerm, RecentSearch, SearchResult } from "../api/unified-search-types";
+import { type DoctorSearchFilters, toDoctorListParams } from "../lib/doctor-search-params";
 import {
   toUnifiedSearchParams,
   toUnifiedSearchUrl,
@@ -35,7 +40,17 @@ export const serviceFlowKeys = {
   savedItems: ["service-flow", "saved-items"] as const,
   interests: ["service-flow", "interests"] as const,
   searchHistory: ["service-flow", "search-history"] as const,
-  exploreDoctors: (q?: string) => ["service-flow", "explore-doctors", q ?? null] as const,
+  specialties: ["service-flow", "specialties"] as const,
+  regions: ["service-flow", "regions"] as const,
+  searchDoctors: (filters: DoctorSearchFilters) =>
+    [
+      "service-flow",
+      "search-doctors",
+      filters.q ?? null,
+      filters.specialtyId ?? null,
+      filters.regionId ?? null,
+      filters.sort,
+    ] as const,
   unifiedSearch: (filters: UnifiedSearchFilters) =>
     ["service-flow", "unified-search", toUnifiedSearchUrl(filters)] as const,
   popularTerms: ["service-flow", "popular-terms"] as const,
@@ -78,16 +93,37 @@ export function useSearchHistory(enabled: boolean) {
   });
 }
 
+/** 진료과 목록 — public taxonomy for the 진료과 filter. Cached aggressively. */
+export function useSpecialties() {
+  return useQuery<PublicSpecialty[]>({
+    queryKey: serviceFlowKeys.specialties,
+    queryFn: ({ signal }) => getSpecialties(signal),
+    staleTime: 5 * 60_000,
+    retry: shouldRetry,
+  });
+}
+
+/** 지역 목록 — public taxonomy for the 지역 filter. Cached aggressively. */
+export function useRegions() {
+  return useQuery<PublicRegion[]>({
+    queryKey: serviceFlowKeys.regions,
+    queryFn: ({ signal }) => getRegions(signal),
+    staleTime: 5 * 60_000,
+    retry: shouldRetry,
+  });
+}
+
 /**
- * Public catalog read — usable logged-out (powers the explore entry).
- * With a keyword `q` it runs a search (검색 히스토리 재실행); otherwise the
- * featured set. The query key includes `q` so each search is cached distinctly.
+ * 명의 찾기 검색·필터·정렬 (FR-004 / BBR-583) — public catalog read, usable
+ * logged-out (the explore entry is browsable). The key includes every filter so
+ * each combination caches distinctly; previous results are kept while a new
+ * filter loads so the grid does not flash empty between toggles.
  */
-export function useFeaturedDoctors(q?: string) {
-  const keyword = q?.trim() || undefined;
+export function useDoctorSearch(filters: DoctorSearchFilters) {
   return useQuery<DoctorListPage>({
-    queryKey: serviceFlowKeys.exploreDoctors(keyword),
-    queryFn: ({ signal }) => getFeaturedDoctors({ limit: 12, q: keyword }, signal),
+    queryKey: serviceFlowKeys.searchDoctors(filters),
+    queryFn: ({ signal }) => getDoctors(toDoctorListParams(filters), signal),
+    placeholderData: keepPreviousData,
     retry: shouldRetry,
   });
 }

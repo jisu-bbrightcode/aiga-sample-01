@@ -2,34 +2,53 @@
  * 의사 탐색 (Explore) — the in-app service entry (PB-WEB-002 / BBR-580, FR-002 / BBR-729).
  *
  * Public/browsable WITHOUT login (online-service rule: 공개 탐색 가능), reading the
- * public catalog contract `/service/doctors`. A `q` search param (from a 검색
- * 히스토리 재실행) runs a keyword search; otherwise the featured set is shown. Each
- * card carries gated 저장/관심 CTAs: a logged-out visitor who acts is routed through
- * sign-in and returned here, where {@link usePendingIntentReplay} completes the
- * attempted action (AC: 원래 액션 자동 복귀). Loading / error / empty render explicitly.
+ * public catalog contract `/service/doctors`. FR-004 (BBR-583) adds 명의 찾기
+ * 검색·필터·정렬: a keyword search plus 진료과 / 지역 filters and a sort selector,
+ * all held in the URL so the view is shareable and a 검색 히스토리 entry can
+ * re-run it. Each card carries gated 저장/관심 CTAs: a logged-out visitor who acts
+ * is routed through sign-in and returned here, where {@link usePendingIntentReplay}
+ * completes the attempted action (AC: 원래 액션 자동 복귀). Loading / error / empty
+ * (and filtered-empty) states render explicitly.
  */
 
 import { useFeatureTranslation } from "@repo/core/i18n";
 import { Button } from "@repo/ui/shadcn/button";
-import { useSearch } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { AppQuietLoadingState } from "@/components/app-loading";
 import { getAppErrorMessage } from "@/lib/user-facing-error";
 import { DoctorExploreCard } from "../components/doctor-explore-card";
+import { DoctorSearchControls } from "../components/doctor-search-controls";
 import { GatedSaveButton } from "../components/gated-save-button";
-import { useFeaturedDoctors } from "../hooks/queries";
+import { useDoctorSearch, useRegions, useSpecialties } from "../hooks/queries";
 import { usePendingIntentReplay } from "../hooks/use-pending-intent-replay";
+import {
+  type DoctorSearchFilters,
+  hasActiveSearch,
+  parseDoctorSearch,
+  type RawDoctorSearch,
+  toDoctorSearchParams,
+} from "../lib/doctor-search-params";
 
 export function ExplorePage() {
   const { t } = useFeatureTranslation("app");
-  // 최근 검색 재실행: a `q` from a re-run drives a keyword search of the catalog.
-  const search = useSearch({ strict: false }) as { q?: string };
-  const query = search.q?.trim() || undefined;
+  const navigate = useNavigate();
+
+  // The full 검색·필터·정렬 state lives in the URL (shareable + history re-run).
+  const filters = parseDoctorSearch(useSearch({ strict: false }) as RawDoctorSearch);
 
   // 원래 액션 자동 복귀: replay a save/interest attempted before login (return-to-intent).
   usePendingIntentReplay();
 
-  const doctors = useFeaturedDoctors(query);
+  const specialties = useSpecialties();
+  const regions = useRegions();
+  const doctors = useDoctorSearch(filters);
   const items = doctors.data?.items ?? [];
+
+  function applyFilters(next: DoctorSearchFilters) {
+    navigate({ to: "/explore", search: toDoctorSearchParams(next) } as never);
+  }
+
+  const isFiltered = hasActiveSearch(filters);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8">
@@ -39,8 +58,8 @@ export function ExplorePage() {
             {t("serviceFlow.explore.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {query
-              ? t("serviceFlow.explore.searchResultsFor", { query })
+            {filters.q
+              ? t("serviceFlow.explore.searchResultsFor", { query: filters.q })
               : t("serviceFlow.explore.subtitle")}
           </p>
         </div>
@@ -51,13 +70,21 @@ export function ExplorePage() {
         />
       </header>
 
+      <DoctorSearchControls
+        filters={filters}
+        specialties={specialties.data ?? []}
+        regions={regions.data ?? []}
+        taxonomyLoading={specialties.isPending || regions.isPending}
+        onChange={applyFilters}
+      />
+
       <ExploreBody
         isLoading={doctors.isPending}
         isError={doctors.isError}
         error={doctors.error}
         isEmpty={items.length === 0}
         emptyMessage={
-          query ? t("serviceFlow.explore.searchEmpty", { query }) : t("serviceFlow.explore.empty")
+          isFiltered ? t("serviceFlow.explore.filteredEmpty") : t("serviceFlow.explore.empty")
         }
         onRetry={() => void doctors.refetch()}
       >
