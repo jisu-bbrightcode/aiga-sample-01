@@ -35,6 +35,7 @@ import {
   AdminReportListResponseDto,
   BanResponseDto,
   DeleteResponseDto,
+  ModerationQueueResponseDto,
   ReportResponseDto,
   ReportStatsResponseDto,
   SystemStatsResponseDto,
@@ -135,6 +136,63 @@ export class CommunityAdminController {
       limit: result.limit,
       viewer: ADMIN_POST_VIEWER_STATE,
     };
+  }
+
+  // ==========================================================================
+  // 통합 모더레이션 큐 (BBR-620)
+  // ==========================================================================
+
+  @Get("moderation")
+  @ApiOperation({
+    summary: "통합 모더레이션 큐 (cross-community)",
+    description:
+      "신고(report)·필터(filter: 차단/숨김 후보)·차단(ban) 을 한 화면에서 추적 가능한 " +
+      "정규화 형태로 모아 반환한다. kind/state/communityId/search 로 검색·필터하고 " +
+      "page/limit 으로 페이지네이션한다. 각 항목은 정규화된 state(open/resolved)와 " +
+      "원본 소스 status 를 함께 담는다.",
+  })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiQuery({
+    name: "kind",
+    required: false,
+    enum: ["report", "filter", "ban"],
+    description: "출처 종류 필터 (생략 시 전체)",
+  })
+  @ApiQuery({
+    name: "state",
+    required: false,
+    enum: ["open", "resolved"],
+    description: "정규화된 처리 상태 필터",
+  })
+  @ApiQuery({ name: "communityId", required: false, type: String })
+  @ApiQuery({
+    name: "search",
+    required: false,
+    type: String,
+    description: "사유/설명 부분일치 검색",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "통합 모더레이션 큐 반환",
+    type: ModerationQueueResponseDto,
+  })
+  async moderationQueue(
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query("kind") kind?: "report" | "filter" | "ban",
+    @Query("state") state?: "open" | "resolved",
+    @Query("communityId") communityId?: string,
+    @Query("search") search?: string,
+  ) {
+    return this.moderationService.getModerationQueue({
+      page,
+      limit,
+      kind,
+      state,
+      communityId,
+      search,
+    });
   }
 
   // ==========================================================================
