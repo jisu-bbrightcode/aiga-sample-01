@@ -11,6 +11,7 @@ import {
   type Community,
   type CommunityMembership,
   communities,
+  communityBans,
   communityComments,
   communityMemberships,
   communityModerators,
@@ -451,6 +452,10 @@ export class CommunityService {
       throw new ForbiddenException("비공개 커뮤니티는 초대를 통해서만 가입할 수 있습니다.");
     }
 
+    // 차단(ban) 또는 활성 제재(suspension/permanent_ban) 사용자는 가입 불가
+    // (BBR-591 AC: 제재/차단 가입 제한).
+    await this.assertJoinable(community.id, userId);
+
     const existing = await this.getMembership(community.id, userId);
     if (existing) {
       throw new ConflictException("이미 이 커뮤니티에 가입되어 있습니다.");
@@ -505,6 +510,115 @@ export class CommunityService {
         memberCount: sql`${communities.memberCount} - 1`,
       })
       .where(eq(communities.id, community.id));
+  }
+
+  /**
+   * 가입 차단 사유를 검사한다 (BBR-591 AC: 제재/차단 가입 제한).
+   * - communityBans: 영구 차단이거나 만료되지 않은 차단이면 가입 불가.
+   * - communitySanctions: active 상태의 정지/영구밴이 만료 전이면 가입 불가.
+   * 경고(warning/official_warning)는 가입을 막지 않는다.
+   */
+  private async assertJoinable(communityId: string, userId: string): Promise<void> {
+    const now = new Date();
+
+    const [ban] = await this.db
+      .select({ id: communityBans.id })
+      .from(communityBans)
+      .where(
+        and(
+          eq(communityBans.communityId, communityId),
+          eq(communityBans.userId, userId),
+          or(eq(communityBans.isPermanent, true), gt(communityBans.expiresAt, now)),
+        ),
+      )
+      .limit(1);
+    if (ban) {
+      throw new ForbiddenException("차단되어 이 커뮤니티에 가입할 수 없습니다.");
+    }
+
+    const [sanction] = await this.db
+      .select({ id: communitySanctions.id })
+      .from(communitySanctions)
+      .where(
+        and(
+          eq(communitySanctions.communityId, communityId),
+          eq(communitySanctions.userId, userId),
+          eq(communitySanctions.status, "active"),
+          inArray(communitySanctions.type, ["suspension", "permanent_ban"]),
+          or(isNull(communitySanctions.expiresAt), gt(communitySanctions.expiresAt, now)),
+        ),
+      )
+      .limit(1);
+    if (sanction) {
+      throw new ForbiddenException("제재 중에는 이 커뮤니티에 가입할 수 없습니다.");
+    }
+  }
+
+  /**
+   * 커뮤니티 규칙 동의 + 온보딩 완료 처리 (BBR-591).
+   * 규칙 동의 시각을 기록하고, 온보딩 미완료 상태면 함께 완료 처리한다.
+   * 멤버가 아니면 먼저 가입을 요구한다. 멱등(재호출 시 동의 시각만 갱신).
+   */
+  async acceptRules(slug: string, userId: string): Promise<CommunityMembership> {
+    const community = await this.findBySlug(slug);
+    if (!community) {
+      throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
+    }
+
+    const membership = await this.getMembership(community.id, userId);
+    if (!membership) {
+      throw new ForbiddenException("커뮤니티에 가입한 후 규칙에 동의할 수 있습니다.");
+    }
+
+    const now = new Date();
+    const [updated] = await this.db
+      .update(communityMemberships)
+      .set({
+        rulesAcceptedAt: now,
+        onboardingCompletedAt: membership.onboardingCompletedAt ?? now,
+      })
+      .where(
+        and(
+          eq(communityMemberships.communityId, community.id),
+          eq(communityMemberships.userId, userId),
+        ),
+      )
+      .returning();
+
+    return updated as CommunityMembership;
+  }
+
+  /**
+   * 구독/알림 설정 변경 (BBR-591). 가입(=구독) 상태에서 알림 on/off 토글.
+   * 멤버가 아니면 설정을 변경할 수 없다.
+   */
+  async updateNotificationSettings(
+    slug: string,
+    userId: string,
+    notificationsEnabled: boolean,
+  ): Promise<CommunityMembership> {
+    const community = await this.findBySlug(slug);
+    if (!community) {
+      throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
+    }
+
+    const membership = await this.getMembership(community.id, userId);
+    if (!membership) {
+      throw new ForbiddenException("커뮤니티에 가입한 후 알림 설정을 변경할 수 있습니다.");
+    }
+
+    const [updated] = await this.db
+      .update(communityMemberships)
+      .set({ notificationsEnabled })
+      .where(
+        and(
+          eq(communityMemberships.communityId, community.id),
+          eq(communityMemberships.userId, userId),
+        ),
+      )
+      .returning();
+
+    return updated as CommunityMembership;
   }
 
   async getMembers(slug: string, options: PaginationOptions = {}) {

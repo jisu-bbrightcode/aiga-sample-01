@@ -15,6 +15,7 @@ import {
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -376,6 +377,52 @@ export class CommunityController {
   })
   async mySubscriptions(@CurrentUser() user: User) {
     return this.communityService.findUserSubscriptions(user.id);
+  }
+
+  @Post(":slug/rules/accept")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "커뮤니티 규칙 동의 / 온보딩 완료" })
+  @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
+  @ApiResponse({ status: 200, description: "규칙 동의 완료", type: MembershipResponseDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "커뮤니티 미가입" })
+  @ApiResponse({ status: 404, description: "커뮤니티 없음" })
+  async acceptRules(@Param("slug") slug: string, @CurrentUser() user: User) {
+    return this.communityService.acceptRules(slug, user.id);
+  }
+
+  @Patch(":slug/subscription")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "구독/알림 설정 변경" })
+  @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["notificationsEnabled"],
+      properties: {
+        notificationsEnabled: { type: "boolean", description: "알림 구독 여부" },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: "설정 변경 완료", type: MembershipResponseDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "커뮤니티 미가입" })
+  @ApiResponse({ status: 404, description: "커뮤니티 없음" })
+  async updateSubscription(
+    @Param("slug") slug: string,
+    @Body() body: { notificationsEnabled?: unknown },
+    @CurrentUser() user: User,
+  ) {
+    if (typeof body?.notificationsEnabled !== "boolean") {
+      throw new BadRequestException("notificationsEnabled 는 boolean 이어야 합니다.");
+    }
+    return this.communityService.updateNotificationSettings(
+      slug,
+      user.id,
+      body.notificationsEnabled,
+    );
   }
 
   // ==========================================================================
