@@ -1,4 +1,5 @@
 import { Module, type OnModuleInit } from "@nestjs/common";
+import { RateLimitService } from "@repo/core/rate-limit";
 import { CommunityAdminController, CommunityController } from "./controller";
 import {
   CommunityBlockService,
@@ -37,6 +38,7 @@ import { injectCommunityServices } from "./service-registry";
     CommunitySanctionService,
     CommunityTierService,
     CommunityContentModerationService,
+    RateLimitService,
   ],
   exports: [
     CommunityService,
