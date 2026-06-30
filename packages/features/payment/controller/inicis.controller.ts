@@ -22,7 +22,12 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import type { User } from "@repo/core/nestjs/auth";
-import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
+import {
+  BetterAuthAdminGuard,
+  BetterAuthGuard,
+  CurrentUser,
+  SuspendedUserGuard,
+} from "@repo/core/nestjs/auth";
 import type { FastifyReply } from "fastify";
 import { InicisPaymentService } from "../inicis/inicis.service";
 import { type AuditableContext, withAuditLog } from "../service/audit.decorator";
@@ -106,7 +111,7 @@ export class InicisPublicController {
   constructor(private readonly inicis: InicisPaymentService) {}
 
   @Post("checkouts")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create INICIS PC standard checkout form payload" })
   @ApiResponse({
@@ -150,7 +155,7 @@ export class InicisPublicController {
 
 @ApiTags("Payment INICIS")
 @ApiBearerAuth()
-@UseGuards(BetterAuthGuard)
+@UseGuards(BetterAuthGuard, SuspendedUserGuard)
 @Controller("payment/orders")
 export class InicisOrderPublicController {
   constructor(private readonly inicis: InicisPaymentService) {}

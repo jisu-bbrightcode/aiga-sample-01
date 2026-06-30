@@ -7,4 +7,5 @@ export { parseJwtFromHeader } from "./jwt-parser";
 // fallback). The base aliased NestAdminGuard, which gates on the never-seeded
 // user_roles tables and rejected every operator on a fresh deploy.
 export { OrgAdminGuard, OrgAdminGuard as BetterAuthAdminGuard } from "./org-admin.guard";
+export { SuspendedUserGuard } from "./suspended-user.guard";
 export type { User } from "./user";

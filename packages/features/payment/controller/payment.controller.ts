@@ -1,4 +1,9 @@
-import { BetterAuthGuard, CurrentUser, type User } from "@repo/core/nestjs/auth";
+import {
+  BetterAuthGuard,
+  CurrentUser,
+  SuspendedUserGuard,
+  type User,
+} from "@repo/core/nestjs/auth";
 import {
   type DrizzleDB,
   InjectDrizzle,
@@ -144,7 +149,7 @@ export class PaymentPublicController {
 
 @ApiTags("Payment")
 @Controller("payment")
-@UseGuards(BetterAuthGuard)
+@UseGuards(BetterAuthGuard, SuspendedUserGuard)
 @ApiBearerAuth()
 export class PaymentController {
   constructor(
