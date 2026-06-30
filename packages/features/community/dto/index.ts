@@ -2,6 +2,7 @@ export * from "./community-response.dto";
 export * from "./create-block.dto";
 export * from "./create-comment.dto";
 export * from "./create-community.dto";
+export * from "./create-hidden-content.dto";
 export * from "./create-post.dto";
 export * from "./create-report.dto";
 export * from "./mod-action.dto";

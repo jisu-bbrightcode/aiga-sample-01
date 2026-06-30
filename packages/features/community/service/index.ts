@@ -3,6 +3,7 @@ export * from "./community-block.service";
 export * from "./community-comment.service";
 export * from "./community-content-moderation.service";
 export * from "./community-feed.service";
+export * from "./community-hidden-content.service";
 export * from "./community-karma.service";
 export * from "./community-keyword-filter.service";
 export * from "./community-moderation.service";
