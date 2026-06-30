@@ -49,3 +49,15 @@ export const listAdminUsersQuerySchema = pageQuerySchema.extend({
   sort: z.enum(["recent", "name", "email"]).default("recent"),
 });
 export class ListAdminUsersQueryDto extends createZodDto(listAdminUsersQuerySchema) {}
+
+// ---- admin archive / restore (soft delete) ----------------------------------
+
+/**
+ * Optional operator note recorded in the audit log when a user is
+ * archived (soft-deleted) or restored. The action itself targets the user by
+ * path id; the body only carries the audit reason, so both endpoints reuse it.
+ */
+export const archiveUserBodySchema = z.object({
+  reason: z.string().trim().max(500).optional(),
+});
+export class ArchiveUserBodyDto extends createZodDto(archiveUserBodySchema) {}

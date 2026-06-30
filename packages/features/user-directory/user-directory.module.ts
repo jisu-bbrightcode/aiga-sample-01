@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AdminAuditService } from "../_common/service/admin-audit.service";
 import { UserDirectoryAdminController, UserDirectoryController } from "./controller";
 import { UserDirectoryService } from "./service";
 
@@ -9,10 +10,14 @@ import { UserDirectoryService } from "./service";
  * Public member directory + 본인(self) view share one service with the
  * admin user-management list; identity itself (social login / profiles) is
  * REUSED from core and grade tiers come from PB-DATA-FR001 (user-grade).
+ *
+ * Admin soft-delete (archive) / restore (BBR-530) writes an attributable row
+ * to `admin_audit_log`, so `AdminAuditService` is provided here as a
+ * self-contained append-only writer (no `_common` module coupling needed).
  */
 @Module({
   controllers: [UserDirectoryController, UserDirectoryAdminController],
-  providers: [UserDirectoryService],
+  providers: [UserDirectoryService, AdminAuditService],
   exports: [UserDirectoryService],
 })
 export class UserDirectoryModule {}

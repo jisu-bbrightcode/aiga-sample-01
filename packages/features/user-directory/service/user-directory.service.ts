@@ -5,6 +5,7 @@ import type { DrizzleDB } from "@repo/drizzle";
 // resolve to a stale checkout in an isolated worktree.
 import { InjectDrizzle, profiles, userGradeDefinitions, userGrades } from "@repo/drizzle";
 import { and, asc, desc, eq, ilike, isNotNull, isNull, or, type SQL, sql } from "drizzle-orm";
+import { AdminAuditService } from "../../_common/service/admin-audit.service";
 import type { ListAdminUsersQueryDto, ListUsersQueryDto } from "../dto";
 import {
   type AdminUser,
@@ -35,9 +36,31 @@ const userSelection = {
   gradeExpiresAt: userGrades.expiresAt,
 };
 
+/**
+ * Admin audit actions for the soft-delete lifecycle. Recorded in
+ * `admin_audit_log` so an archive/restore is always attributable to an
+ * operator even though the user row itself is only flagged, never removed.
+ */
+const ARCHIVE_AUDIT_ACTION = "user.archived";
+const RESTORE_AUDIT_ACTION = "user.restored";
+
+/** Operator context for an archive/restore mutation. */
+export interface ArchiveUserInput {
+  /** profiles.id of the target user. */
+  id: string;
+  /** Authenticated admin performing the action (audit actor). */
+  actorUserId: string;
+  reason?: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
 @Injectable()
 export class UserDirectoryService {
-  constructor(@InjectDrizzle() private readonly db: DrizzleDB) {}
+  constructor(
+    @InjectDrizzle() private readonly db: DrizzleDB,
+    private readonly audit: AdminAuditService,
+  ) {}
 
   private baseQuery() {
     return this.db
@@ -208,5 +231,103 @@ export class UserDirectoryService {
       throw new NotFoundException("사용자를 찾을 수 없습니다.");
     }
     return toAdminUser(row as UserDirectoryRow);
+  }
+
+  // =========================================================================
+  // Admin — soft delete (archive) / restore
+  // =========================================================================
+
+  /**
+   * 사용자 삭제 = soft delete(archive). 레코드를 물리적으로 지우지 않고
+   * `deletedAt`을 찍고 `isActive=false`로 내려 공개/앱 노출에서 차단한다.
+   *
+   * - 노출 차단: 공개 목록/상세(getByHandle)는 `deletedAt`을 404로 가리고,
+   *   관리자 목록은 기본적으로 `deletedAt IS NULL`만 보이며 `includeDeleted=true`
+   *   로만 보관된 사용자를 조회할 수 있다.
+   * - 연결 데이터 보존: profiles 행과 결제/이력/감사 등 연결 데이터는 그대로
+   *   남는다(파괴적 삭제·FK cascade 없음) → 복구 가능.
+   * - 멱등: 이미 archive된 사용자는 추가 쓰기/감사 없이 현재 상태를 돌려준다.
+   *
+   * 없는 사용자 → 404. 성공 시 갱신된 관리자 뷰를 반환하고 감사 로그를 남긴다.
+   */
+  async archiveUser(input: ArchiveUserInput): Promise<AdminUser> {
+    const [row] = await this.baseQuery().where(eq(profiles.id, input.id)).limit(1);
+    if (!row) {
+      throw new NotFoundException("사용자를 찾을 수 없습니다.");
+    }
+    const directoryRow = row as UserDirectoryRow;
+    const before = directoryRow.profile;
+
+    if (before.deletedAt != null) {
+      return toAdminUser(directoryRow);
+    }
+
+    const archivedAt = new Date();
+    await this.db
+      .update(profiles)
+      .set({ deletedAt: archivedAt, isActive: false, updatedAt: archivedAt })
+      .where(eq(profiles.id, input.id));
+
+    const afterRow: UserDirectoryRow = {
+      ...directoryRow,
+      profile: { ...before, deletedAt: archivedAt, isActive: false, updatedAt: archivedAt },
+    };
+
+    await this.audit.log({
+      actorUserId: input.actorUserId,
+      action: ARCHIVE_AUDIT_ACTION,
+      targetType: "user",
+      targetId: input.id,
+      payloadBefore: { isActive: before.isActive, deletedAt: before.deletedAt },
+      payloadAfter: { isActive: false, deletedAt: archivedAt },
+      reason: input.reason,
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+    });
+
+    return toAdminUser(afterRow);
+  }
+
+  /**
+   * archive된 사용자를 복구한다(`deletedAt=null`, `isActive=true`) → 공개/앱
+   * 노출 재개. archive되지 않은 사용자는 멱등 no-op으로 현재 상태를 반환한다.
+   * 없는 사용자 → 404. 성공 시 감사 로그를 남긴다.
+   */
+  async restoreUser(input: ArchiveUserInput): Promise<AdminUser> {
+    const [row] = await this.baseQuery().where(eq(profiles.id, input.id)).limit(1);
+    if (!row) {
+      throw new NotFoundException("사용자를 찾을 수 없습니다.");
+    }
+    const directoryRow = row as UserDirectoryRow;
+    const before = directoryRow.profile;
+
+    if (before.deletedAt == null) {
+      return toAdminUser(directoryRow);
+    }
+
+    const restoredAt = new Date();
+    await this.db
+      .update(profiles)
+      .set({ deletedAt: null, isActive: true, updatedAt: restoredAt })
+      .where(eq(profiles.id, input.id));
+
+    const afterRow: UserDirectoryRow = {
+      ...directoryRow,
+      profile: { ...before, deletedAt: null, isActive: true, updatedAt: restoredAt },
+    };
+
+    await this.audit.log({
+      actorUserId: input.actorUserId,
+      action: RESTORE_AUDIT_ACTION,
+      targetType: "user",
+      targetId: input.id,
+      payloadBefore: { isActive: before.isActive, deletedAt: before.deletedAt },
+      payloadAfter: { isActive: true, deletedAt: null },
+      reason: input.reason,
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+    });
+
+    return toAdminUser(afterRow);
   }
 }

@@ -39,11 +39,13 @@ function makeRow(overrides: Partial<UserDirectoryRow> = {}): UserDirectoryRow {
 
 describe("UserDirectoryService", () => {
   let db: ReturnType<typeof createMockDb>;
+  let audit: { log: jest.Mock };
   let service: UserDirectoryService;
 
   beforeEach(() => {
     db = createMockDb();
-    service = new UserDirectoryService(db as never);
+    audit = { log: jest.fn() };
+    service = new UserDirectoryService(db as never, audit as never);
   });
 
   describe("listUsers (public)", () => {
@@ -183,6 +185,94 @@ describe("UserDirectoryService", () => {
     it("throws NotFound when the user does not exist", async () => {
       db._queueResolve("limit", []);
       await expect(service.getAdminUser("nope")).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("archiveUser (soft delete)", () => {
+    it("archives an active user and records an audit entry", async () => {
+      db._queueResolve("limit", [makeRow()]);
+
+      const result = await service.archiveUser({
+        id: "u1",
+        actorUserId: "admin1",
+        reason: "스팸 계정",
+        ipAddress: "10.0.0.1",
+        userAgent: "jest",
+      });
+
+      // soft delete: record is flagged, not removed
+      expect(result.isActive).toBe(false);
+      expect(result.deletedAt).not.toBeNull();
+      expect(db.update).toHaveBeenCalledTimes(1);
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "user.archived",
+          actorUserId: "admin1",
+          targetType: "user",
+          targetId: "u1",
+          reason: "스팸 계정",
+        }),
+      );
+    });
+
+    it("is idempotent for an already-archived user (no write, no audit)", async () => {
+      db._queueResolve("limit", [
+        makeRow({ profile: makeProfile({ deletedAt: new Date("2026-02-01T00:00:00.000Z") }) }),
+      ]);
+
+      const result = await service.archiveUser({ id: "u1", actorUserId: "admin1" });
+
+      expect(result.deletedAt).toBe("2026-02-01T00:00:00.000Z");
+      expect(db.update).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+
+    it("throws NotFound when archiving a missing user", async () => {
+      db._queueResolve("limit", []);
+      await expect(
+        service.archiveUser({ id: "ghost", actorUserId: "admin1" }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("restoreUser", () => {
+    it("restores an archived user and records an audit entry", async () => {
+      db._queueResolve("limit", [
+        makeRow({ profile: makeProfile({ deletedAt: new Date(), isActive: false }) }),
+      ]);
+
+      const result = await service.restoreUser({ id: "u1", actorUserId: "admin1" });
+
+      expect(result.isActive).toBe(true);
+      expect(result.deletedAt).toBeNull();
+      expect(db.update).toHaveBeenCalledTimes(1);
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "user.restored",
+          actorUserId: "admin1",
+          targetType: "user",
+          targetId: "u1",
+        }),
+      );
+    });
+
+    it("is idempotent when the user is not archived (no write, no audit)", async () => {
+      db._queueResolve("limit", [makeRow()]);
+
+      const result = await service.restoreUser({ id: "u1", actorUserId: "admin1" });
+
+      expect(result.deletedAt).toBeNull();
+      expect(db.update).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+
+    it("throws NotFound when restoring a missing user", async () => {
+      db._queueResolve("limit", []);
+      await expect(
+        service.restoreUser({ id: "ghost", actorUserId: "admin1" }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(audit.log).not.toHaveBeenCalled();
     });
   });
 });
