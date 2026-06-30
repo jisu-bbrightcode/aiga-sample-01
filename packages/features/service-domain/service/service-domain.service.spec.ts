@@ -133,11 +133,59 @@ describe("ServiceDomainService", () => {
       expect(out.id).toBe(created.id);
     });
 
+    it("appends a create entry to the admin audit log (BBR-680 AC)", async () => {
+      const created = makeDoctorRow({ status: "draft", createdBy: "admin-1" });
+      db._tx._queueResolve("returning", [created]);
+
+      await service.createDoctor("admin-1", {
+        name: "김명의",
+        slug: "kim-myeongui",
+        status: "draft",
+      } as never);
+
+      expect(audit.log).toHaveBeenCalledTimes(1);
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId: "admin-1",
+          action: "domain.doctor.created",
+          targetType: "service_doctor",
+          targetId: created.id,
+        }),
+      );
+    });
+
     it("maps a unique-violation to a 409 ConflictException", async () => {
       db.transaction.mockRejectedValueOnce({ code: "23505" });
       await expect(
         service.createDoctor("admin-1", { name: "x", slug: "dup", status: "draft" } as never),
       ).rejects.toBeInstanceOf(ConflictException);
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("createHospital", () => {
+    it("creates the record and appends a create entry to the audit log (BBR-680 AC)", async () => {
+      const created = makeHospitalRow({ status: "draft", createdBy: "admin-1" });
+      db._queueResolve("returning", [created]);
+
+      const out = await service.createHospital("admin-1", {
+        name: "서울병원",
+        slug: "seoul-hospital",
+        status: "draft",
+      } as never);
+
+      const insertedValues = db.values.mock.calls[0][0];
+      expect(insertedValues.createdBy).toBe("admin-1");
+      expect(insertedValues.publishedAt).toBeNull(); // draft → not published
+      expect(out.id).toBe(created.id);
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId: "admin-1",
+          action: "domain.hospital.created",
+          targetType: "service_hospital",
+          targetId: created.id,
+        }),
+      );
     });
   });
 
@@ -651,7 +699,8 @@ describe("ServiceDomainService.listAdminDomainResources", () => {
 
   beforeEach(() => {
     db = createMockDb();
-    service = new ServiceDomainService(db as never, { log: jest.fn() } as never);
+    const audit = { log: jest.fn().mockResolvedValue(undefined), list: jest.fn() };
+    service = new ServiceDomainService(db as never, audit as never);
   });
 
   it("type=doctor reads only the doctors table and returns the admin envelope", async () => {

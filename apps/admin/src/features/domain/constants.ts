@@ -12,5 +12,11 @@
 /** Admin route for the domain resource list/search console. */
 export const DOMAIN_ADMIN_PATH = "/domain";
 
+/**
+ * Admin route for the domain resource create form
+ * (PB-ADMIN-DOMAIN-CREATE-001 / BBR-680).
+ */
+export const DOMAIN_ADMIN_CREATE_PATH = "/domain/new";
+
 /** Default page size for the admin list. */
 export const DOMAIN_ADMIN_DEFAULT_PAGE_SIZE = 20;

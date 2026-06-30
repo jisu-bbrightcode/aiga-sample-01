@@ -16,8 +16,8 @@ import { setServiceDomainService } from "./service-registry";
  * controller + admin-gated mutation controller share one service.
  *
  * `AdminAuditService` is provided locally (it only depends on Drizzle) so the
- * admin archive/restore lifecycle (PB-ADMIN-DOMAIN-DELETE-001 / BBR-682) can
- * append to the shared `admin_audit_log` — REUSED from the admin shell
+ * service can append create (BBR-680) and archive/restore lifecycle (BBR-682)
+ * events to the shared `admin_audit_log` — REUSED from the admin shell
  * (PB-ADMIN-001), so no new migration is required.
  */
 @Module({

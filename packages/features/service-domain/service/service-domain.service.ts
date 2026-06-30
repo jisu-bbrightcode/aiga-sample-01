@@ -66,13 +66,17 @@ const ARCHIVED: ServicePublishStatus = "archived";
 
 /**
  * Audit descriptors written to the shared `admin_audit_log` (append-only).
- * The archive/restore lifecycle is the one admin mutation in this domain that
- * leaves a durable change trail (PB-ADMIN-DOMAIN-DELETE-001 / BBR-682).
+ * Covers the create (BBR-680) and archive/restore lifecycle (BBR-682) — the
+ * admin mutations in this domain that leave a durable operator trail.
  */
-const ServiceDomainAuditAction = {
+export const ServiceDomainAuditAction = {
   archived: "service_domain.archived",
   restored: "service_domain.restored",
+  doctorCreated: "domain.doctor.created",
+  hospitalCreated: "domain.hospital.created",
 } as const;
+export type ServiceDomainAuditAction =
+  (typeof ServiceDomainAuditAction)[keyof typeof ServiceDomainAuditAction];
 
 /** Free-form `admin_audit_log.targetType` per resource kind. */
 const RESOURCE_TARGET_TYPE: Record<AdminDomainResourceType, string> = {
@@ -309,7 +313,18 @@ export class ServiceDomainService {
         await this.replaceDoctorAssociations(tx, doctor.id, specialtyIds, hospitals);
         return doctor;
       });
-      return toAdminDoctor(created);
+      const admin = toAdminDoctor(created);
+      // 생성 작업은 감사 로그에 남는다 (BBR-680 AC). The record is created in its
+      // initial lifecycle state (defaults to draft) and the operator action is
+      // appended append-only to admin_audit_log.
+      await this.audit.log({
+        actorUserId: actorId,
+        action: ServiceDomainAuditAction.doctorCreated,
+        targetType: RESOURCE_TARGET_TYPE.doctor,
+        targetId: created.id,
+        payloadAfter: admin,
+      });
+      return admin;
     } catch (error) {
       throw this.mapWriteError(error, "의사");
     }
@@ -371,7 +386,16 @@ export class ServiceDomainService {
           updatedBy: actorId,
         })
         .returning();
-      return toAdminHospital(this.firstOrThrow(rows));
+      const admin = toAdminHospital(this.firstOrThrow(rows));
+      // 생성 작업은 감사 로그에 남는다 (BBR-680 AC).
+      await this.audit.log({
+        actorUserId: actorId,
+        action: ServiceDomainAuditAction.hospitalCreated,
+        targetType: RESOURCE_TARGET_TYPE.hospital,
+        targetId: admin.id,
+        payloadAfter: admin,
+      });
+      return admin;
     } catch (error) {
       throw this.mapWriteError(error, "병원");
     }

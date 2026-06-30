@@ -76,7 +76,8 @@ describe("listDoctors — 검색·필터·정렬 contract (FR-004 QA / BBR-493)"
 
   beforeEach(() => {
     db = createMockDb();
-    service = new ServiceDomainService(db as never, { log: jest.fn() } as never);
+    const audit = { log: jest.fn().mockResolvedValue(undefined), list: jest.fn() };
+    service = new ServiceDomainService(db as never, audit as never);
     db._queueResolve("offset", [makeRow()]); // items query terminal
     db._queueResolve("where", [{ count: 1 }]); // count query terminal
   });

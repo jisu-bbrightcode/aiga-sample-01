@@ -1,19 +1,24 @@
-import { Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import type { User } from "@repo/core/nestjs/auth";
 import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import {
+  AdminDoctorDto,
   AdminDomainResourceDetailDto,
   AdminDomainResourceDetailParamDto,
   AdminDomainResourceLifecycleDto,
   AdminDomainResourceListDto,
   AdminDomainResourceQueryDto,
+  AdminHospitalDto,
+  CreateDoctorDto,
+  CreateHospitalDto,
 } from "../dto";
 import { ServiceDomainService } from "../service";
 
 /**
- * Admin domain resource list + detail API (PB-ADMIN-DOMAIN-API-001 / BBR-761,
- * PB-ADMIN-DOMAIN-READ-001 / BBR-679).
+ * Admin domain resource list + detail + create API
+ * (PB-ADMIN-DOMAIN-API-001 / BBR-761, PB-ADMIN-DOMAIN-READ-001 / BBR-679,
+ * PB-ADMIN-DOMAIN-CREATE-001 / BBR-680).
  *
  * `GET /api/admin/domain/resources` — the unified list/search the admin domain
  * console (BBR-678, contract-first UI) consumes.
@@ -23,12 +28,17 @@ import { ServiceDomainService } from "../service";
  * `POST /api/admin/domain/resources/:type/:id/archive` + `/restore` — the
  * 비활성/archive lifecycle (BBR-682): take a record off the public surface
  * without deleting it (연결 데이터 보존), audited to `admin_audit_log`.
+ * `POST /api/admin/domain/resources/doctors|hospitals` — create a catalog
+ * record from the admin console (BBR-680). A record is created in its initial
+ * lifecycle state (defaults to draft) and the action is recorded in the audit
+ * log; sensitive operational fields are validated separately from the public
+ * fields at the DTO boundary.
  *
- * Both are gated by BetterAuthGuard then BetterAuthAdminGuard (owner/admin),
+ * All are gated by BetterAuthGuard then BetterAuthAdminGuard (owner/admin),
  * identical to the other admin routes. Kept on its own `admin/domain` base path
  * (distinct from the editorial CRUD controller's `service/admin`) so it matches
- * the committed contract URL exactly. Sibling create/update/delete endpoints
- * (BBR-680..682) will hang off this same base.
+ * the committed contract URL exactly. Sibling update/delete endpoints
+ * (BBR-681..682) will hang off this same base.
  */
 @ApiTags("Admin Domain Resources")
 @ApiBearerAuth()
@@ -65,5 +75,21 @@ export class ServiceDomainAdminResourcesController {
   @ApiResponse({ status: 404, description: "리소스를 찾을 수 없음" })
   restoreResource(@CurrentUser() user: User, @Param() params: AdminDomainResourceDetailParamDto) {
     return this.service.restoreDomainResource(user.id, params.type, params.id);
+  }
+
+  @Post("resources/doctors")
+  @ApiOperation({ summary: "도메인 리소스 생성 — 의사 (기본 draft, 감사 로그 기록)" })
+  @ApiResponse({ status: 201, type: AdminDoctorDto })
+  @ApiResponse({ status: 409, description: "slug 중복" })
+  createDoctor(@CurrentUser() user: User, @Body() dto: CreateDoctorDto) {
+    return this.service.createDoctor(user.id, dto);
+  }
+
+  @Post("resources/hospitals")
+  @ApiOperation({ summary: "도메인 리소스 생성 — 병원 (기본 draft, 감사 로그 기록)" })
+  @ApiResponse({ status: 201, type: AdminHospitalDto })
+  @ApiResponse({ status: 409, description: "slug 중복" })
+  createHospital(@CurrentUser() user: User, @Body() dto: CreateHospitalDto) {
+    return this.service.createHospital(user.id, dto);
   }
 }

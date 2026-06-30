@@ -60,6 +60,18 @@ export interface DomainResourceListResult {
   totalPages: number;
 }
 
+/** A selectable taxonomy option (진료과 / 지역) for the create form. */
+export interface DomainTaxonomyOption {
+  id: string;
+  name: string;
+}
+
+/** The taxonomy lookups the create form needs to populate its selects. */
+export interface DomainTaxonomyOptions {
+  specialties: DomainTaxonomyOption[];
+  regions: DomainTaxonomyOption[];
+}
+
 export const DOMAIN_TYPE_LABELS: Record<DomainResourceType, string> = {
   doctor: "의사",
   hospital: "병원",
