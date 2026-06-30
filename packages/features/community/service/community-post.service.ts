@@ -24,6 +24,11 @@ import { CommunityKeywordFilterService } from "./community-keyword-filter.servic
 import { CommunityTierService, TIER_PRIVILEGES } from "./community-tier.service";
 import { canRestore, RESTORE_TARGET_STATUS } from "./post-deletion-policy";
 import { DEFAULT_POST_SORT, normalizePostListLimit, type PostSort } from "./post-list-options";
+import {
+  buildPostOpAuditDetails,
+  resolveToggleState,
+  snapshotPostModeration,
+} from "./post-ops-policy";
 import { normalizePostSearchTerm } from "./post-search";
 
 type PostStatus = CommunityPost["status"];
@@ -565,7 +570,17 @@ export class CommunityPostService {
       .where(eq(communities.id, post.communityId));
   }
 
-  async pin(id: string, userId: string): Promise<CommunityPost> {
+  /**
+   * 게시글 고정 토글 (모더레이터 조치).
+   *
+   * `options.pinned` 를 명시하면 그대로 적용(멱등), 생략하면 현재 상태를 뒤집는다.
+   * 조치 사유와 전후 상태(isPinned)는 community_mod_logs 에 `pin_post` 로 남는다(AC#2).
+   */
+  async pin(
+    id: string,
+    userId: string,
+    options: { pinned?: boolean; reason?: string } = {},
+  ): Promise<CommunityPost> {
     const post = await this.findById(id);
     if (!post) {
       throw new NotFoundException("게시글을 찾을 수 없습니다.");
@@ -577,19 +592,43 @@ export class CommunityPostService {
       "moderator",
     ]);
 
+    const before = snapshotPostModeration(post);
+    const nextPinned = resolveToggleState(post.isPinned, options.pinned);
+
     const [updated] = await this.db
       .update(communityPosts)
       .set({
-        isPinned: true,
+        isPinned: nextPinned,
         updatedAt: new Date(),
       })
       .where(eq(communityPosts.id, id))
       .returning();
+
+    const after = snapshotPostModeration(updated as CommunityPost);
+    await this.recordModLog({
+      communityId: post.communityId,
+      moderatorId: userId,
+      action: "pin_post",
+      targetId: id,
+      reason: options.reason,
+      details: buildPostOpAuditDetails(nextPinned ? "pin" : "unpin", before, after),
+    });
 
     return updated as CommunityPost;
   }
 
-  async lock(id: string, userId: string): Promise<CommunityPost> {
+  /**
+   * 게시글 잠금 토글 (모더레이터 조치).
+   *
+   * 잠긴 게시글은 댓글 작성이 차단된다(comment-creation-policy). `options.locked`
+   * 를 명시하면 그대로 적용, 생략하면 토글한다. 조치 사유와 전후 상태(isLocked)는
+   * community_mod_logs 에 `lock_post` 로 남는다(AC#2).
+   */
+  async lock(
+    id: string,
+    userId: string,
+    options: { locked?: boolean; reason?: string } = {},
+  ): Promise<CommunityPost> {
     const post = await this.findById(id);
     if (!post) {
       throw new NotFoundException("게시글을 찾을 수 없습니다.");
@@ -601,14 +640,27 @@ export class CommunityPostService {
       "moderator",
     ]);
 
+    const before = snapshotPostModeration(post);
+    const nextLocked = resolveToggleState(post.isLocked, options.locked);
+
     const [updated] = await this.db
       .update(communityPosts)
       .set({
-        isLocked: true,
+        isLocked: nextLocked,
         updatedAt: new Date(),
       })
       .where(eq(communityPosts.id, id))
       .returning();
+
+    const after = snapshotPostModeration(updated as CommunityPost);
+    await this.recordModLog({
+      communityId: post.communityId,
+      moderatorId: userId,
+      action: "lock_post",
+      targetId: id,
+      reason: options.reason,
+      details: buildPostOpAuditDetails(nextLocked ? "lock" : "unlock", before, after),
+    });
 
     return updated as CommunityPost;
   }
@@ -698,7 +750,7 @@ export class CommunityPostService {
   private async recordModLog(entry: {
     communityId: string;
     moderatorId: string;
-    action: "remove_post" | "other";
+    action: "remove_post" | "pin_post" | "lock_post" | "other";
     targetId: string;
     reason?: string;
     details?: Record<string, unknown>;
@@ -718,6 +770,7 @@ export class CommunityPostService {
     postId: string,
     targetCommunityId: string,
     userId: string,
+    reason?: string,
   ): Promise<CommunityPost> {
     const originalPost = await this.findById(postId);
     if (!originalPost) {
@@ -755,7 +808,24 @@ export class CommunityPostService {
       })
       .returning();
 
-    return crosspost as CommunityPost;
+    const created = crosspost as CommunityPost;
+
+    // 교차 게시 조치 이력: 대상 커뮤니티 기준으로 source/target 메타를 남긴다(AC#2).
+    const snapshot = snapshotPostModeration(created);
+    await this.recordModLog({
+      communityId: targetCommunityId,
+      moderatorId: userId,
+      action: "other",
+      targetId: created.id,
+      reason,
+      details: buildPostOpAuditDetails("crosspost", snapshot, snapshot, {
+        sourcePostId: postId,
+        sourceCommunityId: originalPost.communityId,
+        crosspostId: created.id,
+      }),
+    });
+
+    return created;
   }
 
   private calculateHotScore(voteScore: number, createdAt: Date): number {
