@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
 import {
@@ -7,9 +12,11 @@ import {
   type CommunityModerator,
   type CommunityReport,
   type CommunityRule,
+  communities,
   communityBans,
   communityComments,
   communityFlairs,
+  communityMemberships,
   communityModerators,
   communityModLogs,
   communityPosts,
@@ -17,7 +24,6 @@ import {
   communityRules,
 } from "@repo/drizzle/schema";
 import { and, count, desc, eq, sql } from "drizzle-orm";
-import { assertCommunityPermission } from "../helpers/permission";
 import type {
   BanUserDto,
   CreateFlairDto,
@@ -25,14 +31,30 @@ import type {
   CreateRuleDto,
   InviteModeratorDto,
   ResolveReportDto,
+  TransferOwnershipDto,
+  UpdateModeratorPermissionsDto,
 } from "../dto";
+import {
+  type CommunityRole,
+  canManageModerators,
+  canRespondToInvite,
+  canRevokeAppointment,
+  canTransferOwnership,
+  canUpdatePermissions,
+  type ModeratorActor,
+  type ModeratorStatus,
+  nextStatusForResponse,
+  normalizeModeratorPermissions,
+  sanitizeGrantablePermissions,
+} from "../helpers/moderator-policy";
+import { assertCommunityPermission } from "../helpers/permission";
 import { CommunityService } from "./community.service";
 
 @Injectable()
 export class CommunityModerationService {
   constructor(
     @InjectDrizzle() private readonly db: DrizzleDB,
-    private readonly communityService: CommunityService
+    private readonly communityService: CommunityService,
   ) {}
 
   async createReport(dto: CreateReportDto, userId: string): Promise<CommunityReport> {
@@ -387,23 +409,123 @@ export class CommunityModerationService {
     return items as CommunityFlair[];
   }
 
+  /**
+   * Load the actor's role + (for a moderator) their own appointment context,
+   * used to authorize moderator-management actions.
+   */
+  private async resolveModeratorActor(
+    communityId: string,
+    userId: string,
+  ): Promise<ModeratorActor> {
+    const membership = await this.communityService.getMembership(communityId, userId);
+    if (!membership || membership.isBanned) {
+      return { role: "member" };
+    }
+    const role = membership.role as CommunityRole;
+    if (role !== "moderator") {
+      return { role };
+    }
+    const [mod] = await this.db
+      .select()
+      .from(communityModerators)
+      .where(
+        and(
+          eq(communityModerators.communityId, communityId),
+          eq(communityModerators.userId, userId),
+        ),
+      )
+      .limit(1);
+    return {
+      role,
+      permissions: mod?.permissions ?? null,
+      status: (mod?.status as ModeratorStatus | undefined) ?? null,
+    };
+  }
+
+  /** Authorize a moderator-management action (AC#1) and return the actor context. */
+  private async assertCanManageModerators(
+    communityId: string,
+    userId: string,
+  ): Promise<ModeratorActor> {
+    const actor = await this.resolveModeratorActor(communityId, userId);
+    if (!canManageModerators(actor)) {
+      throw new ForbiddenException("모더레이터를 관리할 권한이 없습니다.");
+    }
+    return actor;
+  }
+
+  private async findModeratorRow(
+    communityId: string,
+    userId: string,
+  ): Promise<CommunityModerator | null> {
+    const [row] = await this.db
+      .select()
+      .from(communityModerators)
+      .where(
+        and(
+          eq(communityModerators.communityId, communityId),
+          eq(communityModerators.userId, userId),
+        ),
+      )
+      .limit(1);
+    return (row as CommunityModerator) ?? null;
+  }
+
+  /**
+   * Invite a member to become a moderator. Creates a pending appointment that
+   * the invitee must accept before any moderator powers take effect (AC#2).
+   */
   async inviteModerator(dto: InviteModeratorDto, inviterId: string): Promise<CommunityModerator> {
     const community = await this.communityService.findById(dto.communityId);
     if (!community) {
       throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
     }
 
-    await assertCommunityPermission(this.communityService, inviterId, dto.communityId, ["owner"]);
+    const actor = await this.assertCanManageModerators(dto.communityId, inviterId);
 
-    const [moderator] = await this.db
-      .insert(communityModerators)
-      .values({
-        communityId: dto.communityId,
-        userId: dto.userId,
-        permissions: dto.permissions,
-        appointedBy: inviterId,
-      })
-      .returning();
+    const targetMembership = await this.communityService.getMembership(dto.communityId, dto.userId);
+    if (!targetMembership) {
+      throw new NotFoundException("초대 대상이 커뮤니티 멤버가 아닙니다.");
+    }
+    if (targetMembership.isBanned) {
+      throw new ConflictException("차단된 사용자는 모더레이터로 초대할 수 없습니다.");
+    }
+
+    const permissions = sanitizeGrantablePermissions(
+      actor.role,
+      normalizeModeratorPermissions(dto.permissions),
+    );
+
+    const existing = await this.findModeratorRow(dto.communityId, dto.userId);
+    if (existing && (existing.status === "pending" || existing.status === "active")) {
+      throw new ConflictException("이미 모더레이터로 초대되었거나 활동 중입니다.");
+    }
+
+    // Re-invite a previously declined/revoked appointment by resetting the row,
+    // since (community_id, user_id) is unique.
+    const [moderator] = existing
+      ? await this.db
+          .update(communityModerators)
+          .set({
+            permissions,
+            status: "pending",
+            appointedBy: inviterId,
+            appointedAt: new Date(),
+            respondedAt: null,
+            revokedAt: null,
+          })
+          .where(eq(communityModerators.id, existing.id))
+          .returning()
+      : await this.db
+          .insert(communityModerators)
+          .values({
+            communityId: dto.communityId,
+            userId: dto.userId,
+            permissions,
+            appointedBy: inviterId,
+            status: "pending",
+          })
+          .returning();
 
     await this.logModAction({
       communityId: dto.communityId,
@@ -412,25 +534,139 @@ export class CommunityModerationService {
       targetType: "user",
       targetId: dto.userId,
       reason: "Moderator invited",
+      details: { kind: "invite_moderator", status: "pending" },
     });
 
     return moderator as CommunityModerator;
   }
 
+  /**
+   * The invitee accepts or declines a pending moderator invite. On accept the
+   * appointment becomes active and the membership role is promoted to moderator.
+   */
+  async respondToModeratorInvite(
+    communityId: string,
+    userId: string,
+    accept: boolean,
+  ): Promise<CommunityModerator> {
+    const row = await this.findModeratorRow(communityId, userId);
+    if (!row) {
+      throw new NotFoundException("모더레이터 초대를 찾을 수 없습니다.");
+    }
+    if (!canRespondToInvite(row.status as ModeratorStatus)) {
+      throw new ConflictException("이미 처리된 초대입니다.");
+    }
+
+    const status = nextStatusForResponse(accept);
+    const [updated] = await this.db
+      .update(communityModerators)
+      .set({ status, respondedAt: new Date() })
+      .where(eq(communityModerators.id, row.id))
+      .returning();
+
+    if (accept) {
+      // Promote only a plain member; never demote an existing admin/owner.
+      await this.db
+        .update(communityMemberships)
+        .set({ role: "moderator" })
+        .where(
+          and(
+            eq(communityMemberships.communityId, communityId),
+            eq(communityMemberships.userId, userId),
+            eq(communityMemberships.role, "member"),
+          ),
+        );
+    }
+
+    await this.logModAction({
+      communityId,
+      moderatorId: userId,
+      action: "other",
+      targetType: "user",
+      targetId: userId,
+      reason: accept ? "Moderator invite accepted" : "Moderator invite declined",
+      details: { kind: "respond_moderator_invite", accepted: accept, status },
+    });
+
+    return updated as CommunityModerator;
+  }
+
+  /** Change an active moderator's permission set (AC#1 authorization, AC#2 audit). */
+  async updateModeratorPermissions(
+    dto: UpdateModeratorPermissionsDto,
+    actorId: string,
+  ): Promise<CommunityModerator> {
+    const community = await this.communityService.findById(dto.communityId);
+    if (!community) {
+      throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
+    }
+
+    const actor = await this.assertCanManageModerators(dto.communityId, actorId);
+
+    const row = await this.findModeratorRow(dto.communityId, dto.userId);
+    if (!row) {
+      throw new NotFoundException("모더레이터를 찾을 수 없습니다.");
+    }
+    if (!canUpdatePermissions(row.status as ModeratorStatus)) {
+      throw new ConflictException("활동 중인 모더레이터만 권한을 변경할 수 있습니다.");
+    }
+
+    const before = row.permissions;
+    const after = sanitizeGrantablePermissions(
+      actor.role,
+      normalizeModeratorPermissions({ ...before, ...dto.permissions }),
+    );
+
+    const [updated] = await this.db
+      .update(communityModerators)
+      .set({ permissions: after })
+      .where(eq(communityModerators.id, row.id))
+      .returning();
+
+    await this.logModAction({
+      communityId: dto.communityId,
+      moderatorId: actorId,
+      action: "other",
+      targetType: "user",
+      targetId: dto.userId,
+      reason: "Moderator permissions updated",
+      details: { kind: "update_moderator_permissions", before, after },
+    });
+
+    return updated as CommunityModerator;
+  }
+
+  /**
+   * Remove a moderator. Soft-revokes the appointment (keeping the invite-state
+   * record for audit) and demotes the membership back to member.
+   */
   async removeModerator(communityId: string, userId: string, removerId: string): Promise<void> {
     const community = await this.communityService.findById(communityId);
     if (!community) {
       throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
     }
 
-    await assertCommunityPermission(this.communityService, removerId, communityId, ["owner"]);
+    await this.assertCanManageModerators(communityId, removerId);
+
+    const row = await this.findModeratorRow(communityId, userId);
+    if (!row || !canRevokeAppointment(row.status as ModeratorStatus)) {
+      throw new NotFoundException("해제할 모더레이터를 찾을 수 없습니다.");
+    }
 
     await this.db
-      .delete(communityModerators)
+      .update(communityModerators)
+      .set({ status: "revoked", revokedAt: new Date() })
+      .where(eq(communityModerators.id, row.id));
+
+    // Demote the membership back to plain member if it was promoted.
+    await this.db
+      .update(communityMemberships)
+      .set({ role: "member" })
       .where(
         and(
-          eq(communityModerators.communityId, communityId),
-          eq(communityModerators.userId, userId),
+          eq(communityMemberships.communityId, communityId),
+          eq(communityMemberships.userId, userId),
+          eq(communityMemberships.role, "moderator"),
         ),
       );
 
@@ -441,7 +677,88 @@ export class CommunityModerationService {
       targetType: "user",
       targetId: userId,
       reason: "Moderator removed",
+      details: { kind: "remove_moderator", status: "revoked" },
     });
+  }
+
+  /**
+   * Transfer community ownership to another member (owner-only). The previous
+   * owner is demoted to admin; the new owner's membership is promoted to owner.
+   */
+  async transferOwnership(
+    dto: TransferOwnershipDto,
+    actorId: string,
+  ): Promise<{ communityId: string; previousOwnerId: string; newOwnerId: string }> {
+    const community = await this.communityService.findById(dto.communityId);
+    if (!community) {
+      throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
+    }
+
+    const actorMembership = await this.communityService.getMembership(dto.communityId, actorId);
+    if (
+      !actorMembership ||
+      !canTransferOwnership(actorMembership.role as CommunityRole) ||
+      community.ownerId !== actorId
+    ) {
+      throw new ForbiddenException("소유권을 양도할 권한이 없습니다.");
+    }
+
+    if (dto.newOwnerId === actorId) {
+      throw new ConflictException("이미 소유자입니다.");
+    }
+
+    const targetMembership = await this.communityService.getMembership(
+      dto.communityId,
+      dto.newOwnerId,
+    );
+    if (!targetMembership || targetMembership.isBanned) {
+      throw new NotFoundException("양도 대상이 커뮤니티 멤버가 아닙니다.");
+    }
+
+    await this.db
+      .update(communities)
+      .set({ ownerId: dto.newOwnerId })
+      .where(eq(communities.id, dto.communityId));
+
+    await this.db
+      .update(communityMemberships)
+      .set({ role: "admin" })
+      .where(
+        and(
+          eq(communityMemberships.communityId, dto.communityId),
+          eq(communityMemberships.userId, actorId),
+        ),
+      );
+
+    await this.db
+      .update(communityMemberships)
+      .set({ role: "owner" })
+      .where(
+        and(
+          eq(communityMemberships.communityId, dto.communityId),
+          eq(communityMemberships.userId, dto.newOwnerId),
+        ),
+      );
+
+    await this.logModAction({
+      communityId: dto.communityId,
+      moderatorId: actorId,
+      action: "other",
+      targetType: "community",
+      targetId: dto.communityId,
+      reason: "Community ownership transferred",
+      details: {
+        kind: "transfer_ownership",
+        previousOwnerId: actorId,
+        newOwnerId: dto.newOwnerId,
+      },
+    });
+
+    return {
+      communityId: dto.communityId,
+      previousOwnerId: actorId,
+      newOwnerId: dto.newOwnerId,
+    };
   }
 
   async logModAction(data: {
@@ -451,6 +768,7 @@ export class CommunityModerationService {
     targetType?: any;
     targetId?: string;
     reason?: string;
+    details?: Record<string, unknown>;
   }): Promise<void> {
     await this.db.insert(communityModLogs).values({
       communityId: data.communityId,
@@ -459,6 +777,7 @@ export class CommunityModerationService {
       targetType: data.targetType ?? null,
       targetId: data.targetId,
       reason: data.reason,
+      details: data.details ?? {},
     });
   }
 
