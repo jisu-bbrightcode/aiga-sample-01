@@ -87,6 +87,12 @@ import {
   POST_SORTS,
   parsePostSort,
 } from "../service/post-list-options";
+import {
+  MEMBER_ROLES,
+  MEMBER_STATUSES,
+  parseMemberRole,
+  parseMemberStatus,
+} from "../service/member-list-options";
 
 @ApiTags("Community")
 @Controller("community")
@@ -192,21 +198,48 @@ export class CommunityController {
   }
 
   @Get(":slug/members")
-  @ApiOperation({ summary: "커뮤니티 멤버 목록" })
+  @ApiOperation({
+    summary: "커뮤니티 멤버 목록",
+    description:
+      "공개 뷰는 활성 멤버의 공개 필드만 반환한다. 요청자가 해당 커뮤니티의 모더레이터/관리자/소유자면 운영 필드(ban/mute 등)와 banned/muted 멤버까지 조회할 수 있다.",
+  })
   @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiQuery({
+    name: "role",
+    required: false,
+    enum: MEMBER_ROLES,
+    description: "역할 필터 (member/moderator/admin/owner)",
+  })
+  @ApiQuery({
+    name: "status",
+    required: false,
+    enum: MEMBER_STATUSES,
+    description: "상태 필터 (active/banned/muted). banned/muted 는 운영 권한자만 적용된다.",
+  })
   @ApiResponse({ status: 200, description: "멤버 목록 반환", type: MemberListResponseDto })
   async members(
     @Param("slug") slug: string,
+    @OptionalUser() user: User | undefined,
     @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query("limit", new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query("role") role?: string,
+    @Query("status") status?: string,
   ) {
-    return this.communityService.getMembers(slug, { page, limit });
+    return this.communityService.getMembers(slug, user?.id, {
+      page,
+      limit,
+      role: parseMemberRole(role),
+      status: parseMemberStatus(status),
+    });
   }
 
   @Get(":slug/moderators")
-  @ApiOperation({ summary: "모더레이터 목록" })
+  @ApiOperation({
+    summary: "모더레이터 목록",
+    description: "공개 뷰는 모더레이터 식별 정보만, 운영 권한자는 세부 권한/임명자까지 반환한다.",
+  })
   @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
   @ApiResponse({
     status: 200,
@@ -214,8 +247,8 @@ export class CommunityController {
     type: ModeratorResponseDto,
     isArray: true,
   })
-  async moderators(@Param("slug") slug: string) {
-    return this.communityService.getModerators(slug);
+  async moderators(@Param("slug") slug: string, @OptionalUser() user: User | undefined) {
+    return this.communityService.getModerators(slug, user?.id);
   }
 
   // ==========================================================================

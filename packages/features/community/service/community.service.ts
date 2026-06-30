@@ -20,11 +20,54 @@ import {
 import { and, asc, count, desc, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import type { CreateCommunityDto, UpdateCommunityDto } from "../dto";
 import { buildCursorResult, decodeCursor } from "../helpers/pagination";
+import {
+  type OperationalMemberItem,
+  type OperationalModeratorItem,
+  type PublicMemberItem,
+  type PublicModeratorItem,
+  toOperationalMemberItem,
+  toOperationalModeratorItem,
+  toPublicMemberItem,
+  toPublicModeratorItem,
+} from "../member-mappers";
+import {
+  type MemberRole,
+  type MemberStatus,
+  normalizeMemberLimit,
+  normalizeMemberPage,
+  resolveMemberStatusFilter,
+} from "./member-list-options";
 
 export interface PaginationOptions {
   page?: number;
   limit?: number;
 }
+
+/** 멤버/모더레이터 조회 필터 (PB-COMM-MEMBER-API-001 / BBR-592). */
+export interface MemberListOptions {
+  page?: number;
+  limit?: number;
+  role?: MemberRole;
+  status?: MemberStatus;
+}
+
+/** 멤버 목록 응답. operational=true 면 운영 필드 포함, false 면 공개 필드만. */
+export interface MemberListResult {
+  items: PublicMemberItem[] | OperationalMemberItem[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  operational: boolean;
+}
+
+/** 모더레이터 목록 응답. operational=true 면 권한/임명자 포함. */
+export interface ModeratorListResult {
+  items: PublicModeratorItem[] | OperationalModeratorItem[];
+  operational: boolean;
+}
+
+const OPERATIONAL_ROLES = ["moderator", "admin", "owner"] as const;
 
 export interface CommunityListOptions {
   search?: string;
@@ -507,54 +550,108 @@ export class CommunityService {
       .where(eq(communities.id, community.id));
   }
 
-  async getMembers(slug: string, options: PaginationOptions = {}) {
+  /**
+   * 커뮤니티 멤버 목록 (PB-COMM-MEMBER-API-001 / BBR-592).
+   *
+   * viewer 가 해당 커뮤니티의 모더레이터/관리자/소유자면 운영 뷰(ban/mute 등 운영
+   * 필드 + banned/muted 멤버 조회 가능)를, 그 외에는 공개 뷰(활성 멤버 + 공개 필드)를
+   * 반환한다. role/status 필터를 지원하며, status=banned/muted 는 운영 뷰에서만 적용된다.
+   */
+  async getMembers(
+    slug: string,
+    viewerId: string | undefined,
+    options: MemberListOptions = {},
+  ): Promise<MemberListResult> {
     const community = await this.findBySlug(slug);
     if (!community) {
       throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
     }
 
-    const page = options.page ?? 1;
-    const limit = options.limit ?? 50;
+    const operational = await this.canViewOperational(community.id, viewerId);
+    const page = normalizeMemberPage(options.page);
+    const limit = normalizeMemberLimit(options.limit);
     const offset = (page - 1) * limit;
 
-    const [items, totalResult] = await Promise.all([
+    const conditions = [eq(communityMemberships.communityId, community.id)];
+    if (options.role) {
+      conditions.push(eq(communityMemberships.role, options.role));
+    }
+
+    // 상태 필터: 공개 뷰는 항상 활성(banned 제외)만, 운영 뷰는 요청 status 적용.
+    const statusFilter = resolveMemberStatusFilter(options.status, operational);
+    if (statusFilter === "active") {
+      conditions.push(eq(communityMemberships.isBanned, false));
+    } else if (statusFilter === "banned") {
+      conditions.push(eq(communityMemberships.isBanned, true));
+    } else if (statusFilter === "muted") {
+      conditions.push(eq(communityMemberships.isMuted, true));
+    }
+
+    const where = and(...conditions);
+
+    const [rows, totalResult] = await Promise.all([
       this.db
         .select()
         .from(communityMemberships)
-        .where(eq(communityMemberships.communityId, community.id))
+        .where(where)
         .orderBy(desc(communityMemberships.joinedAt))
         .limit(limit)
         .offset(offset),
-      this.db
-        .select({ count: count() })
-        .from(communityMemberships)
-        .where(eq(communityMemberships.communityId, community.id)),
+      this.db.select({ count: count() }).from(communityMemberships).where(where),
     ]);
 
     const total = totalResult[0]?.count ?? 0;
+    const memberships = rows as CommunityMembership[];
+    const items = operational
+      ? memberships.map(toOperationalMemberItem)
+      : memberships.map(toPublicMemberItem);
 
     return {
-      items: items as CommunityMembership[],
+      items,
       total,
       page,
       limit,
-      hasMore: offset + items.length < total,
+      hasMore: offset + memberships.length < total,
+      operational,
     };
   }
 
-  async getModerators(slug: string) {
+  /**
+   * 모더레이터 목록 (PB-COMM-MEMBER-API-001 / BBR-592).
+   * 공개 뷰는 누가 모더레이터인지만, 운영 뷰는 세부 권한/임명자까지 노출한다.
+   */
+  async getModerators(slug: string, viewerId: string | undefined): Promise<ModeratorListResult> {
     const community = await this.findBySlug(slug);
     if (!community) {
       throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
     }
 
-    const items = await this.db
+    const operational = await this.canViewOperational(community.id, viewerId);
+    const rows = await this.db
       .select()
       .from(communityModerators)
       .where(eq(communityModerators.communityId, community.id))
-      .orderBy(communityModerators.appointedAt);
+      .orderBy(asc(communityModerators.appointedAt));
 
-    return items;
+    const items = operational
+      ? rows.map(toOperationalModeratorItem)
+      : rows.map(toPublicModeratorItem);
+
+    return { items, operational };
+  }
+
+  /**
+   * viewer 가 커뮤니티 운영 정보를 볼 수 있는지: 차단되지 않은 모더레이터/관리자/소유자.
+   * 비로그인이거나 멤버가 아니면 false(공개 뷰).
+   */
+  private async canViewOperational(
+    communityId: string,
+    viewerId: string | undefined,
+  ): Promise<boolean> {
+    if (!viewerId) return false;
+    const membership = await this.getMembership(communityId, viewerId);
+    if (!membership || membership.isBanned) return false;
+    return (OPERATIONAL_ROLES as readonly string[]).includes(membership.role);
   }
 
   async getMembership(communityId: string, userId: string): Promise<CommunityMembership | null> {
