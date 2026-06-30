@@ -462,11 +462,22 @@ export class CommunityController {
   })
   async postComments(
     @Param("id", ParseUUIDPipe) postId: string,
+    @OptionalUser() user?: User,
     @Query("sort") sort: "old" | "new" = "old",
     @Query("cursor") cursor?: string,
     @Query("limit", new DefaultValuePipe(50), ParseIntPipe) limit?: number,
   ) {
-    return this.commentService.findByPost({ postId, sort, cursor, limit });
+    // 로그인 사용자는 차단(양방향) 작성자의 댓글을 목록에서 제외한다 (AC#1).
+    const blockedUserIds = user ? await this.blockService.getBlockedUserIds(user.id) : undefined;
+
+    return this.commentService.findByPost({
+      postId,
+      sort,
+      cursor,
+      limit,
+      blockedUserIds,
+      viewerId: user?.id,
+    });
   }
 
   // ==========================================================================

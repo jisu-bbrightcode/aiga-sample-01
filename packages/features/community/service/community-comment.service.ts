@@ -7,7 +7,8 @@ import {
   communityPosts,
   user as userTable,
 } from "@repo/drizzle/schema";
-import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { type EnrichedCommentRow, toPublicCommentItem } from "../comment-visibility";
 import { buildCursorResult, decodeCursor } from "../helpers/pagination";
 import { assertCommunityPermission } from "../helpers/permission";
 import type { CreateCommentDto } from "../dto";
@@ -22,6 +23,8 @@ export interface CommentListOptions {
   cursor?: string;
   limit?: number;
   blockedUserIds?: string[];
+  /** 조회자 id. 키워드 숨김 댓글은 작성자 본인에게만 원문을 노출한다. */
+  viewerId?: string;
 }
 
 @Injectable()
@@ -31,7 +34,7 @@ export class CommunityCommentService {
     private readonly communityService: CommunityService,
     private readonly keywordFilterService: CommunityKeywordFilterService,
     private readonly tierService: CommunityTierService,
-    private readonly contentModerationService: CommunityContentModerationService
+    private readonly contentModerationService: CommunityContentModerationService,
   ) {}
 
   async create(dto: CreateCommentDto, userId: string): Promise<CommunityComment> {
@@ -117,22 +120,25 @@ export class CommunityCommentService {
   async findByPost(options: CommentListOptions) {
     const limit = options.limit ?? 50;
 
-    const conditions: any[] = [eq(communityComments.postId, options.postId)];
+    // 노출 정책 조건(postId + 차단 작성자 제외). 페이지 쿼리와 총 개수 쿼리가
+    // 동일한 조건을 공유해야 "댓글 수"와 "실제 노출 댓글"이 일관된다(AC#2).
+    const visibilityConditions: any[] = [eq(communityComments.postId, options.postId)];
 
     // 차단된 유저의 댓글 제외
     if (options.blockedUserIds && options.blockedUserIds.length > 0) {
-      conditions.push(notInArray(communityComments.authorId, options.blockedUserIds));
+      visibilityConditions.push(notInArray(communityComments.authorId, options.blockedUserIds));
     }
 
+    const pageConditions = [...visibilityConditions];
     if (options.cursor) {
       const decoded = decodeCursor(options.cursor);
       if (decoded) {
         if (options.sort === "new") {
-          conditions.push(
+          pageConditions.push(
             sql`(${communityComments.createdAt}, ${communityComments.id}) < (${decoded.value}, ${decoded.id})`,
           );
         } else {
-          conditions.push(
+          pageConditions.push(
             sql`(${communityComments.createdAt}, ${communityComments.id}) > (${decoded.value}, ${decoded.id})`,
           );
         }
@@ -142,7 +148,7 @@ export class CommunityCommentService {
     let query = this.db
       .select()
       .from(communityComments)
-      .where(and(...conditions));
+      .where(and(...pageConditions));
 
     if (options.sort === "new") {
       query = (query as any).orderBy(desc(communityComments.createdAt), desc(communityComments.id));
@@ -162,16 +168,31 @@ export class CommunityCommentService {
             .where(inArray(userTable.id, authorIds))
         : [];
     const authorMap = new Map(authors.map((a) => [a.id, a]));
-    const enrichedItems = items.map((item) => ({
+    const enrichedItems: EnrichedCommentRow[] = items.map((item) => ({
       ...item,
       authorName: authorMap.get(item.authorId)?.name ?? null,
       authorAvatar: authorMap.get(item.authorId)?.avatar ?? null,
     }));
 
-    return buildCursorResult(enrichedItems, limit, (item) => ({
-      value: item.createdAt.toISOString(),
+    const page = buildCursorResult(enrichedItems, limit, (item) => ({
+      value: item.createdAt instanceof Date ? item.createdAt.toISOString() : item.createdAt,
       id: item.id,
     }));
+
+    // 동일한 노출 조건으로 총 개수 산출. 삭제/제거/숨김 댓글은 tombstone 으로
+    // 목록에 남기므로 개수에도 포함된다 — 차단 작성자만 양쪽에서 제외된다.
+    const totalCountRows = await this.db
+      .select({ value: count() })
+      .from(communityComments)
+      .where(and(...visibilityConditions));
+    const totalCount = totalCountRows[0]?.value ?? 0;
+
+    const viewer = { userId: options.viewerId ?? null };
+    return {
+      items: page.items.map((item) => toPublicCommentItem(item, viewer)),
+      nextCursor: page.nextCursor,
+      totalCount,
+    };
   }
 
   async findById(id: string): Promise<CommunityComment | null> {
