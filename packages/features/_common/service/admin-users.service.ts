@@ -8,14 +8,41 @@ import {
   user,
   userRoles,
 } from "@repo/drizzle";
-import { and, count, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNull,
+  notInArray,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import { AdminAuditAction, AdminAuditService } from "./admin-audit.service";
+import type {
+  SortOrder,
+  UserAccessRoleFilter,
+  UserSortField,
+  UserStatusFilter,
+} from "./user-list-query";
 
 export interface AdminUsersListOptions {
   limit?: number;
   offset?: number;
   /** Free-text search across name/email (case-insensitive). */
   q?: string;
+  /** 계정 상태 필터 (활성/정지). */
+  status?: UserStatusFilter;
+  /** 접근 역할 필터 (owner/admin/member, none = 멤버십 없음). */
+  accessRole?: UserAccessRoleFilter;
+  /** 정렬 기준 (기본: 가입일). */
+  sort?: UserSortField;
+  /** 정렬 방향 (기본: 내림차순). */
+  order?: SortOrder;
 }
 
 /** Org access role that gates the admin shell (Better Auth membership). */
@@ -30,6 +57,8 @@ export interface AdminUserListItem {
   /** Org membership role used for admin access, or null if not a member. */
   accessRole: AdminAccessRole | null;
   createdAt: string;
+  /** Profile last-updated timestamp, used as the "recent activity" signal. */
+  lastActiveAt: string | null;
   emailVerified: boolean;
   isActive: boolean;
 }
@@ -67,7 +96,8 @@ export class AdminUsersService {
   async list(options: AdminUsersListOptions): Promise<AdminUsersListResponse> {
     const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
     const offset = Math.max(options.offset ?? 0, 0);
-    const where = buildSearchFilter(options.q);
+    const where = this.buildListFilter(options);
+    const orderBy = buildListOrder(options.sort, options.order);
 
     const [totalRow] = await this.db
       .select({ count: count() })
@@ -86,12 +116,13 @@ export class AdminUsersService {
         profileName: profiles.name,
         profileEmail: profiles.email,
         profileAvatar: profiles.avatar,
+        profileUpdatedAt: profiles.updatedAt,
         isActive: profiles.isActive,
       })
       .from(user)
       .leftJoin(profiles, eq(profiles.id, user.id))
       .where(where)
-      .orderBy(desc(user.createdAt))
+      .orderBy(...orderBy)
       .limit(limit)
       .offset(offset);
 
@@ -107,11 +138,53 @@ export class AdminUsersService {
       roles: rolesByUserId.get(row.id) ?? ["user"],
       accessRole: accessRoleByUserId.get(row.id) ?? null,
       createdAt: row.createdAt.toISOString(),
+      lastActiveAt: row.profileUpdatedAt ? row.profileUpdatedAt.toISOString() : null,
       emailVerified: row.emailVerified,
       isActive: row.isActive ?? true,
     }));
 
     return { users, total: totalRow?.count ?? 0 };
+  }
+
+  /**
+   * Compose the list WHERE clause from search + status + access-role filters.
+   * Lives on the service (not a pure helper) because the access-role filter
+   * issues a membership subquery against {@link members}.
+   */
+  private buildListFilter(options: AdminUsersListOptions): SQL | undefined {
+    const conditions: SQL[] = [];
+
+    const search = buildSearchFilter(options.q);
+    if (search) conditions.push(search);
+
+    if (options.status === "active") {
+      // profiles.isActive is null for users without a profile row; the mapper
+      // treats those as active, so include them in the "active" filter.
+      const activeFilter = or(eq(profiles.isActive, true), isNull(profiles.isActive));
+      if (activeFilter) conditions.push(activeFilter);
+    } else if (options.status === "inactive") {
+      conditions.push(eq(profiles.isActive, false));
+    }
+
+    if (options.accessRole === "none") {
+      conditions.push(
+        notInArray(user.id, this.db.select({ userId: members.userId }).from(members)),
+      );
+    } else if (options.accessRole) {
+      conditions.push(
+        inArray(
+          user.id,
+          this.db
+            .select({ userId: members.userId })
+            .from(members)
+            .where(eq(members.role, options.accessRole)),
+        ),
+      );
+    }
+
+    if (conditions.length === 0) return undefined;
+    if (conditions.length === 1) return conditions[0];
+    return and(...conditions);
   }
 
   /**
@@ -228,6 +301,30 @@ function buildSearchFilter(q: string | undefined): SQL | undefined {
     ilike(profiles.name, pattern),
     ilike(profiles.email, pattern),
   );
+}
+
+/**
+ * Build the ORDER BY for the list, always with a stable `user.id` tiebreaker
+ * so pagination is deterministic. Name sorting coalesces the profile name over
+ * the Better Auth name to match the value shown in the UI.
+ */
+function buildListOrder(sort: UserSortField | undefined, order: SortOrder | undefined): SQL[] {
+  const direction = order === "asc" ? asc : desc;
+  let target: Parameters<typeof asc>[0];
+  switch (sort) {
+    case "name":
+      target = sql`coalesce(${profiles.name}, ${user.name})`;
+      break;
+    case "status":
+      target = profiles.isActive;
+      break;
+    case "lastActiveAt":
+      target = profiles.updatedAt;
+      break;
+    default:
+      target = user.createdAt;
+  }
+  return [direction(target), desc(user.id)];
 }
 
 function normalizeAccessRole(role: string | null | undefined): AdminAccessRole | null {

@@ -24,13 +24,7 @@ import {
   ChangeUserStatusBodyDto,
   ChangeUserStatusResponseDto,
 } from "../dto";
-import { AdminRoleService, AdminUsersService } from "../service";
-
-function parseNonNegativeInt(value: string | undefined, fallback: number): number {
-  if (!value) return fallback;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? Math.max(parsed, 0) : fallback;
-}
+import { AdminRoleService, AdminUsersService, normalizeUserListQuery } from "../service";
 
 interface RequestLike {
   ip?: string;
@@ -64,21 +58,51 @@ export class AdminUsersController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: "관리자 사용자 메타 목록 조회/검색" })
+  @ApiOperation({ summary: "관리자 사용자 메타 목록 조회/검색/필터/정렬" })
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiQuery({ name: "offset", required: false, type: Number })
   @ApiQuery({ name: "q", required: false, type: String, description: "이름/이메일 검색어" })
+  @ApiQuery({
+    name: "status",
+    required: false,
+    enum: ["active", "inactive"],
+    description: "계정 상태 필터 (활성/정지)",
+  })
+  @ApiQuery({
+    name: "accessRole",
+    required: false,
+    enum: ["owner", "admin", "member", "none"],
+    description: "접근 역할 필터 (none = 조직 멤버 아님)",
+  })
+  @ApiQuery({
+    name: "sort",
+    required: false,
+    enum: ["createdAt", "name", "status", "lastActiveAt"],
+    description: "정렬 기준 (가입일/이름/상태/최근활동, 기본 createdAt)",
+  })
+  @ApiQuery({
+    name: "order",
+    required: false,
+    enum: ["asc", "desc"],
+    description: "정렬 방향 (기본 desc)",
+  })
   @ApiResponse({
     status: 200,
     description: "사용자 메타 목록",
     type: AdminUserListResponseDto,
   })
-  list(@Query("limit") limit?: string, @Query("offset") offset?: string, @Query("q") q?: string) {
-    return this.adminUsersService.list({
-      limit: parseNonNegativeInt(limit, 20),
-      offset: parseNonNegativeInt(offset, 0),
-      q: q?.trim() || undefined,
-    });
+  list(
+    @Query("limit") limit?: string,
+    @Query("offset") offset?: string,
+    @Query("q") q?: string,
+    @Query("status") status?: string,
+    @Query("accessRole") accessRole?: string,
+    @Query("sort") sort?: string,
+    @Query("order") order?: string,
+  ) {
+    return this.adminUsersService.list(
+      normalizeUserListQuery({ limit, offset, q, status, accessRole, sort, order }),
+    );
   }
 
   @Patch(":id/role")

@@ -14,6 +14,12 @@ import { API_URL, getAuthHeaders } from "@/lib/api";
 export type AdminAccessRole = "owner" | "admin" | "member";
 export type AssignableRole = "admin" | "member";
 
+/** List filter/sort surface (BBR-685 / PB-ADMIN-USERS-LIST-001). */
+export type UserStatusFilter = "active" | "inactive";
+export type UserAccessRoleFilter = "owner" | "admin" | "member" | "none";
+export type UserSortField = "createdAt" | "name" | "status" | "lastActiveAt";
+export type SortOrder = "asc" | "desc";
+
 export interface AdminUserItem {
   id: string;
   name: string;
@@ -22,6 +28,7 @@ export interface AdminUserItem {
   roles: string[];
   accessRole: AdminAccessRole | null;
   createdAt: string;
+  lastActiveAt: string | null;
   emailVerified: boolean;
   isActive: boolean;
 }
@@ -57,6 +64,10 @@ export interface ListAdminUsersParams {
   limit: number;
   offset: number;
   q?: string;
+  status?: UserStatusFilter;
+  accessRole?: UserAccessRoleFilter;
+  sort?: UserSortField;
+  order?: SortOrder;
 }
 
 export function fetchAdminUsers(params: ListAdminUsersParams): Promise<AdminUserListResponse> {
@@ -66,7 +77,26 @@ export function fetchAdminUsers(params: ListAdminUsersParams): Promise<AdminUser
   });
   const q = params.q?.trim();
   if (q) search.set("q", q);
+  if (params.status) search.set("status", params.status);
+  if (params.accessRole) search.set("accessRole", params.accessRole);
+  if (params.sort) search.set("sort", params.sort);
+  if (params.order) search.set("order", params.order);
   return send<AdminUserListResponse>(`/api/admin/users?${search.toString()}`);
+}
+
+/**
+ * Mask an email for the list view so bulk PII is not exposed at a glance
+ * (AC: 민감 정보는 목록에서 마스킹). Keeps the first character of the local part
+ * and the domain so an admin can still recognize the account; full email
+ * remains available in the detail dialog.
+ */
+export function maskEmail(email: string): string {
+  const at = email.indexOf("@");
+  if (at <= 0) return "***";
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const visible = local.slice(0, 1);
+  return `${visible}${"*".repeat(Math.max(local.length - 1, 2))}@${domain}`;
 }
 
 export function changeUserRole(
