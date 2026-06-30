@@ -624,6 +624,26 @@ export const deleteResponseSchema = z.object({ success: z.boolean() });
 export class DeleteResponseDto extends createZodDto(deleteResponseSchema) {}
 
 // ============================================================================
+// User Block (BBR-615)
+// ============================================================================
+
+export const blockResponseSchema = z.object({
+  id: z.string(),
+  blockerId: z.string(),
+  blockedId: z.string(),
+  createdAt: z.string().nullable(),
+});
+
+export class BlockResponseDto extends createZodDto(blockResponseSchema) {}
+
+export const blockListResponseSchema = z.object({
+  data: z.array(blockResponseSchema),
+  total: z.number(),
+});
+
+export class BlockListResponseDto extends createZodDto(blockListResponseSchema) {}
+
+// ============================================================================
 // Admin — Community List
 // ============================================================================
 
