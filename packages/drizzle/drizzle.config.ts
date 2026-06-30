@@ -66,6 +66,10 @@ export default defineConfig({
     "community_mod_logs",
     "community_saved_posts",
     "community_user_karma",
+    // features/community moderation policy delta (PB-COMM-DATA-001 / BBR-586)
+    "community_hidden_contents",
+    "community_content_filters",
+    "community_filter_matches",
     "email_logs",
     "email_templates",
     "email_template_versions",

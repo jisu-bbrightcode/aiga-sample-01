@@ -870,3 +870,9 @@ export type SanctionStatus = "active" | "expired" | "appealed" | "overturned";
 export type CommunityAppeal = typeof communityAppeals.$inferSelect;
 export type NewCommunityAppeal = typeof communityAppeals.$inferInsert;
 export type AppealStatus = "pending" | "under_review" | "upheld" | "overturned" | "modified";
+
+// ============================================================================
+// Moderation Policy Delta (PB-COMM-DATA-001 / BBR-586) — per-user vs global
+// content hide & filter models. See ./moderation-policy.ts.
+// ============================================================================
+export * from "./moderation-policy";
