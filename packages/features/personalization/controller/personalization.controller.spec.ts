@@ -9,6 +9,7 @@ function service() {
   return {
     createSavedItem: jest.fn().mockResolvedValue({ id: "s1", created: true }),
     createInterest: jest.fn().mockResolvedValue({ id: "i1", created: true }),
+    updateSavedItem: jest.fn().mockResolvedValue({ id: "s1", memo: "edited" }),
   } as unknown as jest.Mocked<PersonalizationService>;
 }
 
@@ -31,6 +32,17 @@ describe("PersonalizationController — create (BBR-726)", () => {
     await controller.createInterest(user, dto);
 
     expect(svc.createInterest).toHaveBeenCalledWith("user-1", dto);
+  });
+
+  it("forwards the authenticated user id + path id + body to updateSavedItem", async () => {
+    const svc = service();
+    const controller = new PersonalizationController(svc);
+    const id = "11111111-1111-1111-1111-111111111111";
+    const dto = { memo: "edited", tags: ["t"] } as never;
+
+    await controller.updateSavedItem(user, id, dto);
+
+    expect(svc.updateSavedItem).toHaveBeenCalledWith("user-1", id, dto);
   });
 
   // 인증 필수: the guard is declared at class level, so it covers the POST

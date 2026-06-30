@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { Injectable, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -9,6 +9,7 @@ import type {
   ListQuery,
   SavedItemDto,
   SearchHistoryDto,
+  UpdateSavedItemInput,
 } from "../dto";
 import { buildCursorPage, type CursorPage, decodeCursor } from "../helpers/cursor";
 import { toInterestDto, toSavedItemDto, toSearchHistoryDto } from "../mappers";
@@ -115,6 +116,43 @@ export class PersonalizationService {
       );
     }
     return toInterestDto(existing);
+  }
+
+  /**
+   * Update the editable fields (memo/tags) of one of the owner's saved items
+   * (BBR-727).
+   *
+   * 소유자 스코프 강제 + 정보 비노출: the `WHERE id = :id AND user_id = :owner`
+   * means a save that does not exist *and* a save owned by someone else both
+   * match zero rows and yield the same 404 — a caller can never tell another
+   * user's id apart from a non-existent one. Partial patch: only the fields the
+   * caller actually sent are written (an omitted field is left untouched, an
+   * explicit `null` clears it); the DTO guarantees at least one field is present,
+   * and `updated_at` advances via the column's `$onUpdate`.
+   */
+  async updateSavedItem(
+    ownerUserId: string,
+    id: string,
+    input: UpdateSavedItemInput,
+  ): Promise<SavedItemDto> {
+    const patch: { memo?: string | null; tags?: string[] | null } = {};
+    if (input.memo !== undefined) {
+      patch.memo = input.memo;
+    }
+    if (input.tags !== undefined) {
+      patch.tags = input.tags;
+    }
+
+    const [updated] = await this.db
+      .update(savedItem)
+      .set(patch)
+      .where(and(eq(savedItem.id, id), eq(savedItem.userId, ownerUserId)))
+      .returning();
+
+    if (!updated) {
+      throw new NotFoundException("저장한 항목을 찾을 수 없습니다.");
+    }
+    return toSavedItemDto(updated);
   }
 
   async listSavedItems(userId: string, query: ListQuery): Promise<CursorPage<SavedItemDto>> {

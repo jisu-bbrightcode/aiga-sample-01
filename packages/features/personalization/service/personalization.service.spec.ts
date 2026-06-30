@@ -196,4 +196,55 @@ describe("PersonalizationService", () => {
       expect(result.id).toBe("33333333-3333-3333-3333-333333333333");
     });
   });
+
+  describe("updateSavedItem", () => {
+    const ID = "11111111-1111-1111-1111-111111111111";
+
+    it("updates memo/tags and returns the mapped item without leaking userId", async () => {
+      db._queueResolve("returning", [savedRow({ memo: "새 메모", tags: ["a", "b"] })]);
+
+      const result = await service.updateSavedItem(USER, ID, {
+        memo: "새 메모",
+        tags: ["a", "b"],
+      } as never);
+
+      expect(result).toEqual({
+        id: ID,
+        targetType: "doctor",
+        targetId: "22222222-2222-2222-2222-222222222222",
+        memo: "새 메모",
+        tags: ["a", "b"],
+        createdAt: "2026-06-29T03:00:00.000Z",
+        updatedAt: "2026-06-29T03:30:00.000Z",
+      });
+      expect(result).not.toHaveProperty("userId");
+    });
+
+    it("scopes the update to the owner (id AND user_id in the WHERE)", async () => {
+      db._queueResolve("returning", [savedRow()]);
+      await service.updateSavedItem(USER, ID, { memo: "x" } as never);
+      // and(eq(id), eq(userId)) — both predicates feed the single where() call
+      expect(db.where).toHaveBeenCalledTimes(1);
+      expect(db.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("only writes the fields the caller sent (memo omitted → not in patch)", async () => {
+      db._queueResolve("returning", [savedRow()]);
+      await service.updateSavedItem(USER, ID, { tags: ["only-tags"] } as never);
+      expect(db.set).toHaveBeenCalledWith({ tags: ["only-tags"] });
+    });
+
+    it("clears a field when explicitly set to null", async () => {
+      db._queueResolve("returning", [savedRow({ memo: null })]);
+      await service.updateSavedItem(USER, ID, { memo: null } as never);
+      expect(db.set).toHaveBeenCalledWith({ memo: null });
+    });
+
+    it("throws 404 (no-leak) when no row matches — missing or owned by another user", async () => {
+      db._queueResolve("returning", []);
+      await expect(service.updateSavedItem(USER, ID, { memo: "x" } as never)).rejects.toMatchObject(
+        { status: 404 },
+      );
+    });
+  });
 });
