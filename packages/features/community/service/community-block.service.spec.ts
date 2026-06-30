@@ -87,4 +87,16 @@ describeIfDb("CommunityBlockService", () => {
     await svc.block(a, b);
     await expect(svc.isBlocked(a, b)).resolves.toBe(true);
   });
+
+  it("shouldNotify() suppresses notifications across a bidirectional block (BBR-615)", async () => {
+    await expect(svc.shouldNotify(a, b)).resolves.toBe(true);
+    await svc.block(a, b);
+    // Either direction is suppressed once a block exists between the two.
+    await expect(svc.shouldNotify(a, b)).resolves.toBe(false);
+    await expect(svc.shouldNotify(b, a)).resolves.toBe(false);
+  });
+
+  it("shouldNotify() always allows self-targeted notifications", async () => {
+    await expect(svc.shouldNotify(a, a)).resolves.toBe(true);
+  });
 });

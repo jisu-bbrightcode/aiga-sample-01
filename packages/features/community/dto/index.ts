@@ -1,4 +1,5 @@
 export * from "./community-response.dto";
+export * from "./create-block.dto";
 export * from "./create-comment.dto";
 export * from "./create-community.dto";
 export * from "./create-post.dto";

@@ -35,6 +35,7 @@ import type { User } from "@repo/core/nestjs/auth";
 import { BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import type {
   BanUserDto,
+  CreateBlockDto,
   CreateCommentDto,
   CreateCommunityDto,
   CreateFlairDto,
@@ -50,6 +51,8 @@ import type {
 } from "../dto";
 import {
   BanResponseDto,
+  BlockListResponseDto,
+  BlockResponseDto,
   CommunityCommentListResponseDto,
   CommunityCommentResponseDto,
   CommunityListResponseDto,
@@ -69,7 +72,7 @@ import {
   RuleResponseDto,
   VoteResultResponseDto,
 } from "../dto";
-import { publicPostViewerState, toPublicPostListItem } from "../mappers";
+import { publicPostViewerState, toBlockResponse, toPublicPostListItem } from "../mappers";
 import { OptionalUser } from "../optional-user.decorator";
 import {
   CommunityBlockService,
@@ -409,6 +412,59 @@ export class CommunityController {
   })
   async mySubscriptions(@CurrentUser() user: User) {
     return this.communityService.findUserSubscriptions(user.id);
+  }
+
+  // ==========================================================================
+  // 작성자 차단 (BBR-615)
+  // ==========================================================================
+
+  @Post("blocks")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "작성자 차단",
+    description:
+      "다른 사용자를 차단한다. 차단 시 해당 작성자의 게시글/댓글이 피드·목록에서 제외되고, " +
+      "알림도 발송되지 않는다. 자기 자신 또는 시스템 계정은 차단할 수 없다.",
+  })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["blockedId"],
+      properties: {
+        blockedId: { type: "string", description: "차단할 사용자 ID" },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: "차단 생성 성공", type: BlockResponseDto })
+  @ApiResponse({ status: 403, description: "자기 자신/시스템 계정 차단 불가" })
+  @ApiResponse({ status: 409, description: "이미 차단된 사용자" })
+  async createBlock(@Body() dto: CreateBlockDto, @CurrentUser() user: User) {
+    const block = await this.blockService.block(user.id, dto.blockedId);
+    return toBlockResponse(block);
+  }
+
+  @Get("blocks")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "내가 차단한 작성자 목록" })
+  @ApiResponse({ status: 200, description: "차단 목록 반환", type: BlockListResponseDto })
+  async listBlocks(@CurrentUser() user: User) {
+    const blocks = await this.blockService.getBlockList(user.id);
+    const data = blocks.map(toBlockResponse);
+    return { data, total: data.length };
+  }
+
+  @Delete("blocks/:blockedId")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "작성자 차단 해제" })
+  @ApiParam({ name: "blockedId", description: "차단 해제할 사용자 ID" })
+  @ApiResponse({ status: 200, description: "차단 해제 성공", type: DeleteResponseDto })
+  @ApiResponse({ status: 404, description: "차단 기록 없음" })
+  async deleteBlock(@Param("blockedId") blockedId: string, @CurrentUser() user: User) {
+    await this.blockService.unblock(user.id, blockedId);
+    return { success: true };
   }
 
   // ==========================================================================

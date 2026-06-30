@@ -12,7 +12,7 @@
  *   차단/숨김 반영 여부(서비스 레이어)로 구분된다.
  * - admin: 공개 필드 + 모더레이션 내부필드(status 전이 사유/처리자).
  */
-import type { CommunityPost, LinkPreview, PollData } from "@repo/drizzle/schema";
+import type { CommunityPost, CommunityUserBlock, LinkPreview, PollData } from "@repo/drizzle/schema";
 
 /** findAll/feed 가 author/community 조인으로 덧붙이는 enrich 필드까지 포함한 row. */
 export type EnrichedCommunityPost = CommunityPost & {
@@ -134,3 +134,22 @@ export const ADMIN_POST_VIEWER_STATE: PostListViewerState = {
   authenticated: true,
   isAdmin: true,
 };
+
+// ---- user block ------------------------------------------------------------
+
+/** 차단 응답에 노출되는 필드 (BBR-615). 내부 timestamp 등은 제외. */
+export interface BlockResponseItem {
+  id: string;
+  blockerId: string;
+  blockedId: string;
+  createdAt: string | null;
+}
+
+export function toBlockResponse(row: CommunityUserBlock): BlockResponseItem {
+  return {
+    id: row.id,
+    blockerId: row.blockerId,
+    blockedId: row.blockedId,
+    createdAt: iso(row.createdAt),
+  };
+}
