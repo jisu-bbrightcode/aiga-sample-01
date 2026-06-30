@@ -1,4 +1,10 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { type RateLimitConfig, RateLimitService } from "@repo/core/rate-limit";
 import type { DrizzleDB } from "@repo/drizzle";
 import { InjectDrizzle } from "@repo/drizzle";
 import {
@@ -9,13 +15,28 @@ import {
 } from "@repo/drizzle/schema";
 import { and, asc, count, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { type EnrichedCommentRow, toPublicCommentItem } from "../comment-visibility";
+import type { CreateCommentDto } from "../dto";
 import { buildCursorResult, decodeCursor } from "../helpers/pagination";
 import { assertCommunityPermission } from "../helpers/permission";
-import type { CreateCommentDto } from "../dto";
+import { assertCommentablePost } from "./comment-creation-policy";
 import { CommunityService } from "./community.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
 import { CommunityTierService, TIER_PRIVILEGES } from "./community-tier.service";
+
+/** 댓글 본문 최대 길이(create-comment.dto.ts의 zod 스키마와 일치). */
+const COMMENT_CONTENT_MAX_LENGTH = 10000;
+
+/**
+ * 댓글 작성 anti-spam 레이트 리밋.
+ * 인증된 작성자(userId) 기준으로 윈도우당 작성 횟수를 제한한다.
+ * `RATE_LIMIT_ENABLED=false`면 RateLimitService가 우회한다(개발/테스트).
+ */
+export const COMMENT_CREATE_RATE_LIMIT: RateLimitConfig = {
+  action: "community:comment:create",
+  maxRequests: 10,
+  windowSeconds: 60,
+};
 
 export interface CommentListOptions {
   postId: string;
@@ -35,9 +56,19 @@ export class CommunityCommentService {
     private readonly keywordFilterService: CommunityKeywordFilterService,
     private readonly tierService: CommunityTierService,
     private readonly contentModerationService: CommunityContentModerationService,
+    private readonly rateLimitService: RateLimitService,
   ) {}
 
   async create(dto: CreateCommentDto, userId: string): Promise<CommunityComment> {
+    // 본문 검증: 런타임 검증으로 빈/공백/초과 본문을 서비스 경계에서 차단한다.
+    const content = dto.content?.trim() ?? "";
+    if (content.length === 0) {
+      throw new BadRequestException("댓글 내용을 입력해주세요.");
+    }
+    if (content.length > COMMENT_CONTENT_MAX_LENGTH) {
+      throw new BadRequestException("댓글 내용이 너무 깁니다.");
+    }
+
     const [post] = await this.db
       .select()
       .from(communityPosts)
@@ -48,9 +79,12 @@ export class CommunityCommentService {
       throw new NotFoundException("게시글을 찾을 수 없습니다.");
     }
 
-    if (post.isLocked) {
-      throw new ForbiddenException("잠긴 게시글에는 댓글을 작성할 수 없습니다.");
-    }
+    // 정책 게이트: 숨김/잠김/삭제/미공개 게시글에는 댓글을 작성할 수 없다.
+    assertCommentablePost(post);
+
+    // anti-spam: 작성자(userId) 단위 레이트 리밋. 초과 시 HTTP 429.
+    // 정책 필터/Moderation API 호출 전에 검사해 남용을 조기 차단한다.
+    await this.rateLimitService.assertRateLimit(userId, COMMENT_CREATE_RATE_LIMIT);
 
     let depth = 0;
     if (dto.parentId) {
@@ -70,7 +104,7 @@ export class CommunityCommentService {
     // 키워드 필터 검사
     const filterResult = await this.keywordFilterService.validateContent(
       post.communityId,
-      [dto.content],
+      [content],
       { bypassFilter: commentBypass },
     );
 
@@ -85,12 +119,13 @@ export class CommunityCommentService {
     }
 
     // Layer 2: OpenAI Moderation API
-    await this.contentModerationService.assertContentAllowed([dto.content]);
+    await this.contentModerationService.assertContentAllowed([content]);
 
     const [comment] = await this.db
       .insert(communityComments)
       .values({
         ...dto,
+        content,
         authorId: userId,
         depth,
         ...(isHidden && { isHidden: true }),
