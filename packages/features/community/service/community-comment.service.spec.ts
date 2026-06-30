@@ -9,14 +9,15 @@
  */
 
 import { NotFoundException } from "@nestjs/common";
+import { RateLimitService } from "@repo/core/rate-limit";
 import { communityComments, communityMemberships, communityPosts } from "@repo/drizzle";
 import { eq, inArray } from "drizzle-orm";
 import { endTestDb, getDrizzleDb, hasDb } from "../../payment/__tests__/test-db";
 import { addExtraMember, cleanupExtraMember, setupCommunityCtx } from "./__tests__/test-helpers";
+import { CommunityService } from "./community.service";
 import { CommunityCommentService } from "./community-comment.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
-import { CommunityService } from "./community.service";
 import { CommunityTierService } from "./community-tier.service";
 
 const describeIfDb = hasDb ? describe : describe.skip;
@@ -32,12 +33,14 @@ describeIfDb("CommunityCommentService", () => {
 
   beforeAll(() => {
     delete process.env.OPENAI_API_KEY; // bypass content moderation
+    process.env.RATE_LIMIT_ENABLED = "false"; // bypass anti-spam rate limit in tests
     const db = getDrizzleDb();
     const community = new CommunityService(db);
     const keyword = new CommunityKeywordFilterService(db);
     const tier = new CommunityTierService(db);
     const mod = new CommunityContentModerationService();
-    svc = new CommunityCommentService(db, community, keyword, tier, mod);
+    const rateLimit = new RateLimitService(db);
+    svc = new CommunityCommentService(db, community, keyword, tier, mod, rateLimit);
   });
 
   beforeEach(async () => {

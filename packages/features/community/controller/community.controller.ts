@@ -704,6 +704,31 @@ export class CommunityController {
     return this.commentService.create(dto, user.id);
   }
 
+  // REST 중첩 경로 (POST /community/posts/:id/comments). 게시물 ID는 경로에서 받는다.
+  @Post("posts/:id/comments")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "게시물 댓글 생성" })
+  @ApiParam({ name: "id", description: "게시물 ID" })
+  @ApiResponse({ status: 201, description: "댓글 생성 성공", type: CommunityCommentResponseDto })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["content"],
+      properties: {
+        content: { type: "string", minLength: 1, maxLength: 10000, description: "댓글 내용" },
+        parentId: { type: "string", format: "uuid", description: "부모 댓글 ID (답글)" },
+      },
+    },
+  })
+  async createPostComment(
+    @Param("id", ParseUUIDPipe) postId: string,
+    @Body() dto: Omit<CreateCommentDto, "postId">,
+    @CurrentUser() user: User,
+  ) {
+    return this.commentService.create({ ...dto, postId }, user.id);
+  }
+
   @Put("comments/:id")
   @UseGuards(BetterAuthGuard)
   @ApiBearerAuth()
