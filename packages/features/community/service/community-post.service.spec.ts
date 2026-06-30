@@ -6,9 +6,15 @@
  * moderation skipped via missing OPENAI_API_KEY.
  */
 
-import { BadRequestException, HttpException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  NotFoundException,
+} from "@nestjs/common";
 import { RateLimitService } from "@repo/core/rate-limit";
-import { communityMemberships, communityPosts, rateLimits } from "@repo/drizzle";
+import { communityMemberships, communityModLogs, communityPosts, rateLimits } from "@repo/drizzle";
 import { eq, inArray } from "drizzle-orm";
 import { endTestDb, getDrizzleDb, hasDb } from "../../payment/__tests__/test-db";
 import { addExtraMember, cleanupExtraMember, setupCommunityCtx } from "./__tests__/test-helpers";
@@ -54,6 +60,7 @@ describeIfDb("CommunityPostService", () => {
     if (!ctx || !author || !teardown) return;
 
     const db = getDrizzleDb();
+    await db.delete(communityModLogs).where(eq(communityModLogs.communityId, ctx.communityId));
     if (createdPostIds.length > 0) {
       await db.delete(communityPosts).where(inArray(communityPosts.id, createdPostIds));
     }
@@ -289,5 +296,106 @@ describeIfDb("CommunityPostService", () => {
       search: "ZZsearchable",
     });
     expect(list.items.map((x) => x.id)).toContain(p.id);
+  });
+
+  // -- BBR-598: moderator remove/restore + audit log preservation -------------
+
+  it("remove() distinguishes admin removal (removed) from author delete (deleted)", async () => {
+    const db = getDrizzleDb();
+
+    const adminGone = await svc.create(
+      { communityId: ctx.communityId, title: "admin will remove" } as never,
+      author,
+    );
+    createdPostIds.push(adminGone.id);
+    const removed = await svc.remove(adminGone.id, "정책 위반", ctx.ownerId);
+    expect(removed.status).toBe("removed");
+    expect(removed.removedBy).toBe(ctx.ownerId);
+
+    const authorGone = await svc.create(
+      { communityId: ctx.communityId, title: "author will delete" } as never,
+      author,
+    );
+    createdPostIds.push(authorGone.id);
+    await svc.delete(authorGone.id, author);
+    const [row] = await db
+      .select()
+      .from(communityPosts)
+      .where(eq(communityPosts.id, authorGone.id));
+    expect(row?.status).toBe("deleted");
+  });
+
+  it("remove() writes an audit log entry that survives independently of the post", async () => {
+    const db = getDrizzleDb();
+    const p = await svc.create(
+      { communityId: ctx.communityId, title: "audit me" } as never,
+      author,
+    );
+    createdPostIds.push(p.id);
+
+    await svc.remove(p.id, "스팸", ctx.ownerId);
+
+    const logs = await db
+      .select()
+      .from(communityModLogs)
+      .where(eq(communityModLogs.targetId, p.id));
+    const removeLog = logs.find((l) => l.action === "remove_post");
+    expect(removeLog).toBeDefined();
+    expect(removeLog?.moderatorId).toBe(ctx.ownerId);
+    expect(removeLog?.targetType).toBe("post");
+    expect(removeLog?.reason).toBe("스팸");
+  });
+
+  it("restore() returns a removed post to published, clears removal fields, logs audit", async () => {
+    const db = getDrizzleDb();
+    const p = await svc.create(
+      { communityId: ctx.communityId, title: "bring me back" } as never,
+      author,
+    );
+    createdPostIds.push(p.id);
+    await svc.remove(p.id, "오인 제거", ctx.ownerId);
+
+    const restored = await svc.restore(p.id, ctx.ownerId);
+    expect(restored.status).toBe("published");
+    expect(restored.removedBy).toBeNull();
+    expect(restored.removalReason).toBeNull();
+
+    // findAll (public) now surfaces it again — comments/reports were never deleted.
+    const list = await svc.findAll({ communityId: ctx.communityId });
+    expect(list.items.map((x) => x.id)).toContain(p.id);
+
+    const logs = await db
+      .select()
+      .from(communityModLogs)
+      .where(eq(communityModLogs.targetId, p.id));
+    expect(logs.some((l) => l.action === "other" && l.reason === "post_restored")).toBe(true);
+  });
+
+  it("restore() rejects an author-deleted post with Conflict", async () => {
+    const p = await svc.create(
+      { communityId: ctx.communityId, title: "author deleted, not restorable" } as never,
+      author,
+    );
+    createdPostIds.push(p.id);
+    await svc.delete(p.id, author);
+
+    await expect(svc.restore(p.id, ctx.ownerId)).rejects.toThrow(ConflictException);
+  });
+
+  it("restore() rejects a non-moderator member", async () => {
+    const p = await svc.create(
+      { communityId: ctx.communityId, title: "members cannot restore" } as never,
+      author,
+    );
+    createdPostIds.push(p.id);
+    await svc.remove(p.id, "제거", ctx.ownerId);
+
+    await expect(svc.restore(p.id, author)).rejects.toThrow(ForbiddenException);
+  });
+
+  it("restore() throws NotFound for an unknown id", async () => {
+    await expect(svc.restore("00000000-0000-0000-0000-000000000000", ctx.ownerId)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });
