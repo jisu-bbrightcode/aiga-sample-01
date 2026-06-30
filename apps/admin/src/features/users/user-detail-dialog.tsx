@@ -36,6 +36,7 @@ import {
   changeUserRole,
   changeUserStatus,
 } from "./api";
+import { ProfileEditSection } from "./profile-edit-section";
 
 interface Props {
   user: AdminUserItem | null;
@@ -59,7 +60,7 @@ export function UserDetailDialog({ user, open, onOpenChange, onChanged }: Props)
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>사용자 상세</DialogTitle>
-          <DialogDescription>계정 정보 확인 및 권한·상태 관리</DialogDescription>
+          <DialogDescription>계정 정보 확인 및 프로필·권한·상태 관리</DialogDescription>
         </DialogHeader>
         {user ? <UserDetailBody user={user} onChanged={onChanged} /> : null}
       </DialogContent>
@@ -70,6 +71,8 @@ export function UserDetailDialog({ user, open, onOpenChange, onChanged }: Props)
 function UserDetailBody({ user, onChanged }: { user: AdminUserItem; onChanged: () => void }) {
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState<Pending>(null);
+  const [profileBusy, setProfileBusy] = useState(false);
+  const busy = pending !== null || profileBusy;
 
   async function runAction(
     kind: Exclude<Pending, null>,
@@ -105,9 +108,18 @@ function UserDetailBody({ user, onChanged }: { user: AdminUserItem; onChanged: (
         />
       </div>
 
+      <ProfileEditSection
+        userId={user.id}
+        reason={reason}
+        busy={pending !== null}
+        onBusyChange={setProfileBusy}
+        onChanged={onChanged}
+      />
+
       <RoleSection
         user={user}
         pending={pending}
+        disabled={busy}
         onChange={(role) =>
           runAction(
             "role",
@@ -120,6 +132,7 @@ function UserDetailBody({ user, onChanged }: { user: AdminUserItem; onChanged: (
       <StatusSection
         user={user}
         pending={pending}
+        disabled={busy}
         onChange={(active) =>
           runAction(
             "status",
@@ -168,10 +181,12 @@ function UserSummary({ user }: { user: AdminUserItem }) {
 function RoleSection({
   user,
   pending,
+  disabled,
   onChange,
 }: {
   user: AdminUserItem;
   pending: Pending;
+  disabled: boolean;
   onChange: (role: AssignableRole) => void;
 }) {
   const [role, setRole] = useState<AssignableRole>(
@@ -195,7 +210,7 @@ function RoleSection({
             <SelectItem value="member">일반 멤버 (member)</SelectItem>
           </SelectContent>
         </Select>
-        <Button size="sm" onClick={() => onChange(role)} disabled={pending !== null}>
+        <Button size="sm" onClick={() => onChange(role)} disabled={disabled}>
           {pending === "role" ? "변경 중..." : "역할 변경"}
         </Button>
       </div>
@@ -208,10 +223,12 @@ function RoleSection({
 function StatusSection({
   user,
   pending,
+  disabled,
   onChange,
 }: {
   user: AdminUserItem;
   pending: Pending;
+  disabled: boolean;
   onChange: (active: boolean) => void;
 }) {
   let body: React.ReactNode;
@@ -223,14 +240,14 @@ function StatusSection({
         size="sm"
         variant="destructive"
         onClick={() => onChange(false)}
-        disabled={pending !== null}
+        disabled={disabled}
       >
         {pending === "status" ? "처리 중..." : "계정 정지"}
       </Button>
     );
   } else {
     body = (
-      <Button size="sm" onClick={() => onChange(true)} disabled={pending !== null}>
+      <Button size="sm" onClick={() => onChange(true)} disabled={disabled}>
         {pending === "status" ? "처리 중..." : "계정 활성화"}
       </Button>
     );

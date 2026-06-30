@@ -10,6 +10,7 @@
  * thrown {@link AdminUsersError}.status to a friendly message.
  */
 import { API_URL, getAuthHeaders } from "@/lib/api";
+import type { UpdateUserProfilePatch } from "./profile-edit";
 
 export type AdminAccessRole = "owner" | "admin" | "member";
 export type AssignableRole = "admin" | "member";
@@ -131,9 +132,48 @@ export function adminActionErrorMessage(error: unknown): string {
       return "이 작업을 수행할 권한이 없거나, 허용되지 않는 변경입니다.";
     case 404:
       return "대상 사용자를 찾을 수 없습니다.";
+    case 409:
+      return "이미 사용 중인 핸들입니다. 다른 핸들을 입력해 주세요.";
     case 401:
       return "세션이 만료되었습니다. 다시 로그인해 주세요.";
     default:
       return "변경에 실패했습니다. 잠시 후 다시 시도해 주세요.";
   }
+}
+
+/**
+ * Admin view of a user's profile (subset of the server's AdminUserDto).
+ * Carries both the admin-editable profile fields and the read-only context
+ * (email/인증수단/등급) the form shows but does not let the admin change.
+ */
+export interface AdminUserProfile {
+  id: string;
+  name: string;
+  handle: string | null;
+  bio: string | null;
+  avatar: string | null;
+  email: string;
+  authProvider: string | null;
+  grade: { id: string; slug: string; name: string } | null;
+}
+
+/** Fetch the full profile so the edit form can pre-fill handle/bio (absent from the list item). */
+export function fetchAdminUserProfile(userId: string): Promise<AdminUserProfile> {
+  return send<AdminUserProfile>(`/api/admin/users/${encodeURIComponent(userId)}`);
+}
+
+/**
+ * Update the allowed profile fields. The body carries only changed fields plus
+ * an optional audit reason; the server re-validates and records the change in
+ * the admin audit log (BBR-688 AC#2).
+ */
+export function updateAdminUserProfile(
+  userId: string,
+  patch: UpdateUserProfilePatch,
+  reason: string | undefined,
+): Promise<AdminUserProfile> {
+  return send<AdminUserProfile>(`/api/admin/users/${encodeURIComponent(userId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ ...patch, reason: reason?.trim() || undefined }),
+  });
 }
