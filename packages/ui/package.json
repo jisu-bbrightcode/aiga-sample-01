@@ -8,6 +8,7 @@
     "./shadcn/*": "./src/_shadcn/*.tsx",
     "./assets/*": "./src/assets/*.tsx",
     "./components": "./src/components/index.ts",
+    "./components/file-upload": "./src/components/file-upload/index.ts",
     "./components/*": "./src/components/*.tsx",
     "./lib/*": "./src/lib/*.ts",
     "./hooks/*": "./src/hooks/*.ts",

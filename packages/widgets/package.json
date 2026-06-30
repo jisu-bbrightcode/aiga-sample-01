@@ -7,7 +7,8 @@
     "./reaction": "./src/reaction/index.ts",
     "./comment": "./src/comment/index.ts",
     "./notification": "./src/notification/index.ts",
-    "./onboarding": "./src/onboarding/index.ts"
+    "./onboarding": "./src/onboarding/index.ts",
+    "./file-upload": "./src/file-upload/index.ts"
   },
   "scripts": {
     "lint": "node ../../scripts/biome-changed.mjs lint .",
@@ -18,6 +19,7 @@
     "@repo/core": "workspace:*",
     "@repo/features": "workspace:*",
     "@repo/ui": "workspace:*",
+    "@vercel/blob": "^1.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.511.0"
   },
