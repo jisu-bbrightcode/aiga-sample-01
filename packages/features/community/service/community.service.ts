@@ -15,10 +15,11 @@ import {
   communityMemberships,
   communityModerators,
   communityPosts,
+  communitySanctions,
 } from "@repo/drizzle/schema";
-import { and, asc, count, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { buildCursorResult, decodeCursor } from "../helpers/pagination";
+import { and, asc, count, desc, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import type { CreateCommunityDto, UpdateCommunityDto } from "../dto";
+import { buildCursorResult, decodeCursor } from "../helpers/pagination";
 
 export interface PaginationOptions {
   page?: number;
@@ -32,6 +33,52 @@ export interface CommunityListOptions {
   cursor?: string;
   limit?: number;
 }
+
+/**
+ * 뷰어(요청자)와 커뮤니티의 관계 상태 (PB-COMM-SPACE-API-LIST-001 / BBR-587).
+ * 비로그인이면 authenticated=false 에 모든 플래그가 false.
+ */
+export interface CommunityViewerState {
+  authenticated: boolean;
+  isMember: boolean;
+  role: "member" | "moderator" | "admin" | "owner" | null;
+  tier: "newcomer" | "member" | "contributor" | "trusted" | "leader" | null;
+  isSubscribed: boolean;
+  isBanned: boolean;
+  banExpiresAt: string | null;
+  isSanctioned: boolean;
+  sanctionType: "warning" | "official_warning" | "suspension" | "permanent_ban" | null;
+  sanctionExpiresAt: string | null;
+  canModerate: boolean;
+}
+
+/** 모더레이터 권한을 가진 멤버 역할 — 모더레이션 내부 필드 노출 대상. */
+const MODERATOR_ROLES = new Set(["owner", "admin", "moderator"]);
+
+function guestViewerState(authenticated: boolean): CommunityViewerState {
+  return {
+    authenticated,
+    isMember: false,
+    role: null,
+    tier: null,
+    isSubscribed: false,
+    isBanned: false,
+    banExpiresAt: null,
+    isSanctioned: false,
+    sanctionType: null,
+    sanctionExpiresAt: null,
+    canModerate: false,
+  };
+}
+
+/**
+ * 뷰어 관계가 부착된 커뮤니티 응답.
+ * 모더레이터가 아니면 automodConfig/bannedWords 가 제거된다 (AC#1 필드 분리).
+ */
+export type CommunityForViewer = Omit<Community, "automodConfig" | "bannedWords"> &
+  Partial<Pick<Community, "automodConfig" | "bannedWords">> & {
+    viewerState: CommunityViewerState;
+  };
 
 @Injectable()
 export class CommunityService {
@@ -174,6 +221,147 @@ export class CommunityService {
       .limit(limit);
 
     return items as Community[];
+  }
+
+  // ==========================================================================
+  // Viewer-aware reads (PB-COMM-SPACE-API-LIST-001 / BBR-587)
+  //
+  // 공개 목록·상세 응답에 뷰어 관계(viewerState)를 부착하고, 모더레이터가 아닌
+  // 뷰어에게는 모더레이션 내부 필드를 제거한다 (AC#1 / AC#2). 익명 뷰어도 호출
+  // 가능 — userId 가 없으면 guest 상태로 폴백한다.
+  // ==========================================================================
+
+  /**
+   * 주어진 커뮤니티 ID 집합에 대해 뷰어 관계 상태를 일괄 계산한다.
+   * 멤버십·제재를 각각 1개의 배치 쿼리로 조회하여 N+1 을 피한다.
+   * 반환 Map 은 요청한 모든 ID 에 대해 항상 엔트리를 채운다.
+   */
+  async buildViewerStatesForMany(
+    communityIds: string[],
+    userId?: string,
+  ): Promise<Map<string, CommunityViewerState>> {
+    const states = new Map<string, CommunityViewerState>();
+    const authenticated = !!userId;
+    for (const id of communityIds) {
+      states.set(id, guestViewerState(authenticated));
+    }
+
+    if (!userId || communityIds.length === 0) {
+      return states;
+    }
+
+    const [memberships, sanctions] = await Promise.all([
+      this.db
+        .select()
+        .from(communityMemberships)
+        .where(
+          and(
+            eq(communityMemberships.userId, userId),
+            inArray(communityMemberships.communityId, communityIds),
+          ),
+        ),
+      this.db
+        .select()
+        .from(communitySanctions)
+        .where(
+          and(
+            eq(communitySanctions.userId, userId),
+            inArray(communitySanctions.communityId, communityIds),
+            eq(communitySanctions.status, "active"),
+            // 만료 시각이 없거나(영구) 아직 만료되지 않은 제재만 활성으로 본다.
+            or(isNull(communitySanctions.expiresAt), gt(communitySanctions.expiresAt, new Date())),
+          ),
+        )
+        .orderBy(desc(communitySanctions.createdAt)),
+    ]);
+
+    for (const m of memberships) {
+      const canModerate = MODERATOR_ROLES.has(m.role) && !m.isBanned;
+      states.set(m.communityId, {
+        authenticated: true,
+        isMember: true,
+        role: m.role,
+        tier: m.tier,
+        // 구독 = 가입 + 알림 구독 활성.
+        isSubscribed: m.notificationsEnabled,
+        isBanned: m.isBanned,
+        banExpiresAt: m.banExpiresAt ? m.banExpiresAt.toISOString() : null,
+        isSanctioned: false,
+        sanctionType: null,
+        sanctionExpiresAt: null,
+        canModerate,
+      });
+    }
+
+    // 제재는 커뮤니티별 최신 1건만 반영 (createdAt desc 정렬, 첫 매치 우선).
+    for (const s of sanctions) {
+      const current = states.get(s.communityId);
+      if (!current || current.isSanctioned) continue;
+      states.set(s.communityId, {
+        ...current,
+        isSanctioned: true,
+        sanctionType: s.type,
+        sanctionExpiresAt: s.expiresAt ? s.expiresAt.toISOString() : null,
+      });
+    }
+
+    return states;
+  }
+
+  /** 단일 커뮤니티에 대한 뷰어 관계 상태. */
+  async buildViewerState(communityId: string, userId?: string): Promise<CommunityViewerState> {
+    const states = await this.buildViewerStatesForMany([communityId], userId);
+    return states.get(communityId) ?? guestViewerState(!!userId);
+  }
+
+  /**
+   * 커뮤니티 행에 viewerState 를 부착하고, 모더레이터가 아니면 모더레이션 내부
+   * 필드(automodConfig/bannedWords)를 제거한다.
+   */
+  private decorateForViewer(
+    community: Community,
+    viewerState: CommunityViewerState,
+  ): CommunityForViewer {
+    if (viewerState.canModerate) {
+      return { ...community, viewerState };
+    }
+    const { automodConfig: _automod, bannedWords: _banned, ...publicFields } = community;
+    return { ...publicFields, viewerState };
+  }
+
+  /** 목록 조회 + 뷰어 관계 부착. */
+  async findAllForViewer(options: CommunityListOptions = {}, userId?: string) {
+    const page = await this.findAll(options);
+    const states = await this.buildViewerStatesForMany(
+      page.items.map((c) => c.id),
+      userId,
+    );
+    return {
+      ...page,
+      items: page.items.map((c) =>
+        this.decorateForViewer(c, states.get(c.id) ?? guestViewerState(!!userId)),
+      ),
+    };
+  }
+
+  /** 인기 커뮤니티 + 뷰어 관계 부착. */
+  async findPopularForViewer(limit = 10, userId?: string): Promise<CommunityForViewer[]> {
+    const items = await this.findPopular(limit);
+    const states = await this.buildViewerStatesForMany(
+      items.map((c) => c.id),
+      userId,
+    );
+    return items.map((c) =>
+      this.decorateForViewer(c, states.get(c.id) ?? guestViewerState(!!userId)),
+    );
+  }
+
+  /** slug 상세 조회 + 뷰어 관계 부착. 없으면 null. */
+  async findBySlugForViewer(slug: string, userId?: string): Promise<CommunityForViewer | null> {
+    const community = await this.findBySlug(slug);
+    if (!community) return null;
+    const viewerState = await this.buildViewerState(community.id, userId);
+    return this.decorateForViewer(community, viewerState);
   }
 
   async findUserSubscriptions(userId: string): Promise<Community[]> {

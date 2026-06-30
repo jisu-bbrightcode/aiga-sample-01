@@ -42,9 +42,7 @@ const moderatorPermissionsSchema = z.object({
 
 const pollDataSchema = z
   .object({
-    options: z.array(
-      z.object({ id: z.string(), text: z.string(), voteCount: z.number() }),
-    ),
+    options: z.array(z.object({ id: z.string(), text: z.string(), voteCount: z.number() })),
     multipleChoice: z.boolean(),
     expiresAt: z.string().optional(),
   })
@@ -65,6 +63,36 @@ const linkPreviewSchema = z
 // Community
 // ============================================================================
 
+/**
+ * Viewer state — 현재 요청자(뷰어)와 커뮤니티의 관계 (PB-COMM-SPACE-API-LIST-001 / BBR-587).
+ *
+ * 공개 목록·상세 응답에 부착되며, 비로그인 뷰어는 `authenticated: false`에 모든
+ * 관계 플래그가 false 로 내려온다. 로그인 뷰어는 가입(isMember)/구독(isSubscribed)/
+ * 차단(isBanned)/제재(activeSanction) 상태를 받는다. `canModerate` 가 true 인 뷰어
+ * (해당 커뮤니티의 owner/admin/moderator)만 모더레이션 내부 필드
+ * (automodConfig/bannedWords)를 함께 받는다.
+ */
+export const communityViewerStateSchema = z.object({
+  authenticated: z.boolean(),
+  // 가입
+  isMember: z.boolean(),
+  role: z.enum(["member", "moderator", "admin", "owner"]).nullable(),
+  tier: z.enum(["newcomer", "member", "contributor", "trusted", "leader"]).nullable(),
+  // 구독 (멤버십 알림 구독 여부)
+  isSubscribed: z.boolean(),
+  // 차단 (커뮤니티 밴)
+  isBanned: z.boolean(),
+  banExpiresAt: z.string().nullable(),
+  // 제재 (active sanction)
+  isSanctioned: z.boolean(),
+  sanctionType: z.enum(["warning", "official_warning", "suspension", "permanent_ban"]).nullable(),
+  sanctionExpiresAt: z.string().nullable(),
+  // 모더레이션 권한 (관리자 필드 노출 여부 결정)
+  canModerate: z.boolean(),
+});
+
+export class CommunityViewerStateDto extends createZodDto(communityViewerStateSchema) {}
+
 export const communityResponseSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -84,8 +112,12 @@ export const communityResponseSchema = z.object({
   postCount: z.number(),
   onlineCount: z.number(),
   rules: z.array(ruleItemSchema).nullable(),
+  // 모더레이션 내부 필드 — 커뮤니티 모더레이터/관리자에게만 노출 (AC#1 필드 분리).
+  // 비-모더레이터 응답에서는 생략된다.
   automodConfig: automodConfigSchema,
-  bannedWords: z.array(z.string()).nullable(),
+  bannedWords: z.array(z.string()).nullable().optional(),
+  // 뷰어 관계 상태 — viewer-aware 읽기 경로에서 부착 (AC#2). 미부착 경로에서는 생략.
+  viewerState: communityViewerStateSchema.nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -429,9 +461,7 @@ export const modLogResponseSchema = z.object({
     "edit_rules",
     "other",
   ]),
-  targetType: z
-    .enum(["post", "comment", "user", "community"])
-    .nullable(),
+  targetType: z.enum(["post", "comment", "user", "community"]).nullable(),
   targetId: z.string().nullable(),
   details: z.record(z.unknown()).nullable(),
   reason: z.string().nullable(),
