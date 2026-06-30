@@ -13,6 +13,7 @@ import {
   communities,
   communityComments,
   communityMemberships,
+  communityModLogs,
   communityModerators,
   communityPosts,
   communitySanctions,
@@ -129,6 +130,8 @@ export class CommunityService {
     const limit = options.limit ?? 20;
 
     const conditions: any[] = [];
+    // 보관(archived)된 커뮤니티는 공개 목록에서 제외한다 (AC#1).
+    conditions.push(eq(communities.status, "active"));
     if (options.type) {
       conditions.push(eq(communities.type, options.type));
     }
@@ -216,7 +219,7 @@ export class CommunityService {
     const items = await this.db
       .select()
       .from(communities)
-      .where(eq(communities.type, "public"))
+      .where(and(eq(communities.type, "public"), eq(communities.status, "active")))
       .orderBy(desc(communities.memberCount))
       .limit(limit);
 
@@ -361,6 +364,11 @@ export class CommunityService {
     const community = await this.findBySlug(slug);
     if (!community) return null;
     const viewerState = await this.buildViewerState(community.id, userId);
+    // 보관된 커뮤니티는 모더레이터(소유자/관리자/모더레이터)에게만 노출하고,
+    // 그 외에는 미존재와 동일하게 숨긴다 (AC#1 — 상세 노출 정책).
+    if (community.status === "archived" && !viewerState.canModerate) {
+      return null;
+    }
     return this.decorateForViewer(community, viewerState);
   }
 
@@ -392,7 +400,7 @@ export class CommunityService {
       })
       .from(communities)
       .innerJoin(communityMemberships, eq(communities.id, communityMemberships.communityId))
-      .where(eq(communityMemberships.userId, userId))
+      .where(and(eq(communityMemberships.userId, userId), eq(communities.status, "active")))
       .orderBy(desc(communityMemberships.joinedAt));
 
     return items as Community[];
@@ -428,17 +436,43 @@ export class CommunityService {
       .where(eq(communities.id, communityId));
   }
 
-  async delete(slug: string, userId: string): Promise<void> {
+  /**
+   * 커뮤니티 보관 (soft archive) — 소유자 전용.
+   *
+   * 실제 삭제 대신 status='archived' 로 전환한다. 게시글/댓글/멤버십/신고/감사
+   * 이력은 모두 보존되어 복구(restore) 가능하다 (AC#2 — 삭제와 콘텐츠/이력 보존
+   * 정책 분리). 감사 로그(archive_community)를 남긴다.
+   */
+  async archive(slug: string, userId: string, reason?: string): Promise<Community> {
     const community = await this.findBySlug(slug);
     if (!community) {
       throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
     }
-
     if (community.ownerId !== userId) {
-      throw new ForbiddenException("커뮤니티 소유자만 삭제할 수 있습니다.");
+      throw new ForbiddenException("커뮤니티 소유자만 보관할 수 있습니다.");
     }
+    if (community.status === "archived") {
+      throw new ConflictException("이미 보관된 커뮤니티입니다.");
+    }
+    return this.applyArchive(community.id, userId, reason ?? null);
+  }
 
-    await this.db.delete(communities).where(eq(communities.id, community.id));
+  /**
+   * 커뮤니티 복구 — 소유자 전용. 보관 상태가 아니면 409.
+   * 감사 로그(restore_community)를 남긴다.
+   */
+  async restore(slug: string, userId: string): Promise<Community> {
+    const community = await this.findBySlug(slug);
+    if (!community) {
+      throw new NotFoundException("커뮤니티를 찾을 수 없습니다.");
+    }
+    if (community.ownerId !== userId) {
+      throw new ForbiddenException("커뮤니티 소유자만 복구할 수 있습니다.");
+    }
+    if (community.status !== "archived") {
+      throw new ConflictException("보관된 커뮤니티가 아닙니다.");
+    }
+    return this.applyRestore(community.id, userId);
   }
 
   async join(slug: string, userId: string): Promise<CommunityMembership> {
@@ -611,13 +645,91 @@ export class CommunityService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async adminDelete(communityId: string) {
+  /**
+   * 관리자 강제 보관 — 소유 여부와 무관 (관리자 강제 조치).
+   * 게시글/댓글/멤버십/신고/감사 이력은 보존된다.
+   */
+  async adminArchive(communityId: string, adminId: string, reason?: string): Promise<Community> {
     const community = await this.findById(communityId);
     if (!community) {
       throw new NotFoundException("커뮤니티를 찾을 수 없습니다");
     }
-    await this.db.delete(communities).where(eq(communities.id, communityId));
-    return { success: true };
+    if (community.status === "archived") {
+      throw new ConflictException("이미 보관된 커뮤니티입니다.");
+    }
+    return this.applyArchive(community.id, adminId, reason ?? null);
+  }
+
+  /** 관리자 강제 복구. */
+  async adminRestore(communityId: string, adminId: string): Promise<Community> {
+    const community = await this.findById(communityId);
+    if (!community) {
+      throw new NotFoundException("커뮤니티를 찾을 수 없습니다");
+    }
+    if (community.status !== "archived") {
+      throw new ConflictException("보관된 커뮤니티가 아닙니다.");
+    }
+    return this.applyRestore(community.id, adminId);
+  }
+
+  /** status='archived' 전환 + 보관 메타 기록 + 감사 로그. */
+  private async applyArchive(
+    communityId: string,
+    actorId: string,
+    reason: string | null,
+  ): Promise<Community> {
+    const [updated] = await this.db
+      .update(communities)
+      .set({
+        status: "archived",
+        archivedAt: new Date(),
+        archivedBy: actorId,
+        archiveReason: reason,
+        updatedAt: new Date(),
+      })
+      .where(eq(communities.id, communityId))
+      .returning();
+
+    await this.logLifecycleAction(communityId, actorId, "archive_community", reason);
+    return updated as Community;
+  }
+
+  /** status='active' 복구 + 보관 메타 초기화 + 감사 로그. */
+  private async applyRestore(communityId: string, actorId: string): Promise<Community> {
+    const [updated] = await this.db
+      .update(communities)
+      .set({
+        status: "active",
+        archivedAt: null,
+        archivedBy: null,
+        archiveReason: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(communities.id, communityId))
+      .returning();
+
+    await this.logLifecycleAction(communityId, actorId, "restore_community", null);
+    return updated as Community;
+  }
+
+  /**
+   * 보관/복구 감사 로그를 community_mod_logs 에 기록한다. 감사 이력은 커뮤니티
+   * 보관 여부와 독립적으로 보존된다 (AC#2).
+   */
+  private async logLifecycleAction(
+    communityId: string,
+    moderatorId: string,
+    action: "archive_community" | "restore_community",
+    reason: string | null,
+  ): Promise<void> {
+    await this.db.insert(communityModLogs).values({
+      communityId,
+      moderatorId,
+      action,
+      targetType: "community",
+      targetId: communityId,
+      reason: reason ?? undefined,
+    });
   }
 
   async getSystemStats() {

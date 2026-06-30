@@ -51,7 +51,7 @@ export class CommunityFeedService {
     const publicCommunities = await this.db
       .select({ id: communities.id })
       .from(communities)
-      .where(eq(communities.type, "public"));
+      .where(and(eq(communities.type, "public"), eq(communities.status, "active")));
 
     const communityIds = publicCommunities.map((c) => c.id);
 
@@ -90,6 +90,14 @@ export class CommunityFeedService {
       eq(communityPosts.status, "published"),
       gte(communityPosts.createdAt, startDate),
       inArray(communityPosts.contentRating, allowedRatings),
+      // 보관된 커뮤니티의 게시물은 인기 피드에서 제외 (AC#1).
+      notInArray(
+        communityPosts.communityId,
+        this.db
+          .select({ id: communities.id })
+          .from(communities)
+          .where(eq(communities.status, "archived")),
+      ),
       ...(blockedUserIds.length > 0 ? [notInArray(communityPosts.authorId, blockedUserIds)] : []),
     ];
 
@@ -115,6 +123,8 @@ export class CommunityFeedService {
       eq(communityPosts.status, "published"),
       inArray(communityPosts.communityId, communityIds),
       inArray(communityPosts.contentRating, allowedRatings),
+      // 보관된 커뮤니티의 게시물은 피드에서 제외 (AC#1 — communities 조인 활용).
+      eq(communities.status, "active"),
       ...(blockedUserIds.length > 0 ? [notInArray(communityPosts.authorId, blockedUserIds)] : []),
     ];
 

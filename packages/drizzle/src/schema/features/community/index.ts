@@ -23,6 +23,13 @@ import {
 
 export const communityTypeEnum = pgEnum("community_type", ["public", "restricted", "private"]);
 
+/**
+ * 커뮤니티 생명주기 상태 (PB-COMM-SPACE-API-DELETE-001 / BBR-590).
+ * `archived` = 실제 삭제 대신 보관/비공개. 게시글·댓글·멤버십·신고·감사 이력은
+ * 그대로 보존되며 복구(restore) 가능하다.
+ */
+export const communityStatusEnum = pgEnum("community_status", ["active", "archived"]);
+
 export const postTypeEnum = pgEnum("community_post_type", [
   "text",
   "link",
@@ -114,6 +121,8 @@ export const modActionEnum = pgEnum("community_mod_action", [
   "lock_post",
   "add_flair",
   "edit_rules",
+  "archive_community",
+  "restore_community",
   "other",
 ]);
 
@@ -233,12 +242,20 @@ export const communities = pgTable(
     rules: jsonb("rules").$type<Array<{ title: string; description: string }>>().default([]),
     automodConfig: jsonb("automod_config").$type<AutomodConfig>().default({}),
     bannedWords: text("banned_words").array().default([]),
+
+    // Lifecycle — archive/restore (PB-COMM-SPACE-API-DELETE-001 / BBR-590).
+    // 실제 삭제 대신 보관 상태만 표시. 콘텐츠/신고/감사 이력은 별도 보존된다.
+    status: communityStatusEnum("status").notNull().default("active"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    archivedBy: text("archived_by").references(() => user.id),
+    archiveReason: text("archive_reason"),
   },
   (table) => [
     index("idx_communities_slug").on(table.slug),
     index("idx_communities_owner").on(table.ownerId),
     index("idx_communities_type").on(table.type),
     index("idx_communities_member_count").on(table.memberCount),
+    index("idx_communities_status").on(table.status),
   ],
 );
 

@@ -33,6 +33,7 @@ import {
   AdminCommunityListResponseDto,
   AdminReportListResponseDto,
   BanResponseDto,
+  CommunityResponseDto,
   DeleteResponseDto,
   ReportResponseDto,
   ReportStatsResponseDto,
@@ -70,11 +71,41 @@ export class CommunityAdminController {
   }
 
   @Delete(":id")
-  @ApiOperation({ summary: "커뮤니티 삭제 (관리자)" })
+  @ApiOperation({
+    summary: "커뮤니티 보관 (관리자 강제)",
+    description:
+      "관리자 강제 조치로 커뮤니티를 보관 처리한다. 실제 삭제가 아니며 게시글/댓글/멤버십/신고/감사 이력은 보존된다. 복구 가능.",
+  })
   @ApiParam({ name: "id", description: "커뮤니티 ID" })
-  @ApiResponse({ status: 200, description: "커뮤니티 삭제 성공", type: DeleteResponseDto })
-  async delete(@Param("id", ParseUUIDPipe) communityId: string) {
-    return this.communityService.adminDelete(communityId);
+  @ApiBody({
+    required: false,
+    schema: {
+      type: "object",
+      properties: { reason: { type: "string", maxLength: 1000, description: "보관 사유" } },
+    },
+  })
+  @ApiResponse({ status: 200, description: "커뮤니티 보관 성공", type: CommunityResponseDto })
+  @ApiResponse({ status: 404, description: "커뮤니티를 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "이미 보관된 커뮤니티" })
+  async archive(
+    @Param("id", ParseUUIDPipe) communityId: string,
+    @CurrentUser() user: User,
+    @Body() body?: { reason?: string },
+  ) {
+    return this.communityService.adminArchive(communityId, user.id, body?.reason);
+  }
+
+  @Post(":id/restore")
+  @ApiOperation({
+    summary: "커뮤니티 복구 (관리자 강제)",
+    description: "보관된 커뮤니티를 관리자 권한으로 복구한다.",
+  })
+  @ApiParam({ name: "id", description: "커뮤니티 ID" })
+  @ApiResponse({ status: 200, description: "커뮤니티 복구 성공", type: CommunityResponseDto })
+  @ApiResponse({ status: 404, description: "커뮤니티를 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "보관된 커뮤니티가 아님" })
+  async restore(@Param("id", ParseUUIDPipe) communityId: string, @CurrentUser() user: User) {
+    return this.communityService.adminRestore(communityId, user.id);
   }
 
   @Get("stats")

@@ -118,6 +118,10 @@ export const communityResponseSchema = z.object({
   bannedWords: z.array(z.string()).nullable().optional(),
   // 뷰어 관계 상태 — viewer-aware 읽기 경로에서 부착 (AC#2). 미부착 경로에서는 생략.
   viewerState: communityViewerStateSchema.nullable().optional(),
+  // 생명주기 — archive/restore (PB-COMM-SPACE-API-DELETE-001 / BBR-590).
+  status: z.enum(["active", "archived"]).optional(),
+  archivedAt: z.string().nullable().optional(),
+  archiveReason: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
