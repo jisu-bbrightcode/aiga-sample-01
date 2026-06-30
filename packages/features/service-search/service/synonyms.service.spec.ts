@@ -100,4 +100,144 @@ describe("ServiceSearchSynonymsService", () => {
       await expect(service.getSynonymById("missing")).rejects.toBeInstanceOf(NotFoundException);
     });
   });
+
+  const ID = "11111111-1111-1111-1111-111111111111";
+
+  describe("updateSynonym", () => {
+    it("patches allowed fields and writes a change-history entry in one tx", async () => {
+      db._queueResolve("limit", [makeSynonymRow()]); // loadOr404
+      db._tx._queueResolve("returning", [
+        makeSynonymRow({ notes: "검수됨", expansions: ["뼈", "관절", "골절"] }),
+      ]);
+
+      const out = await service.updateSynonym("admin-1", ID, {
+        notes: "검수됨",
+        expansions: ["뼈", "관절", "골절"],
+      } as never);
+
+      const patch = db._tx.set.mock.calls[0][0];
+      expect(patch.notes).toBe("검수됨");
+      expect(patch.expansions).toEqual(["뼈", "관절", "골절"]);
+      expect(patch.term).toBeUndefined(); // term not supplied → untouched
+
+      const audit = db._tx.values.mock.calls[0][0];
+      expect(audit.action).toBe("search_synonym.updated");
+      expect(audit.targetType).toBe("service_search_synonym");
+      expect(audit.targetId).toBe(ID);
+      expect(audit.actorUserId).toBe("admin-1");
+      expect(audit.payloadBefore.notes).toBeNull();
+      expect(audit.payloadAfter.notes).toBe("검수됨");
+      expect(out.notes).toBe("검수됨");
+    });
+
+    it("re-normalizes expansions against a changed term", async () => {
+      db._queueResolve("limit", [makeSynonymRow({ term: "정형외과", expansions: ["뼈"] })]);
+      db._tx._queueResolve("returning", [makeSynonymRow({ term: "뼈", expansions: ["관절"] })]);
+
+      await service.updateSynonym("admin-1", ID, {
+        term: "뼈",
+        expansions: ["관절", "뼈"], // "뼈" collapses to the new term and is dropped
+      } as never);
+
+      const patch = db._tx.set.mock.calls[0][0];
+      expect(patch.term).toBe("뼈");
+      expect(patch.expansions).toEqual(["관절"]);
+    });
+
+    it("rejects (409) when a term change leaves no valid expansion", async () => {
+      db._queueResolve("limit", [makeSynonymRow({ term: "정형외과", expansions: ["뼈"] })]);
+      await expect(
+        service.updateSynonym("admin-1", ID, { term: "뼈" } as never),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(db.transaction).not.toHaveBeenCalled();
+    });
+
+    it("is a no-op (no tx) when the patch matches the current values", async () => {
+      db._queueResolve("limit", [makeSynonymRow({ notes: "동일" })]);
+      const out = await service.updateSynonym("admin-1", ID, { notes: "동일" } as never);
+      expect(db.transaction).not.toHaveBeenCalled();
+      expect(out.notes).toBe("동일");
+    });
+
+    it("maps a unique-violation on a renamed term to 409", async () => {
+      db._queueResolve("limit", [makeSynonymRow()]);
+      db._tx.update.mockImplementationOnce(() => {
+        throw { code: "23505" };
+      });
+      await expect(
+        service.updateSynonym("admin-1", ID, { term: "이비인후과" } as never),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("throws NotFound when the synonym is absent", async () => {
+      db._queueResolve("limit", []);
+      await expect(
+        service.updateSynonym("admin-1", ID, { notes: "x" } as never),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("setSynonymStatus", () => {
+    it("flips active→inactive and records the transition", async () => {
+      db._queueResolve("limit", [makeSynonymRow({ isActive: true })]);
+      db._tx._queueResolve("returning", [makeSynonymRow({ isActive: false })]);
+
+      const out = await service.setSynonymStatus("admin-2", ID, "inactive", "스팸 정리");
+
+      expect(db._tx.set.mock.calls[0][0]).toEqual({ isActive: false });
+      const audit = db._tx.values.mock.calls[0][0];
+      expect(audit.action).toBe("search_synonym.status_changed");
+      expect(audit.payloadBefore).toEqual({ isActive: true });
+      expect(audit.payloadAfter).toEqual({ isActive: false });
+      expect(audit.reason).toBe("스팸 정리");
+      expect(out.isActive).toBe(false);
+    });
+
+    it("is an idempotent no-op when already in the target state", async () => {
+      db._queueResolve("limit", [makeSynonymRow({ isActive: true })]);
+      const out = await service.setSynonymStatus("admin-2", ID, "active");
+      expect(db.transaction).not.toHaveBeenCalled();
+      expect(out.isActive).toBe(true);
+    });
+
+    it("throws NotFound when the synonym is absent", async () => {
+      db._queueResolve("limit", []);
+      await expect(service.setSynonymStatus("admin-2", ID, "inactive")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe("listSynonymHistory", () => {
+    it("returns newest-first entries with a nextCursor when the page is full", async () => {
+      db._queueResolve("limit", [makeSynonymRow()]); // loadOr404
+      db._queueResolve("limit", [
+        {
+          id: 12n,
+          action: "search_synonym.status_changed",
+          actorUserId: "admin-2",
+          targetType: "service_search_synonym",
+          targetId: ID,
+          payloadBefore: { isActive: true },
+          payloadAfter: { isActive: false },
+          reason: null,
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+        },
+      ]);
+
+      const out = await service.listSynonymHistory(ID, { limit: 1 });
+      expect(out.items).toHaveLength(1);
+      expect(out.items[0]).toEqual(
+        expect.objectContaining({ id: "12", action: "search_synonym.status_changed" }),
+      );
+      expect(out.nextCursor).toBe("12");
+    });
+
+    it("throws NotFound when the synonym is absent", async () => {
+      db._queueResolve("limit", []);
+      await expect(service.listSynonymHistory("missing", { limit: 20 })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
 });
