@@ -1,14 +1,14 @@
 /**
- * Doctor card for the public explore entry (PB-WEB-002 / BBR-580).
- * Renders one published doctor from the public catalog contract with a gated
- * save CTA — browsable logged-out, the CTA gates the protected action.
+ * Doctor card for the public explore entry (PB-WEB-002 / BBR-580, FR-002 / BBR-729).
+ * Renders one published doctor from the public catalog contract with gated
+ * 저장/관심 CTAs — browsable logged-out, the CTAs gate the protected actions.
  */
 
 import { useFeatureTranslation } from "@repo/core/i18n";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/shadcn/avatar";
 import { Star } from "lucide-react";
 import type { PublicDoctor } from "../api/types";
-import { GatedSaveButton } from "./gated-save-button";
+import { GatedActionButton } from "./gated-action-button";
 
 export function DoctorExploreCard({ doctor }: { doctor: PublicDoctor }) {
   const { t } = useFeatureTranslation("app");
@@ -44,8 +44,19 @@ export function DoctorExploreCard({ doctor }: { doctor: PublicDoctor }) {
         <p className="line-clamp-2 text-sm text-muted-foreground">{doctor.shortBio}</p>
       ) : null}
 
-      <div className="mt-auto flex justify-end">
-        <GatedSaveButton label={t("serviceFlow.explore.save")} />
+      <div className="mt-auto flex justify-end gap-2">
+        <GatedActionButton
+          kind="interest"
+          targetType="doctor"
+          targetId={doctor.id}
+          label={t("serviceFlow.explore.interest")}
+        />
+        <GatedActionButton
+          kind="save"
+          targetType="doctor"
+          targetId={doctor.id}
+          label={t("serviceFlow.explore.save")}
+        />
       </div>
     </article>
   );

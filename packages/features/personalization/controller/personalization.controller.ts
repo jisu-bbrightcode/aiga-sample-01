@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -86,6 +87,28 @@ export class PersonalizationController {
   @ApiResponse({ status: 401, description: "인증 필요" })
   createInterest(@CurrentUser() user: User, @Body() dto: CreateInterestDto) {
     return this.service.createInterest(user.id, dto);
+  }
+
+  @Delete("saved-items/:id")
+  @HttpCode(204)
+  @ApiOperation({ summary: "저장 해제 — 내 저장 목록에서 제거 (로그인 필요, 본인 항목만)" })
+  @ApiResponse({ status: 204, description: "해제 완료 (응답 본문 없음)" })
+  @ApiResponse({ status: 400, description: "잘못된 id" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 404, description: "저장 항목 없음 (미존재 또는 타인 소유)" })
+  async removeSavedItem(@CurrentUser() user: User, @Param("id", ParseUUIDPipe) id: string) {
+    await this.service.removeSavedItem(user.id, id);
+  }
+
+  @Delete("interests/:id")
+  @HttpCode(204)
+  @ApiOperation({ summary: "관심 해제 — 내 관심 목록에서 제거 (로그인 필요, 본인 항목만)" })
+  @ApiResponse({ status: 204, description: "해제 완료 (응답 본문 없음)" })
+  @ApiResponse({ status: 400, description: "잘못된 id" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 404, description: "관심 항목 없음 (미존재 또는 타인 소유)" })
+  async removeInterest(@CurrentUser() user: User, @Param("id", ParseUUIDPipe) id: string) {
+    await this.service.removeInterest(user.id, id);
   }
 
   @Get("saved-items")

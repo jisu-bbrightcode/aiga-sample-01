@@ -14,7 +14,15 @@
  */
 
 import { API_URL, getAuthHeaders } from "@/lib/auth-headers";
-import type { CursorPage, DoctorListPage, Interest, SavedItem, SearchHistoryEntry } from "./types";
+import type {
+  CreateInterestInput,
+  CreateSavedItemInput,
+  CursorPage,
+  DoctorListPage,
+  Interest,
+  SavedItem,
+  SearchHistoryEntry,
+} from "./types";
 
 /** Stable, user-facing-mappable error codes (see lib/user-facing-error.ts). */
 export type ServiceFlowErrorCode =
@@ -60,6 +68,10 @@ interface FetchOptions {
   /** Attach the auth headers (Bearer token + session). Default false (public). */
   authed?: boolean;
   signal?: AbortSignal;
+  /** HTTP method. Default "GET". */
+  method?: "GET" | "POST" | "DELETE" | "PATCH";
+  /** JSON request body (serialized + `content-type: application/json`). */
+  body?: unknown;
 }
 
 async function fetchJson<T>(path: string, options: FetchOptions = {}): Promise<T> {
@@ -70,13 +82,16 @@ async function fetchJson<T>(path: string, options: FetchOptions = {}): Promise<T
 
   const headers: Record<string, string> = { accept: "application/json" };
   if (options.authed) Object.assign(headers, getAuthHeaders());
+  if (options.body !== undefined) headers["content-type"] = "application/json";
 
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
+      method: options.method ?? "GET",
       headers,
       credentials: "include",
       signal: options.signal,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
     });
   } catch {
     // Network / CORS / abort — never surface raw detail to the UI.
@@ -87,6 +102,8 @@ async function fetchJson<T>(path: string, options: FetchOptions = {}): Promise<T
     throw new ServiceFlowError(statusToErrorCode(res.status), res.status);
   }
 
+  // 204 (해제/DELETE) and other empty bodies have nothing to parse.
+  if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
 
@@ -140,14 +157,48 @@ export function getSearchHistory(
 
 export interface FeaturedDoctorsParams {
   limit?: number;
+  /** Keyword search — when set, runs a catalog query instead of the featured set. */
+  q?: string;
 }
 
 export function getFeaturedDoctors(
   params: FeaturedDoctorsParams = {},
   signal?: AbortSignal,
 ): Promise<DoctorListPage> {
-  return fetchJson<DoctorListPage>(
-    `/service/doctors${buildQuery({ featured: true, limit: params.limit ?? 12 })}`,
-    { signal },
-  );
+  const q = params.q?.trim();
+  // 검색 히스토리 재실행: a query runs a keyword search; otherwise the featured set.
+  const query = q
+    ? buildQuery({ q, limit: params.limit ?? 12 })
+    : buildQuery({ featured: true, limit: params.limit ?? 12 });
+  return fetchJson<DoctorListPage>(`/service/doctors${query}`, { signal });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Writes (personalization, auth) — BBR-726 / BBR-729                         */
+/* -------------------------------------------------------------------------- */
+
+/** 저장 추가 — `POST /saved-items`. Idempotent per (owner, target). */
+export function createSavedItem(input: CreateSavedItemInput): Promise<SavedItem> {
+  return fetchJson<SavedItem>("/saved-items", { authed: true, method: "POST", body: input });
+}
+
+/** 관심 추가 — `POST /interests`. Idempotent per (owner, target). */
+export function createInterest(input: CreateInterestInput): Promise<Interest> {
+  return fetchJson<Interest>("/interests", { authed: true, method: "POST", body: input });
+}
+
+/** 저장 해제 — `DELETE /saved-items/:id`. 204, owner-scoped. */
+export function removeSavedItem(id: string): Promise<void> {
+  return fetchJson<void>(`/saved-items/${encodeURIComponent(id)}`, {
+    authed: true,
+    method: "DELETE",
+  });
+}
+
+/** 관심 해제 — `DELETE /interests/:id`. 204, owner-scoped. */
+export function removeInterest(id: string): Promise<void> {
+  return fetchJson<void>(`/interests/${encodeURIComponent(id)}`, {
+    authed: true,
+    method: "DELETE",
+  });
 }

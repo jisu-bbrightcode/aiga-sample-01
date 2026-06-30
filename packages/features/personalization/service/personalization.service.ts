@@ -155,6 +155,41 @@ export class PersonalizationService {
     return toSavedItemDto(updated);
   }
 
+  /**
+   * Remove one of the owner's saved items — 저장 해제 (BBR-729).
+   *
+   * 소유자 스코프 강제 + 정보 비노출: `WHERE id = :id AND user_id = :owner` means a
+   * save that does not exist *and* one owned by another user both delete zero
+   * rows and yield the same 404 — a caller can never distinguish another user's
+   * id from a non-existent one. The owner id comes from the authenticated
+   * session (the controller guard guarantees it).
+   */
+  async removeSavedItem(ownerUserId: string, id: string): Promise<void> {
+    const deleted = await this.db
+      .delete(savedItem)
+      .where(and(eq(savedItem.id, id), eq(savedItem.userId, ownerUserId)))
+      .returning({ id: savedItem.id });
+
+    if (deleted.length === 0) {
+      throw new NotFoundException("저장한 항목을 찾을 수 없습니다.");
+    }
+  }
+
+  /**
+   * Remove one of the owner's interests — 관심 해제 (BBR-729).
+   * Same owner-scope + 404-no-leak contract as {@link removeSavedItem}.
+   */
+  async removeInterest(ownerUserId: string, id: string): Promise<void> {
+    const deleted = await this.db
+      .delete(interest)
+      .where(and(eq(interest.id, id), eq(interest.userId, ownerUserId)))
+      .returning({ id: interest.id });
+
+    if (deleted.length === 0) {
+      throw new NotFoundException("관심 항목을 찾을 수 없습니다.");
+    }
+  }
+
   async listSavedItems(userId: string, query: ListQuery): Promise<CursorPage<SavedItemDto>> {
     const { limit } = query;
     const cursor = decodeCursor(query.cursor);

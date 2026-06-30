@@ -13,14 +13,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/shadcn/avatar";
 import { Button } from "@repo/ui/shadcn/button";
 import { useNavigate } from "@tanstack/react-router";
 import { Compass } from "lucide-react";
+import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { getAppErrorMessage } from "@/lib/user-facing-error";
+import type { SearchHistoryEntry } from "../api/types";
 import {
   InterestsList,
   SavedItemsList,
   SearchHistoryList,
 } from "../components/personalization-lists";
 import { ServiceSection } from "../components/service-section";
+import { useRemoveInterest, useRemoveSavedItem } from "../hooks/mutations";
 import { useInterests, useSavedItems, useSearchHistory } from "../hooks/queries";
+import { usePendingIntentReplay } from "../hooks/use-pending-intent-replay";
 
 export function MyPage() {
   const { t } = useFeatureTranslation("app");
@@ -28,9 +33,33 @@ export function MyPage() {
   const { data: session } = authClient.useSession();
   const user = session?.user;
 
+  // 원래 액션 자동 복귀: replay a save/interest the user attempted before login.
+  usePendingIntentReplay();
+
   const saved = useSavedItems(true);
   const interests = useInterests(true);
   const history = useSearchHistory(true);
+
+  const removeSaved = useRemoveSavedItem();
+  const removeInterest = useRemoveInterest();
+
+  const onRemoveSaved = (id: string) =>
+    removeSaved.mutate(id, {
+      onSuccess: () => toast.success(t("serviceFlow.actions.removed")),
+      onError: (error) => toast.error(getAppErrorMessage(t, error)),
+    });
+
+  const onRemoveInterest = (id: string) =>
+    removeInterest.mutate(id, {
+      onSuccess: () => toast.success(t("serviceFlow.actions.removed")),
+      onError: (error) => toast.error(getAppErrorMessage(t, error)),
+    });
+
+  // 최근 검색 재실행: re-run the search on the public explore surface.
+  const onRerunSearch = (entry: SearchHistoryEntry) => {
+    const query = entry.query.trim();
+    navigate({ to: (query ? `/explore?q=${encodeURIComponent(query)}` : "/explore") as never });
+  };
 
   const displayName = user?.name?.trim() || user?.email || t("serviceFlow.myPage.fallbackName");
   const initial = displayName.charAt(0).toUpperCase();
@@ -75,7 +104,13 @@ export function MyPage() {
         emptyMessage={t("serviceFlow.saved.empty")}
         onRetry={() => void saved.refetch()}
       >
-        {saved.data ? <SavedItemsList items={saved.data.items} /> : null}
+        {saved.data ? (
+          <SavedItemsList
+            items={saved.data.items}
+            onRemove={onRemoveSaved}
+            removingId={removeSaved.isPending ? removeSaved.variables : null}
+          />
+        ) : null}
       </ServiceSection>
 
       <ServiceSection
@@ -88,7 +123,13 @@ export function MyPage() {
         emptyMessage={t("serviceFlow.interests.empty")}
         onRetry={() => void interests.refetch()}
       >
-        {interests.data ? <InterestsList items={interests.data.items} /> : null}
+        {interests.data ? (
+          <InterestsList
+            items={interests.data.items}
+            onRemove={onRemoveInterest}
+            removingId={removeInterest.isPending ? removeInterest.variables : null}
+          />
+        ) : null}
       </ServiceSection>
 
       <ServiceSection
@@ -101,7 +142,9 @@ export function MyPage() {
         emptyMessage={t("serviceFlow.history.empty")}
         onRetry={() => void history.refetch()}
       >
-        {history.data ? <SearchHistoryList items={history.data.items} /> : null}
+        {history.data ? (
+          <SearchHistoryList items={history.data.items} onRerun={onRerunSearch} />
+        ) : null}
       </ServiceSection>
     </div>
   );

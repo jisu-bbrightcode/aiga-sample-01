@@ -247,4 +247,36 @@ describe("PersonalizationService", () => {
       );
     });
   });
+
+  describe("removeSavedItem (해제, BBR-729)", () => {
+    const ID = "11111111-1111-1111-1111-111111111111";
+
+    it("deletes the owner's saved item (id AND user_id scoped)", async () => {
+      db._queueResolve("returning", [{ id: ID }]);
+      await expect(service.removeSavedItem(USER, ID)).resolves.toBeUndefined();
+      expect(db.delete).toHaveBeenCalledTimes(1);
+      expect(db.where).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws 404 (no-leak) when no row matches — missing or owned by another user", async () => {
+      db._queueResolve("returning", []);
+      await expect(service.removeSavedItem(USER, ID)).rejects.toMatchObject({ status: 404 });
+    });
+  });
+
+  describe("removeInterest (해제, BBR-729)", () => {
+    const ID = "33333333-3333-3333-3333-333333333333";
+
+    it("deletes the owner's interest (id AND user_id scoped)", async () => {
+      db._queueResolve("returning", [{ id: ID }]);
+      await expect(service.removeInterest(USER, ID)).resolves.toBeUndefined();
+      expect(db.delete).toHaveBeenCalledTimes(1);
+      expect(db.where).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws 404 (no-leak) when no row matches — missing or owned by another user", async () => {
+      db._queueResolve("returning", []);
+      await expect(service.removeInterest(USER, ID)).rejects.toMatchObject({ status: 404 });
+    });
+  });
 });

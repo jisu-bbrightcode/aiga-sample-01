@@ -35,6 +35,20 @@ export interface Interest {
   createdAt: string;
 }
 
+/** Body for `POST /saved-items` (저장 추가). Owner comes from the session. */
+export interface CreateSavedItemInput {
+  targetType: ServiceTargetType;
+  targetId: string;
+  memo?: string;
+  tags?: string[];
+}
+
+/** Body for `POST /interests` (관심 추가). Owner comes from the session. */
+export interface CreateInterestInput {
+  targetType: ServiceTargetType;
+  targetId: string;
+}
+
 export interface SearchHistoryEntry {
   id: string;
   /** 검색어 (필터 전용 검색은 빈 문자열). */
