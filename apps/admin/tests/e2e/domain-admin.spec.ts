@@ -20,6 +20,9 @@
  *    (PB-ADMIN-DOMAIN-READ-001 / BBR-679).
  *  - D4 (detail): an authenticated admin opening a resource detail sees the
  *    operational-state + masked sensitive-info sections.
+ *  - D5 (archive): the detail page exposes a 보관/복구 lifecycle action that opens
+ *    a confirmation dialog before taking the resource off the public surface
+ *    (PB-ADMIN-DOMAIN-DELETE-001 / BBR-682).
  */
 import { expect, test } from "@playwright/test";
 
@@ -91,5 +94,25 @@ test.describe("Domain Admin — list/search (qa@example.com) @admin @domain @db"
     // Operational state + sensitive (masked) sections are the read deliverable.
     await expect(page.getByText("운영 상태")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("민감 정보")).toBeVisible();
+  });
+
+  test("D5: detail exposes an archive/restore lifecycle action behind a confirm dialog", async ({
+    page,
+  }) => {
+    const firstResource = page.locator('a[href^="/domain/"]').first();
+    await expect(firstResource).toBeVisible({ timeout: 10_000 });
+    await firstResource.click();
+    await expect(page).toHaveURL(/\/domain\/(doctor|hospital)\//, { timeout: 10_000 });
+
+    // The lifecycle button is either 보관 (archive) or 복구 (restore) per current status.
+    const lifecycleButton = page.getByRole("button", { name: /보관|복구/ });
+    await expect(lifecycleButton).toBeVisible({ timeout: 10_000 });
+
+    // Triggering it opens a confirmation dialog — exposure changes require intent.
+    await lifecycleButton.click();
+    await expect(page.getByRole("alertdialog")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/보관하시겠습니까|복구하시겠습니까/)).toBeVisible();
+    // Cancelling leaves the resource untouched.
+    await page.getByRole("button", { name: "취소" }).click();
   });
 });

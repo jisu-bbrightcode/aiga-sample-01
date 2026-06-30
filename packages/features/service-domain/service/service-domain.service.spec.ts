@@ -37,11 +37,13 @@ function makeDoctorRow(overrides: Record<string, unknown> = {}) {
 
 describe("ServiceDomainService", () => {
   let db: ReturnType<typeof createMockDb>;
+  let audit: { log: jest.Mock; list: jest.Mock };
   let service: ServiceDomainService;
 
   beforeEach(() => {
     db = createMockDb();
-    service = new ServiceDomainService(db as never);
+    audit = { log: jest.fn().mockResolvedValue(undefined), list: jest.fn() };
+    service = new ServiceDomainService(db as never, audit as never);
   });
 
   describe("listDoctors", () => {
@@ -170,6 +172,91 @@ describe("ServiceDomainService", () => {
       expect(patch.isDeleted).toBe(true);
       expect(patch.deletedAt).toBeInstanceOf(Date);
       expect(out).toEqual({ success: true, id: "11111111-1111-1111-1111-111111111111" });
+    });
+  });
+
+  describe("archiveDomainResource", () => {
+    it("drops the publish stamp, writes archived status, and audits the change", async () => {
+      const current = makeDoctorRow({ status: "published", publishedAt: new Date() });
+      db._queueResolve("limit", [current]); // requireDoctor terminal
+      db._queueResolve("returning", [makeDoctorRow({ status: "archived", publishedAt: null })]);
+
+      const out = await service.archiveDomainResource("admin-1", "doctor", current.id);
+
+      const patch = db.set.mock.calls[0][0];
+      expect(patch.status).toBe("archived");
+      // archive removes the record from the public surface (publishedAt cleared).
+      expect(patch.publishedAt).toBeNull();
+      expect(patch.updatedBy).toBe("admin-1");
+      expect(out).toEqual(
+        expect.objectContaining({ type: "doctor", status: "archived", isDeleted: false }),
+      );
+
+      expect(audit.log).toHaveBeenCalledTimes(1);
+      const entry = audit.log.mock.calls[0][0];
+      expect(entry).toEqual(
+        expect.objectContaining({
+          actorUserId: "admin-1",
+          action: "service_domain.archived",
+          targetType: "service_doctor",
+          targetId: current.id,
+        }),
+      );
+      expect(entry.payloadBefore).toEqual(expect.objectContaining({ status: "published" }));
+      expect(entry.payloadAfter).toEqual(expect.objectContaining({ status: "archived" }));
+    });
+
+    it("is idempotent when already archived (no write, no audit)", async () => {
+      const current = makeDoctorRow({ status: "archived", publishedAt: null });
+      db._queueResolve("limit", [current]); // requireDoctor terminal
+
+      const out = await service.archiveDomainResource("admin-1", "doctor", current.id);
+
+      expect(out.status).toBe("archived");
+      expect(db.set).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+
+    it("throws NotFound when the resource is absent", async () => {
+      db._queueResolve("limit", []); // requireHospital finds nothing
+      await expect(
+        service.archiveDomainResource("admin-1", "hospital", "missing"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("restoreDomainResource", () => {
+    it("restores an archived resource to draft and audits it", async () => {
+      const current = makeHospitalRow({ status: "archived", publishedAt: null });
+      db._queueResolve("limit", [current]); // requireHospital terminal
+      db._queueResolve("returning", [makeHospitalRow({ status: "draft", publishedAt: null })]);
+
+      const out = await service.restoreDomainResource("admin-1", "hospital", current.id);
+
+      const patch = db.set.mock.calls[0][0];
+      // restore lands on a safe unpublished draft — never auto-republishes.
+      expect(patch.status).toBe("draft");
+      expect(patch.publishedAt).toBeNull();
+      expect(out).toEqual(
+        expect.objectContaining({ type: "hospital", status: "draft", isDeleted: false }),
+      );
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "service_domain.restored",
+          targetType: "service_hospital",
+        }),
+      );
+    });
+
+    it("is idempotent when not archived (leaves published as-is)", async () => {
+      const current = makeHospitalRow({ status: "published" });
+      db._queueResolve("limit", [current]); // requireHospital terminal
+
+      const out = await service.restoreDomainResource("admin-1", "hospital", current.id);
+
+      expect(out.status).toBe("published");
+      expect(db.set).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
     });
   });
 
@@ -564,7 +651,7 @@ describe("ServiceDomainService.listAdminDomainResources", () => {
 
   beforeEach(() => {
     db = createMockDb();
-    service = new ServiceDomainService(db as never);
+    service = new ServiceDomainService(db as never, { log: jest.fn() } as never);
   });
 
   it("type=doctor reads only the doctors table and returns the admin envelope", async () => {

@@ -1,9 +1,11 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
-import { BetterAuthAdminGuard, BetterAuthGuard } from "@repo/core/nestjs/auth";
+import type { User } from "@repo/core/nestjs/auth";
+import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import {
   AdminDomainResourceDetailDto,
   AdminDomainResourceDetailParamDto,
+  AdminDomainResourceLifecycleDto,
   AdminDomainResourceListDto,
   AdminDomainResourceQueryDto,
 } from "../dto";
@@ -18,6 +20,9 @@ import { ServiceDomainService } from "../service";
  * `GET /api/admin/domain/resources/:type/:id` — the read-one detail the admin
  * detail screen (BBR-679) consumes: full operational state + related entities,
  * sensitive identifiers masked.
+ * `POST /api/admin/domain/resources/:type/:id/archive` + `/restore` — the
+ * 비활성/archive lifecycle (BBR-682): take a record off the public surface
+ * without deleting it (연결 데이터 보존), audited to `admin_audit_log`.
  *
  * Both are gated by BetterAuthGuard then BetterAuthAdminGuard (owner/admin),
  * identical to the other admin routes. Kept on its own `admin/domain` base path
@@ -44,5 +49,21 @@ export class ServiceDomainAdminResourcesController {
   @ApiResponse({ status: 200, type: AdminDomainResourceDetailDto })
   getResourceDetail(@Param() params: AdminDomainResourceDetailParamDto) {
     return this.service.getAdminDomainResourceDetail(params.type, params.id);
+  }
+
+  @Post("resources/:type/:id/archive")
+  @ApiOperation({ summary: "도메인 리소스 비활성/archive (공개 노출 차단, 연결 데이터 보존)" })
+  @ApiResponse({ status: 201, type: AdminDomainResourceLifecycleDto })
+  @ApiResponse({ status: 404, description: "리소스를 찾을 수 없음" })
+  archiveResource(@CurrentUser() user: User, @Param() params: AdminDomainResourceDetailParamDto) {
+    return this.service.archiveDomainResource(user.id, params.type, params.id);
+  }
+
+  @Post("resources/:type/:id/restore")
+  @ApiOperation({ summary: "archive 된 도메인 리소스 복구 (비공개 draft 로)" })
+  @ApiResponse({ status: 201, type: AdminDomainResourceLifecycleDto })
+  @ApiResponse({ status: 404, description: "리소스를 찾을 수 없음" })
+  restoreResource(@CurrentUser() user: User, @Param() params: AdminDomainResourceDetailParamDto) {
+    return this.service.restoreDomainResource(user.id, params.type, params.id);
   }
 }
