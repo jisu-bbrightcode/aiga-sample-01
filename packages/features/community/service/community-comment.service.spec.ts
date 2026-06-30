@@ -118,4 +118,40 @@ describeIfDb("CommunityCommentService", () => {
     expect(found?.isDeleted).toBe(true);
     expect(found?.content).not.toBe("original");
   });
+
+  it("findByPost() masks keyword-hidden content from non-authors but shows it to the author (AC#1)", async () => {
+    const c = await svc.create({ postId, content: "borderline text" } as never, author);
+    createdCommentIds.push(c.id);
+    await getDrizzleDb()
+      .update(communityComments)
+      .set({ isHidden: true })
+      .where(eq(communityComments.id, c.id));
+
+    const asOther = await svc.findByPost({ postId, viewerId: ctx.ownerId });
+    expect(asOther.items.find((x) => x.id === c.id)?.content).not.toBe("borderline text");
+
+    const asAuthor = await svc.findByPost({ postId, viewerId: author });
+    expect(asAuthor.items.find((x) => x.id === c.id)?.content).toBe("borderline text");
+  });
+
+  it("findByPost() totalCount counts tombstones so it matches the visible list (AC#2)", async () => {
+    const a = await svc.create({ postId, content: "first" } as never, author);
+    const b = await svc.create({ postId, content: "second" } as never, author);
+    createdCommentIds.push(a.id, b.id);
+    await svc.delete(a.id, author); // tombstone — stays visible and counted
+
+    const list = await svc.findByPost({ postId });
+    expect(list.items).toHaveLength(2);
+    expect(list.totalCount).toBe(list.items.length);
+  });
+
+  it("findByPost() excludes blocked authors from both the list and totalCount (AC#1/AC#2)", async () => {
+    const mine = await svc.create({ postId, content: "owner comment" } as never, ctx.ownerId);
+    const theirs = await svc.create({ postId, content: "blocked comment" } as never, author);
+    createdCommentIds.push(mine.id, theirs.id);
+
+    const list = await svc.findByPost({ postId, blockedUserIds: [author], viewerId: ctx.ownerId });
+    expect(list.items.map((x) => x.id)).toEqual([mine.id]);
+    expect(list.totalCount).toBe(1);
+  });
 });

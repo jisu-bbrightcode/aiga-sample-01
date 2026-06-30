@@ -304,9 +304,40 @@ export const commentResponseSchema = z.object({
 
 export class CommunityCommentResponseDto extends createZodDto(commentResponseSchema) {}
 
+/**
+ * 공개 댓글 목록 항목. 모더레이션 내부필드(removalReason/removedBy)를 제외하고,
+ * 삭제/제거/숨김 댓글의 본문은 서비스 레이어(comment-visibility)에서 마스킹된다
+ * (PB-COMM-COMMENT-API-LIST-001 / BBR-599 AC#1).
+ */
+export const publicCommentItemSchema = z.object({
+  id: z.string(),
+  postId: z.string(),
+  authorId: z.string(),
+  authorName: z.string().nullable(),
+  authorAvatar: z.string().nullable(),
+  parentId: z.string().nullable(),
+  content: z.string(),
+  depth: z.number(),
+  isDeleted: z.boolean(),
+  isRemoved: z.boolean(),
+  isHidden: z.boolean(),
+  isEdited: z.boolean(),
+  editedAt: z.string().nullable(),
+  upvoteCount: z.number(),
+  downvoteCount: z.number(),
+  voteScore: z.number(),
+  replyCount: z.number(),
+  isStickied: z.boolean(),
+  distinguished: z.enum(["moderator", "admin"]).nullable(),
+  createdAt: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+});
+
 export const commentListResponseSchema = z.object({
-  items: z.array(commentResponseSchema),
+  items: z.array(publicCommentItemSchema),
   nextCursor: z.string().nullable(),
+  // 노출 정책이 적용된 총 댓글 수(차단 작성자 제외). 실제 노출 목록과 일관된다(AC#2).
+  totalCount: z.number(),
 });
 
 export class CommunityCommentListResponseDto extends createZodDto(commentListResponseSchema) {}
