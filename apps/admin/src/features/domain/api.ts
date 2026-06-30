@@ -10,11 +10,13 @@
  */
 import { z } from "zod";
 import { API_URL, getAuthHeaders } from "../../lib/api";
+import type { DoctorCreateInput, HospitalCreateInput } from "./forms/create-schemas";
 import type {
   DomainResourceDetail,
   DomainResourceFilters,
   DomainResourceListResult,
   DomainResourceType,
+  DomainTaxonomyOptions,
 } from "./types";
 
 /** REST contract: admin domain resource list/search. */
@@ -255,10 +257,89 @@ export async function mutateDomainResourceLifecycle(
   return domainResourceLifecycleSchema.parse(await response.json());
 }
 
+// ---------------------------------------------------------------------------
+// Create (write) — PB-ADMIN-DOMAIN-CREATE-001 / BBR-680
+// ---------------------------------------------------------------------------
+
+/** Public taxonomy endpoints — used to populate the create-form selects. */
+const SERVICE_SPECIALTIES_ENDPOINT = "/api/service/specialties";
+const SERVICE_REGIONS_ENDPOINT = "/api/service/regions";
+
+const taxonomyOptionSchema = z.object({ id: z.string(), name: z.string() });
+const taxonomyListSchema = z.array(taxonomyOptionSchema);
+
+/** The created record's id, used to navigate to its detail page. */
+const createResultSchema = z.object({ id: z.string() });
+
+/**
+ * Map a non-2xx create response to a friendly, operator-facing Korean message.
+ * We never echo the raw server body — only a stable, situation-specific string.
+ */
+function createErrorMessage(status: number): string {
+  if (status === 409) {
+    return "이미 사용 중인 slug입니다. 다른 slug를 입력해주세요.";
+  }
+  if (status === 400) {
+    return "입력값을 확인해주세요.";
+  }
+  if (status === 401 || status === 403) {
+    return "이 작업을 수행할 권한이 없습니다.";
+  }
+  return `리소스를 생성하지 못했습니다 (HTTP ${status})`;
+}
+
+/** Fetch the 진료과 / 지역 options for the create form selects. */
+export async function fetchDomainTaxonomy(signal?: AbortSignal): Promise<DomainTaxonomyOptions> {
+  const headers = { Accept: "application/json", ...getAuthHeaders() };
+  const [specialtiesRes, regionsRes] = await Promise.all([
+    fetch(`${API_URL}${SERVICE_SPECIALTIES_ENDPOINT}`, { headers, signal }),
+    fetch(`${API_URL}${SERVICE_REGIONS_ENDPOINT}`, { headers, signal }),
+  ]);
+
+  if (!specialtiesRes.ok || !regionsRes.ok) {
+    throw new Error("진료과·지역 정보를 불러오지 못했습니다.");
+  }
+
+  return {
+    specialties: taxonomyListSchema.parse(await specialtiesRes.json()),
+    regions: taxonomyListSchema.parse(await regionsRes.json()),
+  };
+}
+
+async function postCreate(path: string, body: unknown): Promise<{ id: string }> {
+  const response = await fetch(`${API_URL}${DOMAIN_ADMIN_RESOURCES_ENDPOINT}/${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...getAuthHeaders(),
+    },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(createErrorMessage(response.status));
+  }
+
+  return createResultSchema.parse(await response.json());
+}
+
+/** Create a 의사 catalog record (defaults to draft). */
+export function createDomainDoctor(input: DoctorCreateInput): Promise<{ id: string }> {
+  return postCreate("doctors", input);
+}
+
+/** Create a 병원 catalog record (defaults to draft). */
+export function createDomainHospital(input: HospitalCreateInput): Promise<{ id: string }> {
+  return postCreate("hospitals", input);
+}
+
 export const adminDomainQueryKeys = {
   resourcesPrefix: () => ["admin", "domain", "resources"] as const,
   resources: (filters: DomainResourceFilters) =>
     [...adminDomainQueryKeys.resourcesPrefix(), filters] as const,
   detail: (type: DomainResourceType, id: string) =>
     [...adminDomainQueryKeys.resourcesPrefix(), "detail", type, id] as const,
+  taxonomy: () => ["admin", "domain", "taxonomy"] as const,
 };

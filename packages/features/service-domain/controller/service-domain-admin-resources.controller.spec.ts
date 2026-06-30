@@ -24,8 +24,12 @@ function service() {
       status: "draft",
       isDeleted: false,
     }),
+    createDoctor: jest.fn().mockResolvedValue({ id: "doc-1", type: "doctor" }),
+    createHospital: jest.fn().mockResolvedValue({ id: "hos-1", type: "hospital" }),
   } as unknown as jest.Mocked<ServiceDomainService>;
 }
+
+const adminUser = { id: "admin-1" } as never;
 
 describe("ServiceDomainAdminResourcesController (GET /admin/domain/resources)", () => {
   it("forwards the validated query straight to the service", async () => {
@@ -63,6 +67,28 @@ describe("ServiceDomainAdminResourcesController (GET /admin/domain/resources)", 
 
     expect(svc.restoreDomainResource).toHaveBeenCalledWith("admin-1", "doctor", "d1");
     expect(result).toMatchObject({ status: "draft" });
+  });
+
+  it("forwards a doctor create to the service with the actor id (BBR-680)", async () => {
+    const svc = service();
+    const controller = new ServiceDomainAdminResourcesController(svc);
+    const dto = { name: "김명의", slug: "kim", status: "draft" } as never;
+
+    const result = await controller.createDoctor(adminUser, dto);
+
+    expect(svc.createDoctor).toHaveBeenCalledWith("admin-1", dto);
+    expect(result).toMatchObject({ id: "doc-1" });
+  });
+
+  it("forwards a hospital create to the service with the actor id (BBR-680)", async () => {
+    const svc = service();
+    const controller = new ServiceDomainAdminResourcesController(svc);
+    const dto = { name: "서울병원", slug: "seoul", status: "draft" } as never;
+
+    const result = await controller.createHospital(adminUser, dto);
+
+    expect(svc.createHospital).toHaveBeenCalledWith("admin-1", dto);
+    expect(result).toMatchObject({ id: "hos-1" });
   });
 
   // Security AC: the admin list must be gated like every other /api/admin/* route.

@@ -23,6 +23,11 @@
  *  - D5 (archive): the detail page exposes a 보관/복구 lifecycle action that opens
  *    a confirmation dialog before taking the resource off the public surface
  *    (PB-ADMIN-DOMAIN-DELETE-001 / BBR-682).
+ *  - D6 (permission): an UNAUTHENTICATED visitor to /domain/new is redirected
+ *    to /sign-in (PB-ADMIN-DOMAIN-CREATE-001 / BBR-680).
+ *  - D7 (create): an authenticated admin on /domain/new sees the separated
+ *    공개 정보 / 운영 정보 sections and required-field validation, and can
+ *    submit a draft resource.
  */
 import { expect, test } from "@playwright/test";
 
@@ -43,6 +48,12 @@ test.describe("Domain Admin — permission gate @critical @admin @domain", () =>
     // A representative detail path — the guard runs before any data fetch, so a
     // placeholder id is sufficient to prove the surface is gated.
     await page.goto("/domain/doctor/00000000-0000-0000-0000-000000000000");
+    await expect(page).toHaveURL(/\/sign-in/, { timeout: 10_000 });
+  });
+
+  test("D6: unauthenticated visit to /domain/new redirects to sign-in", async ({ page }) => {
+    await page.context().clearCookies();
+    await page.goto("/domain/new");
     await expect(page).toHaveURL(/\/sign-in/, { timeout: 10_000 });
   });
 });
@@ -114,5 +125,30 @@ test.describe("Domain Admin — list/search (qa@example.com) @admin @domain @db"
     await expect(page.getByText(/보관하시겠습니까|복구하시겠습니까/)).toBeVisible();
     // Cancelling leaves the resource untouched.
     await page.getByRole("button", { name: "취소" }).click();
+  });
+
+  test("D7: create form separates 공개/운영 sections and validates required fields", async ({
+    page,
+  }) => {
+    await page.goto("/domain/new");
+    await expect(page.getByRole("heading", { name: "도메인 리소스 생성" })).toBeVisible({
+      timeout: 10_000,
+    });
+    // AC#1 — 공개 필드와 운영 필드 섹션이 분리되어 있다.
+    await expect(page.getByText("공개 정보")).toBeVisible();
+    await expect(page.getByText("운영 정보")).toBeVisible();
+    // 운영 정보의 상태는 기본 draft(초안)이다.
+    await expect(page.locator("#status")).toBeVisible();
+
+    // Submitting empty surfaces required-field validation rather than posting.
+    await page.getByRole("button", { name: "리소스 생성" }).click();
+    await expect(page.getByText("이름을 입력해주세요.")).toBeVisible({ timeout: 5_000 });
+
+    // A valid draft submission navigates to the new record's detail page.
+    const unique = `e2e-doctor-${Date.now()}`;
+    await page.fill("#name", "E2E 김의사");
+    await page.fill("#slug", unique);
+    await page.getByRole("button", { name: "리소스 생성" }).click();
+    await expect(page).toHaveURL(/\/domain\/doctor\//, { timeout: 10_000 });
   });
 });

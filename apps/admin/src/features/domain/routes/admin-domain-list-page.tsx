@@ -1,7 +1,8 @@
 import { Button } from "@repo/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/shadcn/card";
-import { RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { Plus, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { DOMAIN_ADMIN_DEFAULT_PAGE_SIZE } from "../constants";
 import { useDomainResources } from "../hooks/use-domain-resources";
 import { DomainFilters } from "../pages/domain-filters";
@@ -47,7 +48,7 @@ export function AdminDomainListPage() {
     order,
   });
 
-  const items = useMemo(() => data?.items ?? [], [data]);
+  const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 0;
 
@@ -73,9 +74,15 @@ export function AdminDomainListPage() {
 
   return (
     <div className="container mx-auto space-y-6 px-4 py-8">
-      <div>
-        <h1 className="text-3xl font-bold">도메인 리소스</h1>
-        <p className="text-muted-foreground">의사·병원 큐레이션 카탈로그를 검색하고 관리합니다</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">도메인 리소스</h1>
+          <p className="text-muted-foreground">의사·병원 큐레이션 카탈로그를 검색하고 관리합니다</p>
+        </div>
+        <Button render={<Link to="/domain/new" />} size="sm" className="w-fit shrink-0">
+          <Plus className="mr-2 size-3.5" />
+          리소스 생성
+        </Button>
       </div>
 
       <Card>
