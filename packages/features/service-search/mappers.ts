@@ -87,3 +87,29 @@ export function toAdminSearchHit(row: ServiceSearchDocument): AdminSearchHit {
     updatedAt: iso(row.updatedAt),
   };
 }
+
+// ---- viewer state (FR-003 detail / BBR-532) --------------------------------
+
+/**
+ * The requesting viewer's relationship to a detail resource. Built fail-closed:
+ * the public detail endpoint NEVER reports `isAdmin`/`canViewUnpublished` true,
+ * even if an admin happens to call it — the privileged view lives behind the
+ * admin-guarded endpoint. See doc/api/PB-FEAT-FR003-API-READ-search-detail.md.
+ */
+export interface ViewerState {
+  authenticated: boolean;
+  isAdmin: boolean;
+  canViewUnpublished: boolean;
+}
+
+/** Viewer state for the public detail endpoint (published resources only). */
+export function publicViewerState(authenticated: boolean): ViewerState {
+  return { authenticated, isAdmin: false, canViewUnpublished: false };
+}
+
+/** Viewer state for the admin-guarded detail endpoint (owner/admin role). */
+export const ADMIN_VIEWER_STATE: ViewerState = {
+  authenticated: true,
+  isAdmin: true,
+  canViewUnpublished: true,
+};

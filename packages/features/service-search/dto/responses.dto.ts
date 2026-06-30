@@ -35,6 +35,29 @@ export const searchResultSchema = z.object({
 });
 export class SearchResultDto extends createZodDto(searchResultSchema) {}
 
+// ---- viewer state (FR-003 detail / BBR-532) --------------------------------
+
+/**
+ * The requesting viewer's relationship to the detail resource — lets the client
+ * render gated actions (저장/이용 시작 require login) and an editor banner
+ * without a second round-trip. `isAdmin`/`canViewUnpublished` are only ever
+ * true on the admin detail endpoint; the public endpoint always reports the
+ * non-privileged view (fail-closed).
+ */
+export const viewerStateSchema = z.object({
+  authenticated: z.boolean(),
+  isAdmin: z.boolean(),
+  canViewUnpublished: z.boolean(),
+});
+export class ViewerStateDto extends createZodDto(viewerStateSchema) {}
+
+// ---- public detail (single hit + viewer state) -----------------------------
+
+export const publicSearchDetailSchema = publicSearchHitSchema.extend({
+  viewer: viewerStateSchema,
+});
+export class PublicSearchDetailDto extends createZodDto(publicSearchDetailSchema) {}
+
 // ---- admin hit + list ------------------------------------------------------
 
 export const adminSearchHitSchema = publicSearchHitSchema.extend({
@@ -54,6 +77,13 @@ export const adminSearchResultSchema = z.object({
   ...pageMeta,
 });
 export class AdminSearchResultDto extends createZodDto(adminSearchResultSchema) {}
+
+// ---- admin detail (single hit + viewer state) ------------------------------
+
+export const adminSearchDetailSchema = adminSearchHitSchema.extend({
+  viewer: viewerStateSchema,
+});
+export class AdminSearchDetailDto extends createZodDto(adminSearchDetailSchema) {}
 
 // ---- popular (public aggregate) --------------------------------------------
 

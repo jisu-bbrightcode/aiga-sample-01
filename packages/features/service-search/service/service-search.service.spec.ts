@@ -1,3 +1,4 @@
+import { NotFoundException } from "@nestjs/common";
 import { createMockDb } from "../../__test-utils__/mock-db";
 import { ServiceSearchService } from "./service-search.service";
 
@@ -133,6 +134,70 @@ describe("ServiceSearchService", () => {
       db._queueResolve("where", [{ count: 1 }]);
       await service.adminSearch({ page: 1, limit: 20, q: "명의" } as never);
       expect(db.insert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getPublicDetail (FR-003 detail / BBR-532)", () => {
+    it("returns a published hit with ONLY public columns", async () => {
+      db._queueResolve("limit", [publicRow()]);
+
+      const hit = await service.getPublicDetail("doctor", "22222222-2222-2222-2222-222222222222");
+
+      expect(hit).toEqual(
+        expect.objectContaining({ entityId: publicRow().entityId, title: "김명의" }),
+      );
+      // public projection only — no index internals selected
+      const projection = db.select.mock.calls[0][0] as Record<string, unknown>;
+      for (const internal of ["body", "keywords", "weight", "isPublished", "searchVector"]) {
+        expect(Object.keys(projection)).not.toContain(internal);
+      }
+      expect(hit).not.toHaveProperty("weight");
+    });
+
+    it("forces is_published = true (missing OR unpublished → 404, no leak)", async () => {
+      db._queueResolve("limit", []); // unpublished/missing both yield no row
+
+      await expect(
+        service.getPublicDetail("doctor", "22222222-2222-2222-2222-222222222222"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("treats an unknown entityType as 404 without touching the db", async () => {
+      await expect(
+        service.getPublicDetail("bogus", "22222222-2222-2222-2222-222222222222"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(db.select).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getAdminDetail (FR-003 detail / BBR-532)", () => {
+    it("returns the full row incl. internals regardless of publish state", async () => {
+      db._queueResolve("limit", [fullRow({ isPublished: false })]);
+
+      const hit = await service.getAdminDetail("doctor", "22222222-2222-2222-2222-222222222222");
+
+      expect(hit.body).toBe("internal bio");
+      expect(hit.weight).toBe(100);
+      expect(hit.isPublished).toBe(false);
+      // admin select() takes no projection arg (full row)
+      expect(db.select.mock.calls[0][0]).toBeUndefined();
+      // raw tsvector dropped even for admins
+      expect(hit).not.toHaveProperty("searchVector");
+    });
+
+    it("raises 404 when no document exists", async () => {
+      db._queueResolve("limit", []);
+
+      await expect(
+        service.getAdminDetail("doctor", "22222222-2222-2222-2222-222222222222"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("treats an unknown entityType as 404 without touching the db", async () => {
+      await expect(
+        service.getAdminDetail("bogus", "22222222-2222-2222-2222-222222222222"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(db.select).not.toHaveBeenCalled();
     });
   });
 
