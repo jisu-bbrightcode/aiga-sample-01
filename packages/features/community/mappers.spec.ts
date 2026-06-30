@@ -1,8 +1,14 @@
 import {
   ADMIN_POST_VIEWER_STATE,
   type EnrichedCommunityPost,
+  guestPostDetailViewerState,
+  type PostDetailViewerState,
   publicPostViewerState,
+  resolvePostDetailAccess,
   toAdminPostListItem,
+  toPostAuthorSummary,
+  toPostStatsSummary,
+  toPublicPostDetail,
   toPublicPostListItem,
 } from "./mappers";
 
@@ -104,5 +110,129 @@ describe("viewer state", () => {
 
   it("admin viewer state is authenticated + admin", () => {
     expect(ADMIN_POST_VIEWER_STATE).toEqual({ authenticated: true, isAdmin: true });
+  });
+});
+
+// ----------------------------------------------------------------------------
+// Post detail (PB-COMM-POST-API-READ-001 / BBR-595)
+// ----------------------------------------------------------------------------
+
+describe("toPostAuthorSummary / toPostStatsSummary", () => {
+  it("projects the author summary from enrich fields", () => {
+    expect(toPostAuthorSummary(makeRow())).toEqual({
+      id: "author-1",
+      name: "Jane",
+      avatar: "https://cdn/a.png",
+    });
+  });
+
+  it("author summary fails closed to null when enrich fields are absent", () => {
+    expect(
+      toPostAuthorSummary(makeRow({ authorName: undefined, authorAvatar: undefined })),
+    ).toEqual({ id: "author-1", name: null, avatar: null });
+  });
+
+  it("projects only aggregate counters in the stats summary", () => {
+    expect(toPostStatsSummary(makeRow())).toEqual({
+      viewCount: 3,
+      commentCount: 2,
+      upvoteCount: 5,
+      downvoteCount: 1,
+      voteScore: 4,
+      shareCount: 0,
+    });
+  });
+});
+
+describe("toPublicPostDetail", () => {
+  const viewer: PostDetailViewerState = {
+    authenticated: true,
+    isAuthor: false,
+    hasReported: true,
+    hasBlockedAuthor: false,
+    canModerate: false,
+    myVote: "up",
+  };
+
+  it("wraps the public post projection with author/stats/viewer", () => {
+    const detail = toPublicPostDetail(makeRow(), viewer);
+    expect(detail.post.id).toBe("post-1");
+    expect(detail.author).toEqual({ id: "author-1", name: "Jane", avatar: "https://cdn/a.png" });
+    expect(detail.stats.commentCount).toBe(2);
+    expect(detail.viewer).toEqual(viewer);
+  });
+
+  it("never leaks moderation internals through the nested post", () => {
+    const detail = toPublicPostDetail(makeRow(), viewer);
+    expect(detail.post).not.toHaveProperty("removalReason");
+    expect(detail.post).not.toHaveProperty("removedBy");
+  });
+});
+
+describe("guestPostDetailViewerState", () => {
+  it("is fully fail-closed for anonymous viewers", () => {
+    expect(guestPostDetailViewerState()).toEqual({
+      authenticated: false,
+      isAuthor: false,
+      hasReported: false,
+      hasBlockedAuthor: false,
+      canModerate: false,
+      myVote: null,
+    });
+  });
+});
+
+describe("resolvePostDetailAccess (AC#1 — consistent access by status/block)", () => {
+  const base = { isAuthor: false, canModerate: false, authorBlocked: false } as const;
+
+  it("published is fully visible to everyone", () => {
+    expect(resolvePostDetailAccess({ ...base, status: "published" })).toEqual({
+      visible: true,
+      masked: false,
+    });
+  });
+
+  it("deleted/removed are visible but masked (tombstone) for everyone", () => {
+    expect(resolvePostDetailAccess({ ...base, status: "deleted" })).toEqual({
+      visible: true,
+      masked: true,
+    });
+    expect(resolvePostDetailAccess({ ...base, status: "removed" })).toEqual({
+      visible: true,
+      masked: true,
+    });
+  });
+
+  it("hidden/draft are not visible to ordinary viewers", () => {
+    expect(resolvePostDetailAccess({ ...base, status: "hidden" })).toEqual({ visible: false });
+    expect(resolvePostDetailAccess({ ...base, status: "draft" })).toEqual({ visible: false });
+  });
+
+  it("hidden/draft become visible to the author or a moderator", () => {
+    expect(resolvePostDetailAccess({ ...base, status: "hidden", isAuthor: true })).toEqual({
+      visible: true,
+      masked: false,
+    });
+    expect(resolvePostDetailAccess({ ...base, status: "draft", canModerate: true })).toEqual({
+      visible: true,
+      masked: false,
+    });
+  });
+
+  it("a blocked author's post is hidden from the viewer (consistent with list exclusion)", () => {
+    expect(resolvePostDetailAccess({ ...base, status: "published", authorBlocked: true })).toEqual({
+      visible: false,
+    });
+  });
+
+  it("the author still sees their own post even under a block edge case", () => {
+    expect(
+      resolvePostDetailAccess({
+        status: "published",
+        isAuthor: true,
+        canModerate: false,
+        authorBlocked: true,
+      }),
+    ).toEqual({ visible: true, masked: false });
   });
 });

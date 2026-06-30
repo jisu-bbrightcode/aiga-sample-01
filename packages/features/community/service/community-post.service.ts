@@ -6,12 +6,21 @@ import {
   type CommunityPost,
   communities,
   communityPosts,
+  communityReports,
+  communityUserBlocks,
+  communityVotes,
   user as userTable,
 } from "@repo/drizzle/schema";
 import { and, count, desc, eq, ilike, inArray, notInArray, or, type SQL, sql } from "drizzle-orm";
 import type { CreatePostDto, UpdatePostDto } from "../dto";
 import { decodeCursor } from "../helpers/pagination";
 import { assertCommunityPermission } from "../helpers/permission";
+import {
+  type PostDetailViewerState,
+  type PublicPostDetail,
+  resolvePostDetailAccess,
+  toPublicPostDetail,
+} from "../mappers";
 import { CommunityService } from "./community.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
@@ -473,6 +482,142 @@ export class CommunityPostService {
       .where(eq(communityPosts.id, id));
 
     return { ...post, authorName, authorAvatar };
+  }
+
+  /**
+   * 게시글 상세 + viewer state 조회 (PB-COMM-POST-API-READ-001 / BBR-595).
+   *
+   * 비로그인/로그인 모두 공개 상세를 조회할 수 있고, 노출 결과는
+   * resolvePostDetailAccess 가 status·차단 상태로 일관 결정한다(AC#1). 투표/신고/
+   * 저장 같은 "보호 액션"은 별도 인증 엔드포인트이며, 여기서는 viewer state 로
+   * 그 가능 여부 신호만 내려준다(AC#2 — 프론트 auth modal 연결).
+   *
+   * @param input.blockedUserIds controller 가 blockService 로 계산한 양방향 차단 집합.
+   * @returns 노출 불가(미존재/숨김/차단)면 null → controller 가 404 로 변환.
+   */
+  async findDetailForViewer(
+    id: string,
+    input: { viewerId?: string; blockedUserIds?: string[] } = {},
+  ): Promise<PublicPostDetail | null> {
+    const [result] = await this.db
+      .select()
+      .from(communityPosts)
+      .where(eq(communityPosts.id, id))
+      .limit(1);
+    if (!result) return null;
+
+    const post = result as CommunityPost;
+    const viewerId = input.viewerId;
+    const isAuthor = !!viewerId && viewerId === post.authorId;
+    const authorBlocked = (input.blockedUserIds ?? []).includes(post.authorId);
+    const canModerate =
+      !!viewerId &&
+      !isAuthor &&
+      (await this.communityService.isModerator(post.communityId, viewerId));
+
+    const access = resolvePostDetailAccess({
+      status: post.status,
+      isAuthor,
+      canModerate,
+      authorBlocked,
+    });
+    if (!access.visible) return null;
+
+    const [author] = await this.db
+      .select({ id: userTable.id, name: userTable.name, avatar: userTable.image })
+      .from(userTable)
+      .where(eq(userTable.id, post.authorId))
+      .limit(1);
+
+    // viewer-별 신고/차단/리액션 상태는 로그인 사용자에게만 조회한다.
+    const [hasReported, hasBlockedAuthor, myVote] = viewerId
+      ? await Promise.all([
+          this.hasReportedPost(viewerId, post.id),
+          this.hasBlockedAuthor(viewerId, post.authorId),
+          this.getMyVote(viewerId, post.id),
+        ])
+      : [false, false, null as "up" | "down" | null];
+
+    // published 상세만 조회수를 증가시킨다(tombstone/숨김 노출은 카운트 제외).
+    if (!access.masked && post.status === "published") {
+      await this.db
+        .update(communityPosts)
+        .set({ viewCount: sql`${communityPosts.viewCount} + 1` })
+        .where(eq(communityPosts.id, post.id));
+    }
+
+    const displayPost = access.masked ? this.applyTombstone(post) : post;
+    const enriched = {
+      ...displayPost,
+      authorName: author?.name ?? null,
+      authorAvatar: author?.avatar ?? null,
+    };
+
+    const viewer: PostDetailViewerState = {
+      authenticated: !!viewerId,
+      isAuthor,
+      hasReported,
+      hasBlockedAuthor,
+      canModerate,
+      myVote,
+    };
+
+    return toPublicPostDetail(enriched, viewer);
+  }
+
+  /** 삭제/운영삭제 게시글의 본문을 tombstone 으로 가린다(노출은 일관 유지). */
+  private applyTombstone(post: CommunityPost): CommunityPost {
+    const text = post.status === "deleted" ? "[삭제된 게시글]" : "[운영 정책에 의해 삭제됨]";
+    return { ...post, title: text, content: text };
+  }
+
+  /** 요청자가 해당 게시글을 신고한 적이 있는지. */
+  private async hasReportedPost(reporterId: string, postId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: communityReports.id })
+      .from(communityReports)
+      .where(
+        and(
+          eq(communityReports.reporterId, reporterId),
+          eq(communityReports.targetType, "post"),
+          eq(communityReports.targetId, postId),
+        ),
+      )
+      .limit(1);
+    return !!row;
+  }
+
+  /** 요청자가 작성자를 차단했는지(단방향). */
+  private async hasBlockedAuthor(blockerId: string, authorId: string): Promise<boolean> {
+    if (blockerId === authorId) return false;
+    const [row] = await this.db
+      .select({ blockerId: communityUserBlocks.blockerId })
+      .from(communityUserBlocks)
+      .where(
+        and(
+          eq(communityUserBlocks.blockerId, blockerId),
+          eq(communityUserBlocks.blockedId, authorId),
+        ),
+      )
+      .limit(1);
+    return !!row;
+  }
+
+  /** 요청자의 게시글 리액션(up/down) 또는 null. */
+  private async getMyVote(userId: string, postId: string): Promise<"up" | "down" | null> {
+    const [row] = await this.db
+      .select({ vote: communityVotes.vote })
+      .from(communityVotes)
+      .where(
+        and(
+          eq(communityVotes.userId, userId),
+          eq(communityVotes.targetType, "post"),
+          eq(communityVotes.targetId, postId),
+        ),
+      )
+      .limit(1);
+    if (!row) return null;
+    return row.vote > 0 ? "up" : "down";
   }
 
   async update(id: string, dto: UpdatePostDto, userId: string): Promise<CommunityPost> {
