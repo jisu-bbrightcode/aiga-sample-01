@@ -43,6 +43,8 @@ export const adminSearchQuerySchema = pageQuerySchema.extend({
   ...sharedFilters,
   /** Restrict to published (true) or unpublished (false). Omit for both. */
   published: z.coerce.boolean().optional(),
+  /** Include archived (soft-deleted) documents. Default false — 노출 차단. */
+  includeDeleted: z.coerce.boolean().optional(),
 });
 export class AdminSearchQueryDto extends createZodDto(adminSearchQuerySchema) {}
 

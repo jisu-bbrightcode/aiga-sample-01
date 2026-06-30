@@ -67,6 +67,8 @@ export const adminSearchHitSchema = publicSearchHitSchema.extend({
   weight: z.number(),
   isPublished: z.boolean(),
   sourceUpdatedAt: z.string().nullable(),
+  isDeleted: z.boolean(),
+  deletedAt: z.string().nullable(),
   createdAt: z.string().nullable(),
   updatedAt: z.string().nullable(),
 });
@@ -84,6 +86,23 @@ export const adminSearchDetailSchema = adminSearchHitSchema.extend({
   viewer: viewerStateSchema,
 });
 export class AdminSearchDetailDto extends createZodDto(adminSearchDetailSchema) {}
+
+// ---- archive / restore result (FR-003 delete/archive / BBR-535) ------------
+
+/**
+ * Returned by the admin DELETE (archive) and restore endpoints. Echoes the
+ * resource key + new archive state so the client can reflect 노출 차단 / 복구
+ * without re-fetching. The underlying document row and any connected payment/
+ * history/audit data are preserved — only this flag changes.
+ */
+export const archiveResultSchema = z.object({
+  entityType,
+  entityId: z.string(),
+  isDeleted: z.boolean(),
+  deletedAt: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+});
+export class ArchiveResultDto extends createZodDto(archiveResultSchema) {}
 
 // ---- popular (public aggregate) --------------------------------------------
 

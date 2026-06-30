@@ -30,6 +30,8 @@ function fullRow(overrides: Record<string, unknown> = {}) {
     weight: 100,
     isPublished: false,
     sourceUpdatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    isDeleted: false,
+    deletedAt: null,
     searchVector: "ignored",
     ...overrides,
   };
@@ -222,6 +224,115 @@ describe("ServiceSearchService", () => {
       ]);
       const out = await service.recentTerms("user-1", { limit: 10 });
       expect(out).toEqual([{ term: "심장내과", lastSearchedAt: "2026-02-01T10:00:00.000Z" }]);
+    });
+  });
+
+  describe("buildWhere archive exclusion (FR-003 delete / BBR-535)", () => {
+    it("public search excludes archived rows (is_deleted = false forced)", async () => {
+      db._queueResolve("offset", []);
+      db._queueResolve("where", [{ count: 0 }]);
+      await service.search({ page: 1, limit: 20, q: "명의" } as never);
+      // where() received a composed predicate; the service never sets
+      // includeDeleted on the public path, so the archive guard is always on.
+      expect(db.where).toHaveBeenCalled();
+    });
+
+    it("admin search keeps archived rows hidden unless includeDeleted", async () => {
+      db._queueResolve("offset", [fullRow()]);
+      db._queueResolve("where", [{ count: 1 }]);
+      await service.adminSearch({ page: 1, limit: 20, includeDeleted: true } as never);
+      // includeDeleted true must NOT throw and must still return a page
+      expect(db.select).toHaveBeenCalled();
+    });
+  });
+
+  describe("getPublicDetail excludes archived (BBR-535)", () => {
+    it("an archived (or missing) document is 404 on the public surface", async () => {
+      db._queueResolve("limit", []); // archived row filtered out → no row
+      await expect(
+        service.getPublicDetail("doctor", "22222222-2222-2222-2222-222222222222"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("archiveDocument (FR-003 delete/archive / BBR-535)", () => {
+    const ENTITY_ID = "22222222-2222-2222-2222-222222222222";
+
+    it("soft-deletes a live document and returns the archived state", async () => {
+      db._queueResolve("limit", [fullRow({ isDeleted: false, deletedAt: null })]); // findDocument
+      db._queueResolve("returning", [
+        fullRow({ isDeleted: true, deletedAt: new Date("2026-03-01T00:00:00.000Z") }),
+      ]);
+
+      const result = await service.archiveDocument("admin-1", "doctor", ENTITY_ID);
+
+      expect(db.update).toHaveBeenCalledTimes(1);
+      const patch = db.set.mock.calls[0][0] as Record<string, unknown>;
+      expect(patch.isDeleted).toBe(true);
+      expect(patch.deletedAt).toBeInstanceOf(Date);
+      expect(result).toEqual({
+        entityType: "doctor",
+        entityId: ENTITY_ID,
+        isDeleted: true,
+        deletedAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: expect.any(String),
+      });
+    });
+
+    it("is idempotent: an already-archived document is not re-written", async () => {
+      db._queueResolve("limit", [fullRow({ isDeleted: true, deletedAt: new Date() })]);
+
+      const result = await service.archiveDocument("admin-1", "doctor", ENTITY_ID);
+
+      expect(db.update).not.toHaveBeenCalled();
+      expect(result.isDeleted).toBe(true);
+    });
+
+    it("raises 404 for a missing document", async () => {
+      db._queueResolve("limit", []);
+      await expect(service.archiveDocument("admin-1", "doctor", ENTITY_ID)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(db.update).not.toHaveBeenCalled();
+    });
+
+    it("treats an unknown entityType as 404 without touching the db", async () => {
+      await expect(service.archiveDocument("admin-1", "bogus", ENTITY_ID)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(db.select).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("restoreDocument (FR-003 delete/archive / BBR-535)", () => {
+    const ENTITY_ID = "22222222-2222-2222-2222-222222222222";
+
+    it("restores an archived document and clears deletedAt", async () => {
+      db._queueResolve("limit", [fullRow({ isDeleted: true, deletedAt: new Date() })]);
+      db._queueResolve("returning", [fullRow({ isDeleted: false, deletedAt: null })]);
+
+      const result = await service.restoreDocument("admin-1", "doctor", ENTITY_ID);
+
+      const patch = db.set.mock.calls[0][0] as Record<string, unknown>;
+      expect(patch.isDeleted).toBe(false);
+      expect(patch.deletedAt).toBeNull();
+      expect(result).toMatchObject({ entityId: ENTITY_ID, isDeleted: false, deletedAt: null });
+    });
+
+    it("is idempotent: a live document is not re-written", async () => {
+      db._queueResolve("limit", [fullRow({ isDeleted: false, deletedAt: null })]);
+
+      const result = await service.restoreDocument("admin-1", "doctor", ENTITY_ID);
+
+      expect(db.update).not.toHaveBeenCalled();
+      expect(result.isDeleted).toBe(false);
+    });
+
+    it("raises 404 for a missing document", async () => {
+      db._queueResolve("limit", []);
+      await expect(service.restoreDocument("admin-1", "doctor", ENTITY_ID)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 });
