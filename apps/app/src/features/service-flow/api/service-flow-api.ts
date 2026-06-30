@@ -23,6 +23,13 @@ import type {
   SavedItem,
   SearchHistoryEntry,
 } from "./types";
+import type {
+  PopularTerm,
+  RecentSearch,
+  SearchEntityType,
+  SearchResult,
+  SearchSortMode,
+} from "./unified-search-types";
 
 /** Stable, user-facing-mappable error codes (see lib/user-facing-error.ts). */
 export type ServiceFlowErrorCode =
@@ -200,5 +207,55 @@ export function removeInterest(id: string): Promise<void> {
   return fetchJson<void>(`/interests/${encodeURIComponent(id)}`, {
     authed: true,
     method: "DELETE",
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* 통합검색 (unified search) readers — FR-003 / BBR-582                         */
+/* -------------------------------------------------------------------------- */
+
+/** Query for `GET /service/search`. All fields optional (public, browsable). */
+export interface UnifiedSearchParams {
+  q?: string;
+  type?: SearchEntityType;
+  regionId?: string;
+  specialtyId?: string;
+  sort?: SearchSortMode;
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * 통합 검색 (공개) — `GET /service/search`. No auth: the public surface always
+ * scopes to published documents server-side. Returns a paginated hit list.
+ */
+export function searchUnified(
+  params: UnifiedSearchParams = {},
+  signal?: AbortSignal,
+): Promise<SearchResult> {
+  return fetchJson<SearchResult>(`/service/search${buildQuery({ ...params })}`, { signal });
+}
+
+/** 인기 검색어 (공개 집계) — `GET /service/search/popular`. */
+export function getPopularTerms(
+  params: { limit?: number; days?: number } = {},
+  signal?: AbortSignal,
+): Promise<PopularTerm[]> {
+  return fetchJson<PopularTerm[]>(`/service/search/popular${buildQuery({ ...params })}`, {
+    signal,
+  });
+}
+
+/**
+ * 최근 검색어 (로그인 사용자 본인 기록) — `GET /service/search/recent`.
+ * Auth-gated: a logged-out caller gets 401 → surfaced as a 권한 없음 branch.
+ */
+export function getRecentTerms(
+  params: { limit?: number } = {},
+  signal?: AbortSignal,
+): Promise<RecentSearch[]> {
+  return fetchJson<RecentSearch[]>(`/service/search/recent${buildQuery({ ...params })}`, {
+    authed: true,
+    signal,
   });
 }
