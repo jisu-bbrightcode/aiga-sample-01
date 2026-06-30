@@ -3,6 +3,7 @@ import {
   createKcbSessionInputSchema,
   kcbCallbackInputSchema,
   linkKcbVerificationInputSchema,
+  retryKcbVerificationInputSchema,
 } from "../kcb";
 
 export class CreateKcbIdentitySessionDto extends createZodDto(createKcbSessionInputSchema) {}
@@ -10,6 +11,8 @@ export class CreateKcbIdentitySessionDto extends createZodDto(createKcbSessionIn
 export class KcbProviderResultDto extends createZodDto(kcbCallbackInputSchema) {}
 
 export class LinkKcbVerificationDto extends createZodDto(linkKcbVerificationInputSchema) {}
+
+export class RetryKcbVerificationDto extends createZodDto(retryKcbVerificationInputSchema) {}
 
 // Verification request (one row per transaction). The create response additionally
 // carries redirectUrl/redirectMethod/redirectForm + state/nonce + blocked (declared
@@ -72,6 +75,37 @@ export const identityVerificationResultOpenApiSchema = {
     retainedUntil: { type: "string", format: "date-time", nullable: true },
     anonymizedAt: { type: "string", format: "date-time", nullable: true },
     createdAt: { type: "string", format: "date-time" },
+  },
+};
+
+// User-facing verification status (PB-IDV-KCB-API-STATUS-001). Returned by
+// GET /me/identity-verification. Carries a coarse status + friendly message + the
+// protected-action resume context — never raw provider/failure codes (AC4 separation).
+export const identityVerificationUserStatusOpenApiSchema = {
+  type: "object",
+  required: ["status", "message", "canRetry", "identity", "resume"],
+  properties: {
+    status: {
+      type: "string",
+      enum: ["required", "in_progress", "verified", "failed", "expired"],
+    },
+    message: { type: "string" },
+    canRetry: { type: "boolean" },
+    verifiedAt: { type: "string", format: "date-time", nullable: true },
+    identity: {
+      nullable: true,
+      allOf: [identityVerificationResultOpenApiSchema],
+    },
+    resume: {
+      type: "object",
+      nullable: true,
+      required: ["sessionId", "targetAction", "expiresAt"],
+      properties: {
+        sessionId: { type: "string", format: "uuid" },
+        targetAction: { type: "string" },
+        expiresAt: { type: "string", format: "date-time" },
+      },
+    },
   },
 };
 

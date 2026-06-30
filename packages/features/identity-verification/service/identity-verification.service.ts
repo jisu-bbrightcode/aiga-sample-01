@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import {
   type DrizzleDB,
   identityVerificationAttempts,
@@ -12,8 +13,29 @@ import {
   type KcbAdapterVerifyResponse,
   type KcbCallbackInput,
   type KcbHealth,
+  type RetryKcbVerificationInput,
+  canRetryFromStatus,
+  resolveUserVerificationStatus,
+  userVerificationStatusMessage,
 } from "../kcb";
 import { KcbIdentityVerificationError, toPublicKcbError } from "../kcb/errors";
+
+// Minimal structural contract for the rate limiter so the service stays framework-light
+// and unit-testable without a DB. @repo/core/rate-limit's RateLimitService satisfies it.
+export interface RateLimitGuard {
+  assertRateLimit(
+    identifier: string,
+    config: { action: string; maxRequests: number; windowSeconds: number },
+  ): Promise<void>;
+}
+
+// Retry abuse guard: at most 5 retries per user per 10 minutes (the underlying sliding
+// window is shared across the user's retries; exceeding it yields HTTP 429).
+const RETRY_RATE_LIMIT = {
+  action: "identity_verification:retry",
+  maxRequests: 5,
+  windowSeconds: 600,
+} as const;
 
 export interface IdentityVerificationServiceOptions {
   db: DrizzleDB;
@@ -22,6 +44,7 @@ export interface IdentityVerificationServiceOptions {
   standardCallbackUrl?: string;
   customModeEnabled?: boolean;
   retentionDays?: number;
+  rateLimit?: RateLimitGuard;
 }
 
 export class IdentityVerificationService {
@@ -31,6 +54,7 @@ export class IdentityVerificationService {
   private readonly standardCallbackUrl?: string;
   private readonly customModeEnabled: boolean;
   private readonly retentionDays: number;
+  private readonly rateLimit?: RateLimitGuard;
 
   constructor(options: IdentityVerificationServiceOptions) {
     this.db = options.db;
@@ -39,6 +63,7 @@ export class IdentityVerificationService {
     this.standardCallbackUrl = options.standardCallbackUrl;
     this.customModeEnabled = options.customModeEnabled ?? false;
     this.retentionDays = options.retentionDays ?? 365;
+    this.rateLimit = options.rateLimit;
   }
 
   async health(): Promise<KcbHealth> {
@@ -382,13 +407,137 @@ export class IdentityVerificationService {
 
   /** Latest verified identity for a user (for gating). Null if not verified. */
   async getUserVerification(userId: string) {
+    const verification = await this.loadUserVerification(userId);
+    return verification ? serializeVerification(verification) : null;
+  }
+
+  private async loadUserVerification(userId: string) {
     const [verification] = await this.db
       .select()
       .from(identityVerifications)
       .where(and(eq(identityVerifications.userId, userId), isNull(identityVerifications.deletedAt)))
       .orderBy(desc(identityVerifications.verifiedAt))
       .limit(1);
-    return verification ? serializeVerification(verification) : null;
+    return verification ?? null;
+  }
+
+  private async loadLatestUserRequest(userId: string) {
+    const [request] = await this.db
+      .select()
+      .from(identityVerificationRequests)
+      .where(eq(identityVerificationRequests.userId, userId))
+      .orderBy(desc(identityVerificationRequests.createdAt))
+      .limit(1);
+    return request ?? null;
+  }
+
+  /**
+   * User-facing verification status (PB-IDV-KCB-API-STATUS-001, AC1 + AC2 + AC4).
+   * Returns exactly one of five coarse states + a friendly message — never raw provider
+   * or failure codes (those stay on the admin controller). `resume` carries the protected
+   * action context so the client can return to the original action after completion.
+   */
+  async getUserStatus(userId: string) {
+    const [request, verification] = await Promise.all([
+      this.loadLatestUserRequest(userId),
+      this.loadUserVerification(userId),
+    ]);
+    const status = resolveUserVerificationStatus(
+      request ? { status: request.status, expiresAt: request.expiresAt } : null,
+      Boolean(verification),
+    );
+    return {
+      status,
+      message: userVerificationStatusMessage(status),
+      canRetry: canRetryFromStatus(status),
+      verifiedAt: verification?.verifiedAt.toISOString() ?? null,
+      identity: verification ? serializeVerification(verification) : null,
+      // Protected-action resume context (AC2). The owner may pass `sessionId` back to
+      // /retry; `targetAction` tells the client which action to resume on completion.
+      resume: request
+        ? {
+            sessionId: request.id,
+            targetAction: request.targetAction,
+            expiresAt: request.expiresAt.toISOString(),
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Retry a failed/canceled/expired verification (PB-IDV-KCB-API-STATUS-001, AC3).
+   * Rate-limited per user (HTTP 429 on abuse). Policy:
+   *   - already verified            → 409 (nothing to retry)
+   *   - in progress (within window) → 409 (finish the open session first)
+   *   - no prior request            → 404 (start a fresh session instead)
+   *   - failed / expired            → create a NEW user-scoped session, reusing the
+   *                                   source request's target + consent context.
+   */
+  async retrySession(
+    userId: string,
+    input: RetryKcbVerificationInput,
+    clientIp: string | null = null,
+  ) {
+    if (this.rateLimit) {
+      await this.rateLimit.assertRateLimit(userId, RETRY_RATE_LIMIT);
+    }
+
+    if (await this.loadUserVerification(userId)) {
+      throw new ConflictException({
+        message: "이미 본인확인이 완료되었습니다.",
+        errorCode: "ALREADY_VERIFIED",
+      });
+    }
+
+    const source = input.sessionId
+      ? await this.loadOwnedRequest(userId, input.sessionId)
+      : await this.loadLatestUserRequest(userId);
+    if (!source) {
+      throw new NotFoundException({
+        message: "재시도할 본인확인 요청이 없습니다. 본인확인을 새로 시작해 주세요.",
+        errorCode: "NO_RETRYABLE_VERIFICATION",
+      });
+    }
+
+    const status = resolveUserVerificationStatus(
+      { status: source.status, expiresAt: source.expiresAt },
+      false,
+    );
+    if (status === "verified") {
+      throw new ConflictException({
+        message: "이미 본인확인이 완료되었습니다.",
+        errorCode: "ALREADY_VERIFIED",
+      });
+    }
+    if (status === "in_progress") {
+      throw new ConflictException({
+        message: "이미 진행 중인 본인확인이 있습니다. 인증 창에서 완료해 주세요.",
+        errorCode: "VERIFICATION_IN_PROGRESS",
+      });
+    }
+
+    // status is failed | expired — reuse the source's target + consent so the retried
+    // session resumes the same protected action (AC2). The client may override `target`.
+    const consent =
+      source.consentVersion && source.consentScope
+        ? { version: source.consentVersion, scope: source.consentScope }
+        : undefined;
+    return this.createSession(
+      userId,
+      {
+        mode: source.mode,
+        target: input.target ?? { action: source.targetAction },
+        consent,
+      },
+      clientIp,
+    );
+  }
+
+  /** Load a request only if it belongs to the given user (no cross-user leak). */
+  private async loadOwnedRequest(userId: string, requestId: string) {
+    const request = await this.loadRequest(requestId);
+    if (!request || request.userId !== userId) return null;
+    return request;
   }
 
   async listAdmin(limit = 50) {

@@ -24,6 +24,7 @@ import {
   CreateKcbIdentitySessionDto,
   identityVerificationSessionOpenApiSchema,
   LinkKcbVerificationDto,
+  RetryKcbVerificationDto,
 } from "../dto";
 import { kcbCallbackInputSchema } from "../kcb";
 import { toPublicKcbError } from "../kcb/errors";
@@ -88,6 +89,31 @@ export class IdentityVerificationController {
   @ApiOperation({ summary: "현재 user의 최신 본인확인 결과 (없으면 null)" })
   getMyVerification(@CurrentUser() user: User) {
     return this.service.getUserVerification(user.id);
+  }
+
+  @Post("retry")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "실패/취소/만료된 본인확인 재시도 (보호 액션 컨텍스트 재사용, rate limit 적용)",
+  })
+  @ApiResponse({
+    status: 201,
+    description: "재시도로 새로 생성된 KCB 본인확인 세션 (Provider 미구성 시 blocked 포함)",
+    schema: {
+      allOf: [identityVerificationSessionOpenApiSchema],
+      properties: {
+        state: { type: "string", nullable: true },
+        nonce: { type: "string", nullable: true },
+        blocked: { type: "object", nullable: true },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: "재시도할 본인확인 요청 없음" })
+  @ApiResponse({ status: 409, description: "이미 완료되었거나 진행 중인 본인확인이 있음" })
+  @ApiResponse({ status: 429, description: "재시도 횟수 제한 초과" })
+  retry(@CurrentUser() user: User, @Body() dto: RetryKcbVerificationDto) {
+    return this.service.retrySession(user.id, dto);
   }
 
   @Post("callback")

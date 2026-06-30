@@ -1,13 +1,23 @@
+import { RateLimitService } from "@repo/core/rate-limit";
 import { DRIZZLE, type DrizzleDB } from "@repo/drizzle";
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { IdentityVerificationAdminController, IdentityVerificationController } from "./controller";
+import {
+  IdentityVerificationAdminController,
+  IdentityVerificationController,
+  MeIdentityVerificationController,
+} from "./controller";
 import { KcbAdapterClient } from "./kcb";
 import { IdentityVerificationService } from "./service";
 
 @Module({
-  controllers: [IdentityVerificationController, IdentityVerificationAdminController],
+  controllers: [
+    IdentityVerificationController,
+    IdentityVerificationAdminController,
+    MeIdentityVerificationController,
+  ],
   providers: [
+    RateLimitService,
     {
       provide: KcbAdapterClient,
       useFactory: (configService: ConfigService) =>
@@ -22,7 +32,12 @@ import { IdentityVerificationService } from "./service";
     },
     {
       provide: IdentityVerificationService,
-      useFactory: (db: DrizzleDB, adapter: KcbAdapterClient, configService: ConfigService) =>
+      useFactory: (
+        db: DrizzleDB,
+        adapter: KcbAdapterClient,
+        configService: ConfigService,
+        rateLimit: RateLimitService,
+      ) =>
         new IdentityVerificationService({
           db,
           adapter,
@@ -33,8 +48,9 @@ import { IdentityVerificationService } from "./service";
             configService.get<string>("KCB_RETENTION_DAYS") ?? "365",
             10,
           ),
+          rateLimit,
         }),
-      inject: [DRIZZLE, KcbAdapterClient, ConfigService],
+      inject: [DRIZZLE, KcbAdapterClient, ConfigService, RateLimitService],
     },
   ],
   exports: [IdentityVerificationService, KcbAdapterClient],
