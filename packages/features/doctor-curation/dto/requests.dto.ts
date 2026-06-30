@@ -65,6 +65,54 @@ export const createCollectionSchema = z
 
 export class CreateCollectionDto extends createZodDto(createCollectionSchema) {}
 
+// ---- update (admin, partial) — FR-004 (BBR-539) ----------------------------
+
+/**
+ * Partial update payload. Every field is optional and only the keys actually
+ * present are written (PATCH semantics): an omitted key is left unchanged while
+ * an explicit `null` clears a nullable column. `status` is intentionally NOT
+ * editable here — status transitions go through the dedicated status action so
+ * that only allowed transitions are applied and audited (변경 이력). The
+ * kind ↔ scope (specialty/region) consistency is validated in the service
+ * against the merged row, since the existing scope may already satisfy it.
+ */
+export const updateCollectionSchema = z
+  .object({
+    name: z.string().min(1, "컬렉션 이름을 입력해주세요.").max(160).optional(),
+    slug: slug.optional(),
+    subtitle: z.string().max(240).nullable().optional(),
+    description: z.string().nullable().optional(),
+    heroImageUrl: z.string().url().nullable().optional(),
+    kind: kindEnum.optional(),
+    specialtyId: z.string().uuid().nullable().optional(),
+    regionId: z.string().uuid().nullable().optional(),
+    isFeatured: z.boolean().optional(),
+    sortOrder: z.number().int().min(0).optional(),
+    internalNotes: z.string().nullable().optional(),
+    sourceUrl: z.string().url().nullable().optional(),
+    /** Optional full replacement of the ordered 수록 의사 list. */
+    items: z.array(collectionItemSchema).max(100).optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, {
+    message: "수정할 필드를 하나 이상 전달해주세요.",
+  });
+
+export class UpdateCollectionDto extends createZodDto(updateCollectionSchema) {}
+
+// ---- status change action — FR-004 (BBR-539) -------------------------------
+
+/**
+ * Status transition request. The target status must be reachable from the
+ * collection's current status (allowed-transition map enforced in the service);
+ * an optional reason is recorded in the change history (admin_audit_log).
+ */
+export const changeStatusSchema = z.object({
+  status: statusEnum,
+  reason: z.string().max(500).optional(),
+});
+
+export class ChangeStatusDto extends createZodDto(changeStatusSchema) {}
+
 // ---- admin list / browse query ---------------------------------------------
 
 export const listCollectionsQuerySchema = z.object({
@@ -97,3 +145,14 @@ export const publicListCollectionsQuerySchema = z.object({
 });
 
 export class PublicListCollectionsQueryDto extends createZodDto(publicListCollectionsQuerySchema) {}
+
+// ---- collection change-history query (admin) — FR-004 (BBR-539) ------------
+
+/** Cursor-paginated change history for one collection (admin_audit_log). */
+export const collectionHistoryQuerySchema = z.object({
+  /** Opaque id cursor: returns rows older than this (DESC). */
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+
+export class CollectionHistoryQueryDto extends createZodDto(collectionHistoryQuerySchema) {}
