@@ -10,6 +10,7 @@ import { InjectDrizzle } from "@repo/drizzle";
 import {
   type CommunityComment,
   communityComments,
+  communityModLogs,
   communityPosts,
   user as userTable,
 } from "@repo/drizzle/schema";
@@ -18,6 +19,11 @@ import { type EnrichedCommentRow, toPublicCommentItem } from "../comment-visibil
 import type { CreateCommentDto } from "../dto";
 import { buildCursorResult, decodeCursor } from "../helpers/pagination";
 import { assertCommunityPermission } from "../helpers/permission";
+import {
+  decodeCommentSortKey,
+  encodeCommentSortKey,
+  resolveReplyDepth,
+} from "./comment-ops-policy";
 import { assertCommentablePost } from "./comment-creation-policy";
 import { CommunityService } from "./community.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
@@ -86,13 +92,20 @@ export class CommunityCommentService {
     // 정책 필터/Moderation API 호출 전에 검사해 남용을 조기 차단한다.
     await this.rateLimitService.assertRateLimit(userId, COMMENT_CREATE_RATE_LIMIT);
 
+    // 대댓글 depth 제한(AC#2). 정책은 comment-ops-policy.ts 에 단일 출처로 고정한다.
     let depth = 0;
     if (dto.parentId) {
       const parent = await this.findById(dto.parentId);
       if (!parent) {
         throw new NotFoundException("상위 댓글을 찾을 수 없습니다.");
       }
-      depth = parent.depth + 1;
+      const resolved = resolveReplyDepth(parent.depth);
+      if (!resolved.ok) {
+        throw new BadRequestException(
+          `대댓글은 최대 ${resolved.maxDepth}단계까지 작성할 수 있습니다.`,
+        );
+      }
+      depth = resolved.depth;
     }
 
     // 등급 기반 키워드 필터 우회 확인
@@ -164,17 +177,24 @@ export class CommunityCommentService {
       visibilityConditions.push(notInArray(communityComments.authorId, options.blockedUserIds));
     }
 
+    // Cursor 페이지네이션 — 정렬 계약과 동일한 3-튜플 (isStickied, createdAt, id) 을
+    // 비교한다. 고정 댓글은 isStickied DESC(true 우선)이므로, "cursor 이후" 행은
+    //   (isStickied < cursor.stickied)  // 고정이 끝난 뒤의 일반 댓글
+    //   OR (isStickied = cursor.stickied AND (createdAt,id) 가 정렬방향상 이후)
     const pageConditions = [...visibilityConditions];
     if (options.cursor) {
       const decoded = decodeCursor(options.cursor);
-      if (decoded) {
+      const sortKey = decoded ? decodeCommentSortKey(decoded.value) : null;
+      if (decoded && sortKey) {
+        const sticky = sortKey.stickied;
+        const created = sortKey.createdAt;
         if (options.sort === "new") {
           pageConditions.push(
-            sql`(${communityComments.createdAt}, ${communityComments.id}) < (${decoded.value}, ${decoded.id})`,
+            sql`((${communityComments.isStickied} < ${sticky}) OR (${communityComments.isStickied} = ${sticky} AND (${communityComments.createdAt}, ${communityComments.id}) < (${created}, ${decoded.id})))`,
           );
         } else {
           pageConditions.push(
-            sql`(${communityComments.createdAt}, ${communityComments.id}) > (${decoded.value}, ${decoded.id})`,
+            sql`((${communityComments.isStickied} < ${sticky}) OR (${communityComments.isStickied} = ${sticky} AND (${communityComments.createdAt}, ${communityComments.id}) > (${created}, ${decoded.id})))`,
           );
         }
       }
@@ -185,10 +205,19 @@ export class CommunityCommentService {
       .from(communityComments)
       .where(and(...pageConditions));
 
+    // 정렬 계약(AC#2): 고정 댓글 상단, 그 안에서 작성순(new=최신, 기본=오래된 순).
     if (options.sort === "new") {
-      query = (query as any).orderBy(desc(communityComments.createdAt), desc(communityComments.id));
+      query = (query as any).orderBy(
+        desc(communityComments.isStickied),
+        desc(communityComments.createdAt),
+        desc(communityComments.id),
+      );
     } else {
-      query = (query as any).orderBy(asc(communityComments.createdAt), asc(communityComments.id));
+      query = (query as any).orderBy(
+        desc(communityComments.isStickied),
+        asc(communityComments.createdAt),
+        asc(communityComments.id),
+      );
     }
 
     const items = (await query.limit(limit + 1)) as CommunityComment[];
@@ -210,7 +239,10 @@ export class CommunityCommentService {
     }));
 
     const page = buildCursorResult(enrichedItems, limit, (item) => ({
-      value: item.createdAt instanceof Date ? item.createdAt.toISOString() : item.createdAt,
+      value: encodeCommentSortKey({
+        stickied: item.isStickied,
+        createdAt: item.createdAt instanceof Date ? item.createdAt.toISOString() : item.createdAt,
+      }),
       id: item.id,
     }));
 
@@ -369,10 +401,24 @@ export class CommunityCommentService {
       .where(eq(communityComments.id, id))
       .returning();
 
+    // 감사 로그(AC#1): 운영 액션을 community_mod_logs 에 append → 관리자 모드로그 큐에 반영.
+    await this.recordCommentModLog({
+      communityId: post.communityId,
+      moderatorId: userId,
+      action: "remove_comment",
+      commentId: id,
+      reason,
+      details: { kind: "remove_comment" },
+    });
+
     return updated as CommunityComment;
   }
 
-  async sticky(id: string, userId: string): Promise<CommunityComment> {
+  /**
+   * 댓글 고정 상태를 설정/토글한다(모더레이터).
+   * @param sticky 명시하면 해당 값으로 설정, 생략하면 현재 값을 토글한다.
+   */
+  async sticky(id: string, userId: string, sticky?: boolean): Promise<CommunityComment> {
     const comment = await this.findById(id);
     if (!comment) {
       throw new NotFoundException("댓글을 찾을 수 없습니다.");
@@ -394,19 +440,38 @@ export class CommunityCommentService {
       "moderator",
     ]);
 
+    const desired = sticky ?? !comment.isStickied;
+
     const [updated] = await this.db
       .update(communityComments)
       .set({
-        isStickied: true,
+        isStickied: desired,
         updatedAt: new Date(),
       })
       .where(eq(communityComments.id, id))
       .returning();
 
+    await this.recordCommentModLog({
+      communityId: post.communityId,
+      moderatorId: userId,
+      action: "other",
+      commentId: id,
+      details: { kind: desired ? "sticky_comment" : "unsticky_comment", isStickied: desired },
+    });
+
     return updated as CommunityComment;
   }
 
-  async distinguish(id: string, userId: string): Promise<CommunityComment> {
+  /**
+   * 댓글 모더레이터 표시(distinguish)를 설정/토글한다.
+   * 자신의 댓글에만 적용 가능하며, 모더레이터 권한이 필요하다.
+   * @param distinguished 명시하면 해당 값(`null`=해제)으로 설정, 생략하면 토글한다.
+   */
+  async distinguish(
+    id: string,
+    userId: string,
+    distinguished?: "moderator" | "admin" | null,
+  ): Promise<CommunityComment> {
     const comment = await this.findById(id);
     if (!comment) {
       throw new NotFoundException("댓글을 찾을 수 없습니다.");
@@ -432,15 +497,57 @@ export class CommunityCommentService {
       "moderator",
     ]);
 
+    let desired: "moderator" | "admin" | null;
+    if (distinguished === undefined) {
+      desired = comment.distinguished ? null : "moderator";
+    } else {
+      desired = distinguished;
+    }
+
     const [updated] = await this.db
       .update(communityComments)
       .set({
-        distinguished: "moderator",
+        distinguished: desired,
         updatedAt: new Date(),
       })
       .where(eq(communityComments.id, id))
       .returning();
 
+    await this.recordCommentModLog({
+      communityId: post.communityId,
+      moderatorId: userId,
+      action: "other",
+      commentId: id,
+      details: {
+        kind: desired ? "distinguish_comment" : "undistinguish_comment",
+        distinguished: desired,
+      },
+    });
+
     return updated as CommunityComment;
+  }
+
+  /**
+   * 댓글 운영 액션을 community_mod_logs 에 append-only 로 기록한다(감사 로그).
+   * remove 는 전용 action `remove_comment`, sticky/distinguish 는 `other` +
+   * `details.kind` 로 구분한다. DI 순환을 피하기 위해 직접 insert 한다.
+   */
+  private async recordCommentModLog(input: {
+    communityId: string;
+    moderatorId: string;
+    action: "remove_comment" | "other";
+    commentId: string;
+    reason?: string;
+    details?: Record<string, unknown>;
+  }): Promise<void> {
+    await this.db.insert(communityModLogs).values({
+      communityId: input.communityId,
+      moderatorId: input.moderatorId,
+      action: input.action,
+      targetType: "comment",
+      targetId: input.commentId,
+      reason: input.reason ?? null,
+      details: input.details ?? {},
+    });
   }
 }

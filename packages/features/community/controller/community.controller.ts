@@ -545,7 +545,13 @@ export class CommunityController {
   }
 
   @Get("posts/:id/comments")
-  @ApiOperation({ summary: "게시물의 댓글 조회" })
+  @ApiOperation({
+    summary: "게시물의 댓글 조회",
+    description:
+      "정렬 계약: 고정 댓글(isStickied=true) 우선 노출 후 작성순(sort=new 최신순, 기본 old 오래된 순). " +
+      "삭제/제거/숨김 댓글은 tombstone 으로 목록과 댓글 수에 유지되며 본문만 마스킹된다. " +
+      "대댓글은 최대 5단계까지 중첩된다.",
+  })
   @ApiParam({ name: "id", description: "게시물 ID" })
   @ApiQuery({ name: "sort", required: false, enum: ["old", "new"] })
   @ApiQuery({ name: "cursor", required: false, type: String })
@@ -847,29 +853,70 @@ export class CommunityController {
   @Post("comments/:id/sticky")
   @UseGuards(BetterAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "댓글 고정 (모더레이터)" })
+  @ApiOperation({
+    summary: "댓글 고정 설정/토글 (모더레이터)",
+    description:
+      "댓글을 고정/해제한다. body.sticky 를 명시하면 해당 값으로 설정, 생략하면 현재 값을 토글한다. " +
+      "고정 댓글은 목록 정렬 계약상 항상 상단에 노출된다(isStickied DESC). 액션은 감사 로그에 기록된다.",
+  })
   @ApiParam({ name: "id", description: "댓글 ID" })
+  @ApiBody({
+    required: false,
+    schema: {
+      type: "object",
+      properties: {
+        sticky: { type: "boolean", description: "고정 여부(생략 시 토글)" },
+      },
+    },
+  })
   @ApiResponse({
     status: 200,
     description: "댓글 고정 토글 완료",
     type: CommunityCommentResponseDto,
   })
-  async stickyComment(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: User) {
-    return this.commentService.sticky(id, user.id);
+  async stickyComment(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+    @Body() dto?: { sticky?: boolean },
+  ) {
+    return this.commentService.sticky(id, user.id, dto?.sticky);
   }
 
   @Post("comments/:id/distinguish")
   @UseGuards(BetterAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "모더레이터 표시 토글" })
+  @ApiOperation({
+    summary: "모더레이터 표시 설정/토글",
+    description:
+      "자신의 댓글을 모더레이터/관리자 표시한다(모더레이터 권한 필요). body.distinguished 를 명시하면 " +
+      "해당 값(null=해제)으로 설정, 생략하면 토글한다. 액션은 감사 로그에 기록된다.",
+  })
   @ApiParam({ name: "id", description: "댓글 ID" })
+  @ApiBody({
+    required: false,
+    schema: {
+      type: "object",
+      properties: {
+        distinguished: {
+          type: "string",
+          nullable: true,
+          enum: ["moderator", "admin", null],
+          description: "표시 종류(null=해제, 생략 시 토글)",
+        },
+      },
+    },
+  })
   @ApiResponse({
     status: 200,
     description: "모더레이터 표시 토글 완료",
     type: CommunityCommentResponseDto,
   })
-  async distinguishComment(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: User) {
-    return this.commentService.distinguish(id, user.id);
+  async distinguishComment(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+    @Body() dto?: { distinguished?: "moderator" | "admin" | null },
+  ) {
+    return this.commentService.distinguish(id, user.id, dto?.distinguished);
   }
 
   // ==========================================================================
