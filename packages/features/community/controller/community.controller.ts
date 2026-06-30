@@ -69,6 +69,7 @@ import {
   RuleResponseDto,
   VoteResultResponseDto,
 } from "../dto";
+import { OptionalUser } from "../optional-user.decorator";
 import {
   CommunityBlockService,
   CommunityCommentService,
@@ -113,13 +114,14 @@ export class CommunityController {
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiResponse({ status: 200, description: "커뮤니티 목록 반환", type: CommunityListResponseDto })
   async list(
+    @OptionalUser() user: User | undefined,
     @Query("search") search?: string,
     @Query("type") type?: "public" | "restricted" | "private",
     @Query("sort") sort: "newest" | "popular" | "name" = "newest",
     @Query("cursor") cursor?: string,
     @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
-    return this.communityService.findAll({ search, type, sort, cursor, limit });
+    return this.communityService.findAllForViewer({ search, type, sort, cursor, limit }, user?.id);
   }
 
   @Get("popular")
@@ -131,8 +133,11 @@ export class CommunityController {
     type: CommunityResponseDto,
     isArray: true,
   })
-  async popular(@Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number) {
-    return this.communityService.findPopular(limit);
+  async popular(
+    @OptionalUser() user: User | undefined,
+    @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.communityService.findPopularForViewer(limit, user?.id);
   }
 
   @Get("karma")
@@ -179,8 +184,8 @@ export class CommunityController {
   @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
   @ApiResponse({ status: 200, description: "커뮤니티 상세 정보", type: CommunityResponseDto })
   @ApiResponse({ status: 404, description: "커뮤니티를 찾을 수 없음" })
-  async bySlug(@Param("slug") slug: string) {
-    const community = await this.communityService.findBySlug(slug);
+  async bySlug(@Param("slug") slug: string, @OptionalUser() user: User | undefined) {
+    const community = await this.communityService.findBySlugForViewer(slug, user?.id);
     if (!community) throw new NotFoundException("커뮤니티를 찾을 수 없음");
     return community;
   }
