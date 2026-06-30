@@ -259,6 +259,46 @@ export const adminPostListResponseSchema = z.object({
 
 export class AdminPostListResponseDto extends createZodDto(adminPostListResponseSchema) {}
 
+// ----------------------------------------------------------------------------
+// Post detail — viewer state (PB-COMM-POST-API-READ-001 / BBR-595)
+// ----------------------------------------------------------------------------
+
+/** 작성자 요약. */
+export const postAuthorSummarySchema = z.object({
+  id: z.string(),
+  name: z.string().nullable(),
+  avatar: z.string().nullable(),
+});
+
+/** 댓글/리액션(투표) 집계 요약. */
+export const postStatsSummarySchema = z.object({
+  viewCount: z.number(),
+  commentCount: z.number(),
+  upvoteCount: z.number(),
+  downvoteCount: z.number(),
+  voteScore: z.number(),
+  shareCount: z.number(),
+});
+
+/** 사용자별 신고/숨김/차단 상태 + 권한 신호. fail-closed for guests. */
+export const postDetailViewerStateSchema = z.object({
+  authenticated: z.boolean(),
+  isAuthor: z.boolean(),
+  hasReported: z.boolean(),
+  hasBlockedAuthor: z.boolean(),
+  canModerate: z.boolean(),
+  myVote: z.enum(["up", "down"]).nullable(),
+});
+
+export const postDetailResponseSchema = z.object({
+  post: publicPostListItemSchema,
+  author: postAuthorSummarySchema,
+  stats: postStatsSummarySchema,
+  viewer: postDetailViewerStateSchema,
+});
+
+export class PostDetailResponseDto extends createZodDto(postDetailResponseSchema) {}
+
 // ============================================================================
 // Comment
 // ============================================================================

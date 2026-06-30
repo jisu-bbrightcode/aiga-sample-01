@@ -134,3 +134,135 @@ export const ADMIN_POST_VIEWER_STATE: PostListViewerState = {
   authenticated: true,
   isAdmin: true,
 };
+
+// ---- post detail (PB-COMM-POST-API-READ-001 / BBR-595) ---------------------
+
+/**
+ * 작성자 요약 — 상세에서 노출되는 공개 작성자 필드.
+ * 목록 row 와 동일하게 author 조인 결과(name/avatar)만 노출한다.
+ */
+export interface PostAuthorSummary {
+  id: string;
+  name: string | null;
+  avatar: string | null;
+}
+
+/** 댓글/리액션(투표) 요약 — 집계 카운터만 노출한다. */
+export interface PostStatsSummary {
+  viewCount: number;
+  commentCount: number;
+  upvoteCount: number;
+  downvoteCount: number;
+  voteScore: number;
+  shareCount: number;
+}
+
+/**
+ * 게시글 상세 viewer state — "사용자별 신고/숨김/차단 상태"(BBR-595 Scope).
+ *
+ * fail-closed: 비로그인 요청자는 모든 관계 플래그가 false 이고 canModerate=false.
+ * - hasReported: 요청자가 이 글을 신고했는지 (community_reports)
+ * - hasBlockedAuthor: 요청자가 작성자를 차단했는지 (단방향, community_user_blocks)
+ * - canModerate: 요청자가 해당 커뮤니티 모더레이터/관리자/소유자인지
+ * - myVote: 요청자의 리액션(up/down) 또는 null
+ *
+ * 참고: per-user "숨김" 테이블은 현재 base(main)에 없다(목록 API BBR-594 와
+ * 동일하게 숨김은 게시글 status 레벨에서 일관 처리한다). 노출/접근 일관성은
+ * resolvePostDetailAccess 가 status 기반으로 결정한다.
+ */
+export interface PostDetailViewerState {
+  authenticated: boolean;
+  isAuthor: boolean;
+  hasReported: boolean;
+  hasBlockedAuthor: boolean;
+  canModerate: boolean;
+  myVote: "up" | "down" | null;
+}
+
+/** 상세 응답 envelope — 게시글 + 작성자/통계 요약 + viewer state. */
+export interface PublicPostDetail {
+  post: PublicPostListItem;
+  author: PostAuthorSummary;
+  stats: PostStatsSummary;
+  viewer: PostDetailViewerState;
+}
+
+export function toPostAuthorSummary(row: EnrichedCommunityPost): PostAuthorSummary {
+  return {
+    id: row.authorId,
+    name: row.authorName ?? null,
+    avatar: row.authorAvatar ?? null,
+  };
+}
+
+export function toPostStatsSummary(row: EnrichedCommunityPost): PostStatsSummary {
+  return {
+    viewCount: row.viewCount,
+    commentCount: row.commentCount,
+    upvoteCount: row.upvoteCount,
+    downvoteCount: row.downvoteCount,
+    voteScore: row.voteScore,
+    shareCount: row.shareCount,
+  };
+}
+
+export function toPublicPostDetail(
+  row: EnrichedCommunityPost,
+  viewer: PostDetailViewerState,
+): PublicPostDetail {
+  return {
+    post: toPublicPostListItem(row),
+    author: toPostAuthorSummary(row),
+    stats: toPostStatsSummary(row),
+    viewer,
+  };
+}
+
+/** 비로그인 요청자의 fail-closed 기본 viewer state. */
+export function guestPostDetailViewerState(): PostDetailViewerState {
+  return {
+    authenticated: false,
+    isAuthor: false,
+    hasReported: false,
+    hasBlockedAuthor: false,
+    canModerate: false,
+    myVote: null,
+  };
+}
+
+/**
+ * 상세 접근 결정 — "신고/숨김/차단/삭제 상태에 따라 상세 접근 결과가 일관된다"
+ * (BBR-595 AC#1). 순수 함수로 분리해 DB 없이 검증한다.
+ *
+ * - 차단: 양방향 차단된 작성자의 글은 (작성자 본인이 아니면) 존재 자체를 숨긴다
+ *   → 목록에서 제외되는 동작과 일관(notFound).
+ * - published: 모두에게 전체 노출.
+ * - deleted/removed: tombstone 으로 일관 노출(masked) — 본문은 service 가 가린다.
+ * - hidden/draft: 자동필터/검토대기/미게시는 작성자·모더레이터에게만 노출,
+ *   그 외에는 notFound(존재 비노출).
+ */
+export type PostDetailAccess = { visible: true; masked: boolean } | { visible: false };
+
+export function resolvePostDetailAccess(args: {
+  status: CommunityPost["status"];
+  isAuthor: boolean;
+  canModerate: boolean;
+  authorBlocked: boolean;
+}): PostDetailAccess {
+  if (args.authorBlocked && !args.isAuthor) {
+    return { visible: false };
+  }
+
+  switch (args.status) {
+    case "published":
+      return { visible: true, masked: false };
+    case "deleted":
+    case "removed":
+      return { visible: true, masked: true };
+    default:
+      // hidden | draft — 작성자/모더레이터에게만 노출
+      return args.isAuthor || args.canModerate
+        ? { visible: true, masked: false }
+        : { visible: false };
+  }
+}

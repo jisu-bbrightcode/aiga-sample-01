@@ -63,6 +63,7 @@ import {
   ModeratorResponseDto,
   ModLogListResponseDto,
   ModQueueResponseDto,
+  PostDetailResponseDto,
   PostResponseDto,
   PublicPostListResponseDto,
   ReportResponseDto,
@@ -439,14 +440,27 @@ export class CommunityController {
   }
 
   @Get("posts/:id")
-  @ApiOperation({ summary: "게시물 상세 조회" })
+  @ApiOperation({
+    summary: "게시물 상세 조회",
+    description:
+      "공개/로그인 게시글 상세. 작성자 요약·댓글/리액션 요약·사용자별 신고/차단/리액션 " +
+      "상태(viewer state)를 함께 반환한다. 삭제/운영삭제는 tombstone 으로 일관 노출되고, " +
+      "숨김/미게시는 작성자·모더레이터에게만 노출(그 외 404), 차단한 작성자의 글도 404 다. " +
+      "투표/신고/저장 같은 보호 액션은 별도 인증 엔드포인트이며 viewer state 로 안내한다.",
+  })
   @ApiParam({ name: "id", description: "게시물 ID" })
-  @ApiResponse({ status: 200, description: "게시물 상세 정보", type: PostResponseDto })
+  @ApiResponse({ status: 200, description: "게시물 상세 정보", type: PostDetailResponseDto })
   @ApiResponse({ status: 404, description: "게시물을 찾을 수 없음" })
-  async postById(@Param("id", ParseUUIDPipe) id: string) {
-    const post = await this.postService.findById(id);
-    if (!post) throw new NotFoundException("게시물을 찾을 수 없음");
-    return post;
+  async postById(@Param("id", ParseUUIDPipe) id: string, @OptionalUser() user?: User) {
+    // 로그인 사용자는 양방향 차단된 작성자의 글을 상세에서도 제외한다(목록과 일관).
+    const blockedUserIds = user ? await this.blockService.getBlockedUserIds(user.id) : undefined;
+
+    const detail = await this.postService.findDetailForViewer(id, {
+      viewerId: user?.id,
+      blockedUserIds,
+    });
+    if (!detail) throw new NotFoundException("게시물을 찾을 수 없음");
+    return detail;
   }
 
   @Get("posts/:id/comments")
