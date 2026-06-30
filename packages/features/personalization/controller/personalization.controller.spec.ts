@@ -10,6 +10,8 @@ function service() {
     createSavedItem: jest.fn().mockResolvedValue({ id: "s1", created: true }),
     createInterest: jest.fn().mockResolvedValue({ id: "i1", created: true }),
     updateSavedItem: jest.fn().mockResolvedValue({ id: "s1", memo: "edited" }),
+    removeSavedItem: jest.fn().mockResolvedValue(undefined),
+    removeInterest: jest.fn().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<PersonalizationService>;
 }
 
@@ -43,6 +45,26 @@ describe("PersonalizationController — create (BBR-726)", () => {
     await controller.updateSavedItem(user, id, dto);
 
     expect(svc.updateSavedItem).toHaveBeenCalledWith("user-1", id, dto);
+  });
+
+  it("forwards the authenticated user id + path id to removeSavedItem (해제)", async () => {
+    const svc = service();
+    const controller = new PersonalizationController(svc);
+    const id = "22222222-2222-2222-2222-222222222222";
+
+    await controller.removeSavedItem(user, id);
+
+    expect(svc.removeSavedItem).toHaveBeenCalledWith("user-1", id);
+  });
+
+  it("forwards the authenticated user id + path id to removeInterest (해제)", async () => {
+    const svc = service();
+    const controller = new PersonalizationController(svc);
+    const id = "33333333-3333-3333-3333-333333333333";
+
+    await controller.removeInterest(user, id);
+
+    expect(svc.removeInterest).toHaveBeenCalledWith("user-1", id);
   });
 
   // 인증 필수: the guard is declared at class level, so it covers the POST

@@ -26,7 +26,7 @@ export const serviceFlowKeys = {
   savedItems: ["service-flow", "saved-items"] as const,
   interests: ["service-flow", "interests"] as const,
   searchHistory: ["service-flow", "search-history"] as const,
-  featuredDoctors: ["service-flow", "featured-doctors"] as const,
+  exploreDoctors: (q?: string) => ["service-flow", "explore-doctors", q ?? null] as const,
 };
 
 /** Don't retry an auth/permission failure — re-fetching cannot fix a 401/403. */
@@ -65,11 +65,16 @@ export function useSearchHistory(enabled: boolean) {
   });
 }
 
-/** Public catalog read — usable logged-out (powers the explore entry CTA). */
-export function useFeaturedDoctors() {
+/**
+ * Public catalog read — usable logged-out (powers the explore entry).
+ * With a keyword `q` it runs a search (검색 히스토리 재실행); otherwise the
+ * featured set. The query key includes `q` so each search is cached distinctly.
+ */
+export function useFeaturedDoctors(q?: string) {
+  const keyword = q?.trim() || undefined;
   return useQuery<DoctorListPage>({
-    queryKey: serviceFlowKeys.featuredDoctors,
-    queryFn: ({ signal }) => getFeaturedDoctors({ limit: 12 }, signal),
+    queryKey: serviceFlowKeys.exploreDoctors(keyword),
+    queryFn: ({ signal }) => getFeaturedDoctors({ limit: 12, q: keyword }, signal),
     retry: shouldRetry,
   });
 }
