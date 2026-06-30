@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { type AdminUserItem, maskEmail, type UserSortField } from "../../features/users/api";
+import { InvitationsPanel } from "../../features/users/invitations-panel";
 import {
   type AccessRoleFilterValue,
   ADMIN_USERS_PAGE_SIZE,
@@ -114,6 +115,8 @@ export function AdminUsersPage() {
   return (
     <div className="p-6">
       <AdminUsersHeader total={total} loading={loading} onRefresh={refetch} />
+
+      <InvitationsPanel />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative max-w-sm flex-1 min-w-[200px]">

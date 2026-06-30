@@ -121,6 +121,63 @@ export function changeUserStatus(
   });
 }
 
+// ---- Operator invitations (PB-ADMIN-USERS-CREATE-001 / BBR-687) ----
+
+export interface Invitation {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt: string;
+  createdAt: string | null;
+}
+
+export interface InvitationListResponse {
+  invitations: Invitation[];
+}
+
+/** List invitations (defaults to pending for the invite console). */
+export function fetchInvitations(status = "pending"): Promise<InvitationListResponse> {
+  const search = status ? `?status=${encodeURIComponent(status)}` : "";
+  return send<InvitationListResponse>(`/api/admin/user-invitations${search}`);
+}
+
+/** Invite an operator. Duplicate email / invalid role are rejected server-side. */
+export function inviteUser(input: {
+  email: string;
+  role: AssignableRole;
+  reason?: string;
+}): Promise<Invitation> {
+  return send<Invitation>("/api/admin/user-invitations", {
+    method: "POST",
+    body: JSON.stringify({
+      email: input.email.trim(),
+      role: input.role,
+      reason: input.reason?.trim() || undefined,
+    }),
+  });
+}
+
+/** Re-send a pending invitation email. */
+export function resendInvitation(id: string): Promise<Invitation> {
+  return send<Invitation>(`/api/admin/user-invitations/${encodeURIComponent(id)}/resend`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+/**
+ * Map an invitation failure to friendly copy. Adds the duplicate-email (409)
+ * and invalid-input (400) cases on top of the shared admin-action mapper so the
+ * UI never surfaces raw server detail.
+ */
+export function inviteErrorMessage(error: unknown): string {
+  const status = error instanceof AdminUsersError ? error.status : 0;
+  if (status === 409) return "이미 가입되었거나 초대된 이메일입니다.";
+  if (status === 400) return "이메일 또는 역할을 다시 확인해 주세요.";
+  return adminActionErrorMessage(error);
+}
+
 /** Map an admin-action failure to a friendly, non-technical message. */
 export function adminActionErrorMessage(error: unknown): string {
   const status = error instanceof AdminUsersError ? error.status : 0;
