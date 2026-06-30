@@ -2,4 +2,6 @@ export * from "./blob-client-token";
 export * from "./blob-store";
 export * from "./file-list.service";
 export * from "./file-list-mappers";
+export * from "./file-metadata.service";
+export * from "./file-metadata-mappers";
 export * from "./file-upload.service";
