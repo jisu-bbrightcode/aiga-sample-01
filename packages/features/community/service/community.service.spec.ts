@@ -9,7 +9,7 @@
  */
 
 import { ForbiddenException } from "@nestjs/common";
-import { communities, communityMemberships } from "@repo/drizzle";
+import { communities, communityMemberships, communityModerators } from "@repo/drizzle";
 import { eq } from "drizzle-orm";
 import {
   cleanupUser,
@@ -19,6 +19,7 @@ import {
   hasDb,
   newUserId,
 } from "../../payment/__tests__/test-db";
+import { DEFAULT_COMMUNITY_RULES } from "../helpers/bootstrap";
 import { CommunityService } from "./community.service";
 
 const describeIfDb = hasDb ? describe : describe.skip;
@@ -75,6 +76,43 @@ describeIfDb("CommunityService", () => {
       .where(eq(communityMemberships.communityId, c.id));
     expect(memberships).toHaveLength(1);
     expect(memberships[0]?.userId).toBe(owner);
+  });
+
+  it("create() bootstraps the creator as a moderator with full permissions", async () => {
+    const c = await makeCommunity();
+
+    const moderators = await getDrizzleDb()
+      .select()
+      .from(communityModerators)
+      .where(eq(communityModerators.communityId, c.id));
+
+    expect(moderators).toHaveLength(1);
+    expect(moderators[0]?.userId).toBe(owner);
+    expect(moderators[0]?.appointedBy).toBe(owner);
+    expect(Object.values(moderators[0]?.permissions ?? {}).every((v) => v === true)).toBe(true);
+  });
+
+  it("create() seeds default rules when none are provided", async () => {
+    const c = await makeCommunity();
+    const stored = await svc.findById(c.id);
+    expect(stored?.rules).toEqual([...DEFAULT_COMMUNITY_RULES]);
+  });
+
+  it("create() preserves caller-provided rules", async () => {
+    const rules = [{ title: "규칙 1", description: "설명 1" }];
+    const c = await svc.create(
+      {
+        name: `ruled-${Math.random().toString(36).slice(2, 8)}`,
+        slug: `ruled-${Math.random().toString(36).slice(2, 8)}`,
+        description: "desc",
+        rules,
+      } as never,
+      owner,
+    );
+    createdCommunityIds.push(c.id);
+
+    const stored = await svc.findById(c.id);
+    expect(stored?.rules).toEqual(rules);
   });
 
   it("findBySlug() + findById() return the row", async () => {
