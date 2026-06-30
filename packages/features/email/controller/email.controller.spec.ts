@@ -8,7 +8,9 @@ import { EmailController } from "./email.controller";
 const user = { id: "admin-1" } as never;
 
 function makeController() {
-  const emailService = {} as unknown as EmailService;
+  const emailService = {
+    sendTestEmail: jest.fn().mockResolvedValue({ id: "log-1", status: "sent" }),
+  } as unknown as jest.Mocked<EmailService>;
   const templateService = {} as unknown as EmailTemplateService;
   const templateRegistry = {
     createTemplate: jest.fn().mockResolvedValue({
@@ -23,7 +25,7 @@ function makeController() {
     publishTemplate: jest.fn().mockResolvedValue({ key: "auth.welcome" }),
   } as unknown as jest.Mocked<EmailTemplateRegistryService>;
   const controller = new EmailController(emailService, templateService, templateRegistry);
-  return { controller, templateRegistry };
+  return { controller, templateRegistry, emailService };
 }
 
 describe("EmailController — admin-only guards", () => {
@@ -86,5 +88,29 @@ describe("EmailController — template update/publish (BBR-659)", () => {
     await controller.publishTemplate("auth.welcome", dto);
 
     expect(templateRegistry.publishTemplate).toHaveBeenCalledWith("auth.welcome", dto);
+  });
+});
+
+describe("EmailController — test send (BBR-661 / PB-NOTI-EMAIL-SEND-001)", () => {
+  it("POST templates/:key/test-send forwards the key, body and admin id to sendTestEmail", async () => {
+    const { controller, emailService } = makeController();
+    const dto = {
+      recipientEmail: "ops@aiga.app",
+      recipientName: "QA",
+      variables: { userName: "QA" },
+      idempotencyKey: "test-1",
+    } as never;
+
+    const result = await controller.testSend(user, "auth.welcome", dto);
+
+    expect(emailService.sendTestEmail).toHaveBeenCalledWith({
+      key: "auth.welcome",
+      recipientEmail: "ops@aiga.app",
+      recipientName: "QA",
+      variables: { userName: "QA" },
+      idempotencyKey: "test-1",
+      actorUserId: "admin-1",
+    });
+    expect(result).toMatchObject({ status: "sent" });
   });
 });

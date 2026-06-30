@@ -42,6 +42,7 @@ import {
   PublishEmailTemplateDto,
   ResendEmailResponseDto,
   TemplateVariablesBodyDto,
+  TestSendEmailDto,
   UpdateEmailTemplateDto,
 } from "../dto";
 import { EmailService } from "../service/email.service";
@@ -260,6 +261,33 @@ export class EmailController {
   @ApiResponse({ status: 404, description: "게시된 버전을 찾을 수 없음" })
   previewByKey(@Param("key") key: string, @Body() variables: Record<string, unknown>) {
     return this.templateRegistry.preview(key, variables ?? {});
+  }
+
+  @Post("templates/:key/test-send")
+  @ApiOperation({
+    summary: "[Admin] 템플릿 테스트 발송 (실제 provider 발송 + 발송 이력 기록)",
+  })
+  @ApiParam({ name: "key", description: "템플릿 키 (예: auth.welcome)" })
+  @ApiBody({ type: TestSendEmailDto })
+  @ApiResponse({
+    status: 201,
+    description: "테스트 발송 결과 로그 반환 (성공/실패 + provider message id/실패 사유)",
+    type: EmailLogResponseDto,
+  })
+  @ApiResponse({ status: 400, description: "요청 본문이 올바르지 않거나 변수 검증 실패" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 필요" })
+  @ApiResponse({ status: 404, description: "게시된 버전을 찾을 수 없음" })
+  @ApiResponse({ status: 429, description: "테스트 발송 rate limit 초과" })
+  testSend(@CurrentUser() user: User, @Param("key") key: string, @Body() dto: TestSendEmailDto) {
+    return this.emailService.sendTestEmail({
+      key,
+      recipientEmail: dto.recipientEmail,
+      recipientName: dto.recipientName,
+      variables: dto.variables,
+      idempotencyKey: dto.idempotencyKey,
+      actorUserId: user.id,
+    });
   }
 
   @Get("templates/:templateType/preview")

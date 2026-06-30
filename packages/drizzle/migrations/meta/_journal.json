@@ -393,6 +393,13 @@
       "when": 1781402600000,
       "tag": "0055_file_asset_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1781402700000,
+      "tag": "0056_email_send_idempotency",
+      "breakpoints": true
     }
   ]
 }
