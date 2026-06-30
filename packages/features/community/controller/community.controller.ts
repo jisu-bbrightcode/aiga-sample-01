@@ -33,7 +33,7 @@ import {
   getSchemaPath,
 } from "@nestjs/swagger";
 import type { User } from "@repo/core/nestjs/auth";
-import { BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
+import { BetterAuthGuard, CurrentUser, SuspendedUserGuard } from "@repo/core/nestjs/auth";
 import type {
   BanUserDto,
   CreateBlockDto,
@@ -265,7 +265,7 @@ export class CommunityController {
   // ==========================================================================
 
   @Post()
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "커뮤니티 생성" })
   @ApiResponse({ status: 201, description: "커뮤니티 생성 성공", type: CommunityResponseDto })
@@ -318,7 +318,7 @@ export class CommunityController {
   }
 
   @Put(":slug")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "커뮤니티 수정" })
   @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
@@ -355,7 +355,7 @@ export class CommunityController {
   }
 
   @Delete(":slug")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "커뮤니티 삭제" })
   @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
@@ -366,7 +366,7 @@ export class CommunityController {
   }
 
   @Get("me/membership/:slug")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "현재 사용자의 멤버십 조회" })
   @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
@@ -386,7 +386,7 @@ export class CommunityController {
   }
 
   @Post(":slug/join")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "커뮤니티 가입" })
   @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
@@ -396,7 +396,7 @@ export class CommunityController {
   }
 
   @Post(":slug/leave")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "커뮤니티 탈퇴" })
   @ApiParam({ name: "slug", description: "커뮤니티 슬러그" })
@@ -407,7 +407,7 @@ export class CommunityController {
   }
 
   @Get("me/subscriptions")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "내 구독 커뮤니티 목록" })
   @ApiResponse({
@@ -425,7 +425,7 @@ export class CommunityController {
   // ==========================================================================
 
   @Post("blocks")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: "작성자 차단",
@@ -451,7 +451,7 @@ export class CommunityController {
   }
 
   @Get("blocks")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "내가 차단한 작성자 목록" })
   @ApiResponse({ status: 200, description: "차단 목록 반환", type: BlockListResponseDto })
@@ -462,7 +462,7 @@ export class CommunityController {
   }
 
   @Delete("blocks/:blockedId")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "작성자 차단 해제" })
   @ApiParam({ name: "blockedId", description: "차단 해제할 사용자 ID" })
@@ -580,7 +580,7 @@ export class CommunityController {
   // ==========================================================================
 
   @Post("posts")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "게시물 생성" })
   @ApiResponse({ status: 201, description: "게시물 생성 성공", type: PostResponseDto })
@@ -632,7 +632,7 @@ export class CommunityController {
   }
 
   @Put("posts/:id")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "게시물 수정" })
   @ApiParam({ name: "id", description: "게시물 ID" })
@@ -658,7 +658,7 @@ export class CommunityController {
   }
 
   @Delete("posts/:id")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "게시물 삭제" })
   @ApiParam({ name: "id", description: "게시물 ID" })
@@ -669,7 +669,7 @@ export class CommunityController {
   }
 
   @Post("posts/:id/pin")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "게시물 고정 (모더레이터)" })
   @ApiParam({ name: "id", description: "게시물 ID" })
@@ -679,7 +679,7 @@ export class CommunityController {
   }
 
   @Post("posts/:id/lock")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "게시물 잠금 (모더레이터)" })
   @ApiParam({ name: "id", description: "게시물 ID" })
@@ -689,7 +689,7 @@ export class CommunityController {
   }
 
   @Post("posts/:id/remove")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "게시물 제거 (모더레이터)" })
   @ApiParam({ name: "id", description: "게시물 ID" })
@@ -710,7 +710,7 @@ export class CommunityController {
   }
 
   @Post("posts/:id/restore")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "게시물 복구 (모더레이터)" })
   @ApiParam({ name: "id", description: "게시물 ID" })
@@ -720,7 +720,7 @@ export class CommunityController {
   }
 
   @Post("posts/:id/crosspost")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "교차 게시" })
   @ApiParam({ name: "id", description: "원본 게시물 ID" })
@@ -747,7 +747,7 @@ export class CommunityController {
   // ==========================================================================
 
   @Post("comments")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "댓글 생성" })
   @ApiResponse({ status: 201, description: "댓글 생성 성공", type: CommunityCommentResponseDto })
@@ -768,7 +768,7 @@ export class CommunityController {
 
   // REST 중첩 경로 (POST /community/posts/:id/comments). 게시물 ID는 경로에서 받는다.
   @Post("posts/:id/comments")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "게시물 댓글 생성" })
   @ApiParam({ name: "id", description: "게시물 ID" })
@@ -792,7 +792,7 @@ export class CommunityController {
   }
 
   @Put("comments/:id")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "댓글 수정" })
   @ApiParam({ name: "id", description: "댓글 ID" })
@@ -813,7 +813,7 @@ export class CommunityController {
   }
 
   @Delete("comments/:id")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "댓글 삭제" })
   @ApiParam({ name: "id", description: "댓글 ID" })
@@ -824,7 +824,7 @@ export class CommunityController {
   }
 
   @Post("comments/:id/remove")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "댓글 제거 (모더레이터)" })
   @ApiParam({ name: "id", description: "댓글 ID" })
@@ -845,7 +845,7 @@ export class CommunityController {
   }
 
   @Post("comments/:id/sticky")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "댓글 고정 (모더레이터)" })
   @ApiParam({ name: "id", description: "댓글 ID" })
@@ -859,7 +859,7 @@ export class CommunityController {
   }
 
   @Post("comments/:id/distinguish")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "모더레이터 표시 토글" })
   @ApiParam({ name: "id", description: "댓글 ID" })
@@ -877,7 +877,7 @@ export class CommunityController {
   // ==========================================================================
 
   @Post("votes")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "투표하기" })
   @ApiResponse({ status: 200, description: "투표 성공", type: VoteResultResponseDto })
@@ -897,7 +897,7 @@ export class CommunityController {
   }
 
   @Delete("votes")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "투표 취소" })
   @ApiResponse({ status: 200, description: "투표 취소 성공", type: VoteResultResponseDto })
@@ -976,7 +976,7 @@ export class CommunityController {
   }
 
   @Get("feed/home")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "홈 피드 (구독 커뮤니티)" })
   @ApiQuery({
@@ -1014,7 +1014,7 @@ export class CommunityController {
   // ==========================================================================
 
   @Post("reports")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "신고 생성" })
   @ApiResponse({ status: 201, description: "신고 생성 성공", type: ReportReceiptResponseDto })
@@ -1056,7 +1056,7 @@ export class CommunityController {
   }
 
   @Get("moderation/:communityId/queue")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Mod Queue 조회" })
   @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
@@ -1069,7 +1069,7 @@ export class CommunityController {
   }
 
   @Get("moderation/:communityId/reports")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "신고 목록 조회" })
   @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
@@ -1093,7 +1093,7 @@ export class CommunityController {
   }
 
   @Post("moderation/reports/resolve")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "신고 처리" })
   @ApiResponse({ status: 200, description: "신고 처리 완료", type: ReportResponseDto })
@@ -1117,7 +1117,7 @@ export class CommunityController {
   }
 
   @Post("moderation/ban")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "사용자 밴" })
   @ApiResponse({ status: 200, description: "사용자 밴 성공", type: BanResponseDto })
@@ -1140,7 +1140,7 @@ export class CommunityController {
   }
 
   @Post("moderation/unban")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "밴 해제" })
   @ApiResponse({ status: 200, description: "밴 해제 성공", type: DeleteResponseDto })
@@ -1160,7 +1160,7 @@ export class CommunityController {
   }
 
   @Get("moderation/:communityId/banned")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "밴된 사용자 목록" })
   @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
@@ -1175,7 +1175,7 @@ export class CommunityController {
   }
 
   @Post("moderation/rules")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "규칙 생성" })
   @ApiResponse({ status: 201, description: "규칙 생성 성공", type: RuleResponseDto })
@@ -1206,7 +1206,7 @@ export class CommunityController {
   }
 
   @Get("moderation/:communityId/rules")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "규칙 목록" })
   @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
@@ -1216,7 +1216,7 @@ export class CommunityController {
   }
 
   @Post("moderation/flairs")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "플레어 생성" })
   @ApiResponse({ status: 201, description: "플레어 생성 성공", type: FlairResponseDto })
@@ -1249,7 +1249,7 @@ export class CommunityController {
   }
 
   @Get("moderation/:communityId/flairs")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "플레어 목록" })
   @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
@@ -1268,7 +1268,7 @@ export class CommunityController {
   }
 
   @Post("moderation/moderators/invite")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "모더레이터 초대" })
   @ApiResponse({ status: 200, description: "모더레이터 초대 성공", type: ModeratorResponseDto })
@@ -1302,7 +1302,7 @@ export class CommunityController {
   }
 
   @Post("moderation/moderators/remove")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "모더레이터 제거" })
   @ApiResponse({ status: 200, description: "모더레이터 제거 성공", type: DeleteResponseDto })
@@ -1325,7 +1325,7 @@ export class CommunityController {
   }
 
   @Post("moderation/moderators/respond")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "모더레이터 초대 수락/거절" })
   @ApiResponse({ status: 200, description: "초대 응답 성공", type: ModeratorResponseDto })
@@ -1344,7 +1344,7 @@ export class CommunityController {
   }
 
   @Patch("moderation/moderators/permissions")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "모더레이터 권한 변경" })
   @ApiResponse({ status: 200, description: "권한 변경 성공", type: ModeratorResponseDto })
@@ -1381,7 +1381,7 @@ export class CommunityController {
   }
 
   @Post("moderation/ownership/transfer")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "커뮤니티 소유권 양도" })
   @ApiResponse({ status: 200, description: "소유권 양도 성공" })
@@ -1400,7 +1400,7 @@ export class CommunityController {
   }
 
   @Get("moderation/:communityId/logs")
-  @UseGuards(BetterAuthGuard)
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Mod Log 조회" })
   @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
