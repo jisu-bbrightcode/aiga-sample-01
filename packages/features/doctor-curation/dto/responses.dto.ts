@@ -86,6 +86,32 @@ export const adminCollectionListSchema = z.object({
 });
 export class AdminCollectionListDto extends createZodDto(adminCollectionListSchema) {}
 
+// ---- change history (FR-004 / BBR-539) -------------------------------------
+
+/**
+ * One change-history entry, projected from `admin_audit_log`. `payloadBefore`/
+ * `payloadAfter` capture the collection (or status) snapshot around the edit so
+ * the admin console can render a diff without re-querying.
+ */
+export const collectionHistoryEntrySchema = z.object({
+  id: z.string(),
+  actorUserId: z.string(),
+  action: z.string(),
+  targetType: z.string().nullable(),
+  targetId: z.string().nullable(),
+  payloadBefore: z.unknown(),
+  payloadAfter: z.unknown(),
+  reason: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export const collectionHistorySchema = z.object({
+  rows: z.array(collectionHistoryEntrySchema),
+  /** id of the last row (string-encoded), or null when there are no more. */
+  nextCursor: z.string().nullable(),
+});
+export class CollectionHistoryDto extends createZodDto(collectionHistorySchema) {}
+
 // ---- public list / detail (FR-004 / BBR-536) -------------------------------
 
 /** Public list envelope — published collections, public projection only. */

@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -14,8 +15,12 @@ import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/n
 import {
   AdminCollectionDetailDto,
   AdminCollectionListDto,
+  ChangeStatusDto,
+  CollectionHistoryDto,
+  CollectionHistoryQueryDto,
   CreateCollectionDto,
   ListCollectionsQueryDto,
+  UpdateCollectionDto,
 } from "../dto";
 import { DoctorCurationService } from "../service";
 
@@ -64,5 +69,63 @@ export class DoctorCurationAdminController {
   @ApiResponse({ status: 404, description: "컬렉션을 찾을 수 없음" })
   getCollection(@Param("id", ParseUUIDPipe) id: string) {
     return this.service.getCollectionById(id);
+  }
+
+  @Patch(":id")
+  @ApiOperation({
+    summary: "명의 컬렉션 수정 (부분 업데이트)",
+    description:
+      "허용된 필드만 부분 수정한다(생략한 필드는 유지, nullable 필드는 null로 비울 수 있음). " +
+      "상태(status)는 여기서 바꿀 수 없고 상태 변경 액션을 사용한다. 변경 내용은 admin_audit_log에 " +
+      "before/after로 기록된다.",
+  })
+  @ApiResponse({ status: 200, type: AdminCollectionDetailDto })
+  @ApiResponse({ status: 400, description: "유효성 오류 또는 kind↔scope 불일치" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
+  @ApiResponse({ status: 404, description: "컬렉션을 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "slug 중복" })
+  updateCollection(
+    @CurrentUser() user: User,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCollectionDto,
+  ) {
+    return this.service.updateCollection(user.id, id, dto);
+  }
+
+  @Post(":id/status")
+  @ApiOperation({
+    summary: "명의 컬렉션 상태 변경 (발행/비공개/보관)",
+    description:
+      "허용된 상태 전이만 적용된다(예: draft→published, published→archived). 허용되지 않은 전이는 422. " +
+      "published 진입 시 publishedAt이 기록되고, 전이 결과가 변경 이력에 남는다.",
+  })
+  @ApiResponse({ status: 200, type: AdminCollectionDetailDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
+  @ApiResponse({ status: 404, description: "컬렉션을 찾을 수 없음" })
+  @ApiResponse({ status: 422, description: "허용되지 않은 상태 전이" })
+  changeStatus(
+    @CurrentUser() user: User,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ChangeStatusDto,
+  ) {
+    return this.service.changeStatus(user.id, id, dto);
+  }
+
+  @Get(":id/history")
+  @ApiOperation({
+    summary: "명의 컬렉션 변경 이력",
+    description: "수정/상태 변경 감사 로그를 최신순(cursor pagination)으로 조회한다.",
+  })
+  @ApiResponse({ status: 200, type: CollectionHistoryDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
+  @ApiResponse({ status: 404, description: "컬렉션을 찾을 수 없음" })
+  getCollectionHistory(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query() query: CollectionHistoryQueryDto,
+  ) {
+    return this.service.listCollectionHistory(id, query);
   }
 }

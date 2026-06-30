@@ -76,7 +76,7 @@ describe("DoctorCurationService — public browse (BBR-536)", () => {
 
   beforeEach(() => {
     db = createMockDb();
-    service = new DoctorCurationService(db as never);
+    service = new DoctorCurationService(db as never, { log: jest.fn() } as never);
   });
 
   describe("listPublicCollections", () => {
