@@ -354,6 +354,115 @@ describe("ServiceDomainService", () => {
       expect(detail.hours.map((h) => h.dayOfWeek)).toEqual([1, 3]);
     });
   });
+
+  // ---- admin domain resource list (PB-ADMIN-DOMAIN-API-001) -----------------
+
+  describe("listAdminDomainResources", () => {
+    // a row shaped like the doctor join projection, with sensitive columns the
+    // mapper must drop attached to prove the projection is fail-closed.
+    function doctorJoin(overrides: Record<string, unknown> = {}) {
+      return {
+        id: "d1",
+        name: "김명의",
+        slug: "kim-myeongui",
+        status: "draft",
+        regionName: "서울",
+        specialtyName: "정형외과",
+        isFeatured: true,
+        updatedAt: new Date("2026-06-30T00:00:00.000Z"),
+        createdAt: new Date("2026-06-01T00:00:00.000Z"),
+        licenseNumber: "SECRET",
+        internalNotes: "hidden",
+        ...overrides,
+      };
+    }
+    function hospitalJoin(overrides: Record<string, unknown> = {}) {
+      return {
+        id: "h1",
+        name: "서울병원",
+        slug: "seoul-hospital",
+        status: "published",
+        regionName: "서울",
+        isFeatured: false,
+        updatedAt: new Date("2026-06-20T00:00:00.000Z"),
+        createdAt: new Date("2026-06-02T00:00:00.000Z"),
+        businessRegistrationNo: "123-45-67890",
+        ...overrides,
+      };
+    }
+
+    it("type=doctor → only doctors, projected and never leaking sensitive columns", async () => {
+      db._queueResolve("offset", [doctorJoin()]); // items terminal
+      db._queueResolve("where", [{ count: 1 }]); // count terminal
+
+      const result = await service.listAdminDomainResources({
+        page: 1,
+        limit: 20,
+        type: "doctor",
+        sort: "updatedAt",
+        order: "desc",
+      } as never);
+
+      expect(result.total).toBe(1);
+      expect(result.totalPages).toBe(1);
+      expect(result.items).toHaveLength(1);
+      const [item] = result.items;
+      expect(item).toMatchObject({
+        id: "d1",
+        type: "doctor",
+        name: "김명의",
+        status: "draft",
+        regionName: "서울",
+        specialtyName: "정형외과",
+        isFeatured: true,
+      });
+      expect(item).not.toHaveProperty("licenseNumber");
+      expect(item).not.toHaveProperty("internalNotes");
+    });
+
+    it("type=hospital → hospitals with specialtyName forced null", async () => {
+      db._queueResolve("offset", [hospitalJoin()]);
+      db._queueResolve("where", [{ count: 1 }]);
+
+      const result = await service.listAdminDomainResources({
+        page: 1,
+        limit: 20,
+        type: "hospital",
+        sort: "updatedAt",
+        order: "desc",
+      } as never);
+
+      expect(result.items[0]).toMatchObject({ type: "hospital", specialtyName: null });
+      expect(result.items[0]).not.toHaveProperty("businessRegistrationNo");
+    });
+
+    it("no type → union of both tables merged by the sort key with summed total", async () => {
+      // call order: doctor items(offset) → doctor count(where) → hospital items(offset) → hospital count(where)
+      db._queueResolve("offset", [
+        doctorJoin({ id: "d1", name: "A" }),
+        doctorJoin({ id: "d2", name: "C" }),
+      ]);
+      db._queueResolve("where", [{ count: 2 }]);
+      db._queueResolve("offset", [
+        hospitalJoin({ id: "h1", name: "B" }),
+        hospitalJoin({ id: "h2", name: "D" }),
+      ]);
+      db._queueResolve("where", [{ count: 2 }]);
+
+      const result = await service.listAdminDomainResources({
+        page: 1,
+        limit: 2,
+        sort: "name",
+        order: "asc",
+      } as never);
+
+      expect(result.total).toBe(4);
+      expect(result.totalPages).toBe(2);
+      // first page of the merged stream, interleaving doctors + hospitals by name
+      expect(result.items.map((r) => r.name)).toEqual(["A", "B"]);
+      expect(result.items.map((r) => r.type)).toEqual(["doctor", "hospital"]);
+    });
+  });
 });
 
 function makeCredentialRow(overrides: Record<string, unknown> = {}) {
@@ -419,3 +528,95 @@ function makeHospitalRow(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+function projectedDoctor(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "d1",
+    name: "김의사",
+    slug: "kim-uisa",
+    status: "draft",
+    regionName: "서울",
+    specialtyName: "정형외과",
+    isFeatured: false,
+    updatedAt: new Date("2026-06-30T00:00:00.000Z"),
+    createdAt: new Date("2026-06-01T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+function projectedHospital(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "h1",
+    name: "서울병원",
+    slug: "seoul-hospital",
+    status: "published",
+    regionName: "서울",
+    isFeatured: false,
+    updatedAt: new Date("2026-06-15T00:00:00.000Z"),
+    createdAt: new Date("2026-06-02T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+describe("ServiceDomainService.listAdminDomainResources", () => {
+  let db: ReturnType<typeof createMockDb>;
+  let service: ServiceDomainService;
+
+  beforeEach(() => {
+    db = createMockDb();
+    service = new ServiceDomainService(db as never);
+  });
+
+  it("type=doctor reads only the doctors table and returns the admin envelope", async () => {
+    db._queueResolve("offset", [projectedDoctor()]); // rows terminal
+    db._queueResolve("where", [{ count: 1 }]); // count terminal
+
+    const result = await service.listAdminDomainResources({
+      page: 1,
+      limit: 20,
+      type: "doctor",
+      sort: "updatedAt",
+      order: "desc",
+    } as never);
+
+    expect(result).toEqual({
+      items: [
+        expect.objectContaining({
+          id: "d1",
+          type: "doctor",
+          status: "draft",
+          specialtyName: "정형외과",
+        }),
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+      totalPages: 1,
+    });
+    // admin-only list projection must never expose sensitive columns
+    expect(result.items[0]).not.toHaveProperty("licenseNumber");
+    expect(result.items[0]).not.toHaveProperty("internalNotes");
+  });
+
+  it("unions doctors + hospitals when type is omitted and sums the totals", async () => {
+    // queue order = doctor rows, doctor count, hospital rows, hospital count
+    db._queueResolve("offset", [projectedDoctor({ id: "d1", name: "B" })]);
+    db._queueResolve("where", [{ count: 1 }]);
+    db._queueResolve("offset", [projectedHospital({ id: "h1", name: "A" })]);
+    db._queueResolve("where", [{ count: 1 }]);
+
+    const result = await service.listAdminDomainResources({
+      page: 1,
+      limit: 20,
+      sort: "name",
+      order: "asc",
+    } as never);
+
+    expect(result.total).toBe(2);
+    expect(result.totalPages).toBe(1);
+    // merged by name ascending across both tables
+    expect(result.items.map((r) => r.name)).toEqual(["A", "B"]);
+    // hospital row always reports a null specialty
+    expect(result.items.find((r) => r.type === "hospital")?.specialtyName).toBeNull();
+  });
+});
