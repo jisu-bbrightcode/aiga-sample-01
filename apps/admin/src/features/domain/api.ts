@@ -10,7 +10,12 @@
  */
 import { z } from "zod";
 import { API_URL, getAuthHeaders } from "../../lib/api";
-import type { DomainResourceFilters, DomainResourceListResult } from "./types";
+import type {
+  DomainResourceDetail,
+  DomainResourceFilters,
+  DomainResourceListResult,
+  DomainResourceType,
+} from "./types";
 
 /** REST contract: admin domain resource list/search. */
 export const DOMAIN_ADMIN_RESOURCES_ENDPOINT = "/api/admin/domain/resources";
@@ -77,8 +82,131 @@ export async function fetchDomainResources(
   return domainResourceListSchema.parse(await response.json());
 }
 
+// ---------------------------------------------------------------------------
+// Detail (read-one) — PB-ADMIN-DOMAIN-READ-001 / BBR-679
+// ---------------------------------------------------------------------------
+
+const regionRefSchema = z.object({ id: z.string(), name: z.string(), slug: z.string() }).nullable();
+const specialtyRefSchema = z.object({ id: z.string(), name: z.string(), slug: z.string() });
+const resourceRefSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  status: domainResourceStatusSchema,
+});
+const affiliationRefSchema = resourceRefSchema.extend({
+  role: z.string().nullable(),
+  isPrimary: z.boolean(),
+});
+const opsSchema = z.object({
+  createdAt: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+  publishedAt: z.string().nullable(),
+  isDeleted: z.boolean(),
+  deletedAt: z.string().nullable(),
+  createdBy: z.string().nullable(),
+  updatedBy: z.string().nullable(),
+  sourceUrl: z.string().nullable(),
+  internalNotes: z.string().nullable(),
+});
+const credentialViewSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  title: z.string(),
+  organization: z.string().nullable(),
+  displayPeriod: z.string().nullable(),
+  startYear: z.number().nullable(),
+  endYear: z.number().nullable(),
+  isVisible: z.boolean(),
+  sortOrder: z.number(),
+});
+const hoursViewSchema = z.object({
+  id: z.string(),
+  dayOfWeek: z.number(),
+  opensAt: z.string().nullable(),
+  closesAt: z.string().nullable(),
+  isClosed: z.boolean(),
+  note: z.string().nullable(),
+});
+
+const detailBaseShape = {
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  status: domainResourceStatusSchema,
+  isFeatured: z.boolean(),
+  photoUrl: z.string().nullable(),
+  ratingAvg: z.number(),
+  reviewCount: z.number(),
+  region: regionRefSchema,
+  ops: opsSchema,
+};
+
+const doctorDetailSchema = z.object({
+  ...detailBaseShape,
+  type: z.literal("doctor"),
+  title: z.string().nullable(),
+  yearsExperience: z.number().nullable(),
+  featuredRank: z.number().nullable(),
+  shortBio: z.string().nullable(),
+  biography: z.string().nullable(),
+  primarySpecialty: specialtyRefSchema.nullable(),
+  specialties: z.array(specialtyRefSchema),
+  hospitals: z.array(affiliationRefSchema),
+  credentials: z.array(credentialViewSchema),
+  licenseVerifiedAt: z.string().nullable(),
+  sensitive: z.object({ licenseNumber: z.string().nullable() }),
+});
+
+const hospitalDetailSchema = z.object({
+  ...detailBaseShape,
+  type: z.literal("hospital"),
+  summary: z.string().nullable(),
+  description: z.string().nullable(),
+  addressLine: z.string().nullable(),
+  phone: z.string().nullable(),
+  websiteUrl: z.string().nullable(),
+  specialties: z.array(specialtyRefSchema),
+  doctors: z.array(resourceRefSchema),
+  hours: z.array(hoursViewSchema),
+  sensitive: z.object({ businessRegistrationNo: z.string().nullable() }),
+});
+
+const domainResourceDetailSchema = z.discriminatedUnion("type", [
+  doctorDetailSchema,
+  hospitalDetailSchema,
+]);
+
+/**
+ * Fetch one domain resource's admin detail.
+ *
+ * @throws Error with a Korean operator-facing message on non-2xx responses.
+ */
+export async function fetchDomainResourceDetail(
+  type: DomainResourceType,
+  id: string,
+  signal?: AbortSignal,
+): Promise<DomainResourceDetail> {
+  const url = `${API_URL}${DOMAIN_ADMIN_RESOURCES_ENDPOINT}/${type}/${id}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json", ...getAuthHeaders() },
+    credentials: "include",
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`도메인 리소스 상세를 불러오지 못했습니다 (HTTP ${response.status})`);
+  }
+
+  return domainResourceDetailSchema.parse(await response.json());
+}
+
 export const adminDomainQueryKeys = {
   resourcesPrefix: () => ["admin", "domain", "resources"] as const,
   resources: (filters: DomainResourceFilters) =>
     [...adminDomainQueryKeys.resourcesPrefix(), filters] as const,
+  detail: (type: DomainResourceType, id: string) =>
+    [...adminDomainQueryKeys.resourcesPrefix(), "detail", type, id] as const,
 };

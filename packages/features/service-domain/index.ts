@@ -1,3 +1,4 @@
+export * from "./admin-resource-detail";
 export * from "./admin-resources";
 export * from "./controller";
 export * from "./dto";

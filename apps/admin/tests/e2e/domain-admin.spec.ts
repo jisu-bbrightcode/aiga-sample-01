@@ -15,6 +15,11 @@
  *    /sign-in by AdminGuard — the protected admin surface is never exposed.
  *  - D1 (list): an authenticated admin loads /domain and sees the list shell.
  *  - D2 (filter): the search + status/type filter controls are present.
+ *  - D3 (permission): an UNAUTHENTICATED visitor to a detail URL
+ *    (/domain/doctor/:id) is likewise redirected to /sign-in
+ *    (PB-ADMIN-DOMAIN-READ-001 / BBR-679).
+ *  - D4 (detail): an authenticated admin opening a resource detail sees the
+ *    operational-state + masked sensitive-info sections.
  */
 import { expect, test } from "@playwright/test";
 
@@ -27,6 +32,14 @@ test.describe("Domain Admin — permission gate @critical @admin @domain", () =>
     await page.context().clearCookies();
     await page.goto("/domain");
     // AdminGuard sends unauthenticated users to /sign-in.
+    await expect(page).toHaveURL(/\/sign-in/, { timeout: 10_000 });
+  });
+
+  test("D3: unauthenticated visit to a detail URL redirects to sign-in", async ({ page }) => {
+    await page.context().clearCookies();
+    // A representative detail path — the guard runs before any data fetch, so a
+    // placeholder id is sufficient to prove the surface is gated.
+    await page.goto("/domain/doctor/00000000-0000-0000-0000-000000000000");
     await expect(page).toHaveURL(/\/sign-in/, { timeout: 10_000 });
   });
 });
@@ -65,5 +78,18 @@ test.describe("Domain Admin — list/search (qa@example.com) @admin @domain @db"
     await expect(page.locator("#domain-search")).toBeVisible({ timeout: 10_000 });
     await expect(page.locator("#domain-type")).toBeVisible();
     await expect(page.locator("#domain-status")).toBeVisible();
+  });
+
+  test("D4: opening a resource detail shows operational + masked sensitive sections", async ({
+    page,
+  }) => {
+    // Navigate from the list into the first resource's detail page.
+    const firstResource = page.locator('a[href^="/domain/"]').first();
+    await expect(firstResource).toBeVisible({ timeout: 10_000 });
+    await firstResource.click();
+    await expect(page).toHaveURL(/\/domain\/(doctor|hospital)\//, { timeout: 10_000 });
+    // Operational state + sensitive (masked) sections are the read deliverable.
+    await expect(page.getByText("운영 상태")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("민감 정보")).toBeVisible();
   });
 });
