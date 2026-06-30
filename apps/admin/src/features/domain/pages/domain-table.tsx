@@ -11,11 +11,7 @@ import { ko } from "date-fns/locale";
 import { ArrowDown, ArrowUp, ArrowUpDown, Star } from "lucide-react";
 import { DomainStatusBadge } from "../components/domain-status-badge";
 import { DomainTypeBadge } from "../components/domain-type-badge";
-import type {
-  DomainResource,
-  DomainResourceSortField,
-  SortOrder,
-} from "../types";
+import type { DomainResource, DomainResourceSortField, SortOrder } from "../types";
 
 interface DomainTableProps {
   resources: DomainResource[];

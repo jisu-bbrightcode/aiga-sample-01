@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { DOMAIN_ADMIN_DEFAULT_PAGE_SIZE } from "../constants";
 import { adminDomainQueryKeys, fetchDomainResources } from "../api";
+import { DOMAIN_ADMIN_DEFAULT_PAGE_SIZE } from "../constants";
 import type { DomainResourceFilters } from "../types";
 
 /**

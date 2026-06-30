@@ -13,5 +13,7 @@ interface DomainStatusBadgeProps {
  * colour; `draft`/`archived` read as muted admin-only states.
  */
 export function DomainStatusBadge({ status }: DomainStatusBadgeProps) {
-  return <Badge variant={DOMAIN_STATUS_BADGE_VARIANT[status]}>{DOMAIN_STATUS_LABELS[status]}</Badge>;
+  return (
+    <Badge variant={DOMAIN_STATUS_BADGE_VARIANT[status]}>{DOMAIN_STATUS_LABELS[status]}</Badge>
+  );
 }
