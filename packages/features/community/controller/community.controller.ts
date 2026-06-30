@@ -50,6 +50,7 @@ import type {
   ResolveReportDto,
   RespondModeratorInviteDto,
   RestoreHiddenContentDto,
+  ReviewFilterDto,
   TransferOwnershipDto,
   UpdateCommunityDto,
   UpdateModeratorPermissionsDto,
@@ -66,6 +67,9 @@ import {
   CommunityResponseDto,
   DeleteResponseDto,
   FeedResponseDto,
+  FilterLogListResponseDto,
+  FilterLogResponseDto,
+  FilterReviewQueueResponseDto,
   FlairResponseDto,
   KarmaResponseDto,
   MemberListResponseDto,
@@ -87,6 +91,7 @@ import {
   CommunityBlockService,
   CommunityCommentService,
   CommunityFeedService,
+  CommunityFilterService,
   CommunityHiddenContentService,
   CommunityKarmaService,
   CommunityModerationService,
@@ -120,6 +125,7 @@ export class CommunityController {
     private readonly feedService: CommunityFeedService,
     private readonly blockService: CommunityBlockService,
     private readonly hiddenContentService: CommunityHiddenContentService,
+    private readonly filterService: CommunityFilterService,
   ) {}
 
   // ==========================================================================
@@ -1566,5 +1572,80 @@ export class CommunityController {
     @Query("limit", new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ) {
     return this.moderationService.getModLogs(communityId, page, limit);
+  }
+
+  // ==========================================================================
+  // Policy Filter — 자동 필터 감사 로그 / 검토 큐 / 검토 처리 (PB-COMM-FILTER-API-001)
+  // ==========================================================================
+
+  @Get("moderation/:communityId/filter-logs")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "필터 로그 조회 (모더레이터)" })
+  @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
+  @ApiQuery({
+    name: "reviewStatus",
+    required: false,
+    enum: ["pending", "approved", "rejected"],
+  })
+  @ApiQuery({ name: "action", required: false, enum: ["blocked", "hidden_for_review"] })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiResponse({ status: 200, description: "필터 로그 목록", type: FilterLogListResponseDto })
+  async filterLogs(
+    @Param("communityId", ParseUUIDPipe) communityId: string,
+    @CurrentUser() user: User,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query("limit", new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query("reviewStatus") reviewStatus?: "pending" | "approved" | "rejected",
+    @Query("action") action?: "blocked" | "hidden_for_review",
+  ) {
+    return this.filterService.getFilterLogs(communityId, user.id, {
+      page,
+      limit,
+      reviewStatus,
+      action,
+    });
+  }
+
+  @Get("moderation/:communityId/filter-queue")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "필터 검토 큐 조회 (자동 숨김 후보, 모더레이터)" })
+  @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
+  @ApiResponse({ status: 200, description: "검토 대기 항목", type: FilterReviewQueueResponseDto })
+  async filterQueue(
+    @Param("communityId", ParseUUIDPipe) communityId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.filterService.getReviewQueue(communityId, user.id);
+  }
+
+  @Post("moderation/filter-logs/:logId/review")
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "필터 자동 숨김 항목 검토 처리 (공개 승인/제거)" })
+  @ApiParam({ name: "logId", description: "필터 로그 ID" })
+  @ApiResponse({ status: 200, description: "검토 처리 완료", type: FilterLogResponseDto })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["decision"],
+      properties: {
+        decision: {
+          type: "string",
+          enum: ["approve", "reject"],
+          description: "검토 결정 (approve=공개, reject=제거)",
+        },
+        note: { type: "string", maxLength: 1000, description: "검토 메모" },
+      },
+    },
+  })
+  async reviewFilterEntry(
+    @Param("logId", ParseUUIDPipe) logId: string,
+    @Body() dto: ReviewFilterDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.filterService.reviewFilterEntry(logId, user.id, dto);
   }
 }

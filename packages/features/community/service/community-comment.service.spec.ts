@@ -17,6 +17,7 @@ import { addExtraMember, cleanupExtraMember, setupCommunityCtx } from "./__tests
 import { CommunityService } from "./community.service";
 import { CommunityCommentService } from "./community-comment.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
+import { CommunityFilterService } from "./community-filter.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
 import { CommunityTierService } from "./community-tier.service";
 
@@ -40,7 +41,8 @@ describeIfDb("CommunityCommentService", () => {
     const tier = new CommunityTierService(db);
     const mod = new CommunityContentModerationService();
     const rateLimit = new RateLimitService(db);
-    svc = new CommunityCommentService(db, community, keyword, tier, mod, rateLimit);
+    const filter = new CommunityFilterService(db, community);
+    svc = new CommunityCommentService(db, community, keyword, tier, mod, rateLimit, filter);
   });
 
   beforeEach(async () => {

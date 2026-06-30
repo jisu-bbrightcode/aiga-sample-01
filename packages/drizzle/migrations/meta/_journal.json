@@ -428,6 +428,13 @@
       "when": 1781404500000,
       "tag": "0060_community_hidden_content",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1781404900000,
+      "tag": "0061_community_filter_logs",
+      "breakpoints": true
     }
   ]
 }

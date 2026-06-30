@@ -20,6 +20,7 @@ import { endTestDb, getDrizzleDb, hasDb } from "../../payment/__tests__/test-db"
 import { addExtraMember, cleanupExtraMember, setupCommunityCtx } from "./__tests__/test-helpers";
 import { CommunityService } from "./community.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
+import { CommunityFilterService } from "./community-filter.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
 import { CommunityPostService, POST_CREATE_RATE_LIMIT } from "./community-post.service";
 import { CommunityTierService } from "./community-tier.service";
@@ -38,13 +39,15 @@ describeIfDb("CommunityPostService", () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.RATE_LIMIT_ENABLED;
     const db = getDrizzleDb();
+    const community = new CommunityService(db);
     svc = new CommunityPostService(
       db,
-      new CommunityService(db),
+      community,
       new CommunityKeywordFilterService(db),
       new CommunityTierService(db),
       new CommunityContentModerationService(),
       new RateLimitService(db),
+      new CommunityFilterService(db, community),
     );
   });
 

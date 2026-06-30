@@ -174,6 +174,30 @@ export const hiddenContentTargetTypeEnum = pgEnum("community_hidden_target_type"
   "comment",
 ]);
 
+// Automated content-filter audit (PB-COMM-FILTER-API-001).
+export const filterRuleTypeEnum = pgEnum("community_filter_rule_type", [
+  "keyword",
+  "link",
+  "attachment",
+  "moderation",
+]);
+
+export const filterActionEnum = pgEnum("community_filter_action", [
+  "blocked",
+  "hidden_for_review",
+]);
+
+export const filterReviewStatusEnum = pgEnum("community_filter_review_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+
+export const filterTargetTypeEnum = pgEnum("community_filter_target_type", [
+  "post",
+  "comment",
+]);
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -184,6 +208,21 @@ export interface AutomodConfig {
   keywordFilterAction?: "block" | "review";
   minKarmaToPost?: number;
   minAccountAge?: number;
+
+  // Link policy (PB-COMM-FILTER-API-001): URL 정책 필터.
+  enableLinkFilter?: boolean;
+  linkFilterAction?: "block" | "review";
+  // "allow_all" (default): 모든 링크 허용 / "block_all": 모든 링크 차단 /
+  // "domain_list": blockedDomains 차단(+ allowedDomains 가 있으면 화이트리스트).
+  linkPolicy?: "allow_all" | "block_all" | "domain_list";
+  blockedDomains?: string[];
+  allowedDomains?: string[];
+
+  // Attachment policy (PB-COMM-FILTER-API-001): 첨부(mediaUrls) 정책 필터.
+  enableAttachmentFilter?: boolean;
+  attachmentFilterAction?: "block" | "review";
+  maxAttachments?: number;
+  allowedAttachmentExtensions?: string[];
 }
 
 export interface LinkPreview {
@@ -845,6 +884,54 @@ export const communityHiddenContent = pgTable(
   ],
 );
 
+/**
+ * Community Filter Logs Table (PB-COMM-FILTER-API-001)
+ *
+ * Append-only audit of automated content-filter actions (금칙어/URL/첨부/moderation).
+ * Each automated `blocked`/`hidden_for_review` decision is recorded here so that
+ * filter actions AND the subsequent moderator review result are auditable (AC#2).
+ * `hidden_for_review` rows with `reviewStatus = 'pending'` form the manual review
+ * queue that connects auto-hidden candidates to moderators (AC#1).
+ */
+export const communityFilterLogs = pgTable(
+  "community_filter_logs",
+  {
+    ...baseColumns(),
+
+    communityId: uuid("community_id")
+      .notNull()
+      .references(() => communities.id, { onDelete: "cascade" }),
+
+    // Content author whose submission triggered the filter.
+    authorId: text("author_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+
+    // Target content. null when `action = 'blocked'` (content was never persisted).
+    targetType: filterTargetTypeEnum("target_type"),
+    targetId: uuid("target_id"),
+
+    ruleType: filterRuleTypeEnum("rule_type").notNull(),
+    action: filterActionEnum("action").notNull(),
+    matchedTerms: text("matched_terms").array().default([]),
+    reason: text("reason"),
+
+    // Manual review lifecycle. blocked rows are terminal (rejected); hidden rows
+    // start `pending` and transition to approved/rejected by a moderator.
+    reviewStatus: filterReviewStatusEnum("review_status").notNull().default("pending"),
+    reviewedBy: text("reviewed_by").references(() => user.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
+  },
+  (table) => [
+    index("idx_filter_logs_community").on(table.communityId),
+    index("idx_filter_logs_community_review").on(table.communityId, table.reviewStatus),
+    index("idx_filter_logs_queue").on(table.communityId, table.action, table.reviewStatus),
+    index("idx_filter_logs_target").on(table.targetType, table.targetId),
+    index("idx_filter_logs_author").on(table.authorId),
+    index("idx_filter_logs_created").on(table.createdAt),
+  ],
+);
 
 // ============================================================================
 // Type Exports
@@ -937,3 +1024,10 @@ export type SanctionStatus = "active" | "expired" | "appealed" | "overturned";
 export type CommunityAppeal = typeof communityAppeals.$inferSelect;
 export type NewCommunityAppeal = typeof communityAppeals.$inferInsert;
 export type AppealStatus = "pending" | "under_review" | "upheld" | "overturned" | "modified";
+
+export type CommunityFilterLog = typeof communityFilterLogs.$inferSelect;
+export type NewCommunityFilterLog = typeof communityFilterLogs.$inferInsert;
+export type FilterRuleType = "keyword" | "link" | "attachment" | "moderation";
+export type FilterAction = "blocked" | "hidden_for_review";
+export type FilterReviewStatus = "pending" | "approved" | "rejected";
+export type FilterTargetType = "post" | "comment";

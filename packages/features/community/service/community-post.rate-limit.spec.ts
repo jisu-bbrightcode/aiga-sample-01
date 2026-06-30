@@ -37,6 +37,10 @@ function buildService() {
     })),
   };
   const rateLimitService = { assertRateLimit: jest.fn().mockResolvedValue(undefined) };
+  const filterService = {
+    evaluatePostPolicy: jest.fn().mockReturnValue({ action: "allow", violations: [] }),
+    recordFilterDecision: jest.fn().mockResolvedValue(null),
+  };
 
   const svc = new CommunityPostService(
     db as never,
@@ -45,6 +49,7 @@ function buildService() {
     tierService as unknown as CommunityTierService,
     contentModerationService as unknown as CommunityContentModerationService,
     rateLimitService as never,
+    filterService as never,
   );
 
   return { svc, communityService, keywordFilterService, contentModerationService, insertReturning, rateLimitService };

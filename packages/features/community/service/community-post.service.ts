@@ -20,8 +20,10 @@ import { decodeCursor } from "../helpers/pagination";
 import { assertCommunityPermission } from "../helpers/permission";
 import { CommunityService } from "./community.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
+import { CommunityFilterService } from "./community-filter.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
 import { CommunityTierService, TIER_PRIVILEGES } from "./community-tier.service";
+import { combineDecision, type FilterViolation } from "./content-filter-policy";
 import { canRestore, RESTORE_TARGET_STATUS } from "./post-deletion-policy";
 import { DEFAULT_POST_SORT, normalizePostListLimit, type PostSort } from "./post-list-options";
 import { normalizePostSearchTerm } from "./post-search";
@@ -88,6 +90,7 @@ export class CommunityPostService {
     private readonly tierService: CommunityTierService,
     private readonly contentModerationService: CommunityContentModerationService,
     private readonly rateLimitService: RateLimitService,
+    private readonly filterService: CommunityFilterService,
   ) {}
 
   async create(dto: CreatePostDto, userId: string): Promise<CommunityPost> {
@@ -111,24 +114,51 @@ export class CommunityPostService {
       TIER_PRIVILEGES[tierInfo.tier as keyof typeof TIER_PRIVILEGES]?.bypassKeywordFilter ?? false;
 
     // 키워드 필터 검사
-    const filterResult = await this.keywordFilterService.validateContent(
+    const keywordResult = await this.keywordFilterService.validateContent(
       dto.communityId,
       [dto.title, dto.content].filter(Boolean) as string[],
       { bypassFilter },
     );
 
+    // URL/첨부 정책 검사 (등급 우회 시 정책 필터도 함께 우회)
+    const policyDecision = bypassFilter
+      ? { action: "allow" as const, violations: [] }
+      : this.filterService.evaluatePostPolicy(community.automodConfig, {
+          texts: [dto.title, dto.content].filter(Boolean) as string[],
+          linkUrls: dto.linkUrl ? [dto.linkUrl] : [],
+          mediaUrls: dto.mediaUrls ?? [],
+        });
+
+    // 금칙어 위반을 정책 위반과 동일한 형태로 병합 (block 이 review 보다 우선)
+    const violations: FilterViolation[] = [...policyDecision.violations];
+    if (!keywordResult.passed) {
+      violations.unshift({
+        ruleType: "keyword",
+        action: keywordResult.action === "block" ? "block" : "review",
+        matchedTerms: keywordResult.matchedWords,
+        reason: `금지어: ${keywordResult.matchedWords.join(", ")}`,
+      });
+    }
+    const decision = combineDecision(violations);
+    const matchedSummary = decision.violations.flatMap((v) => v.matchedTerms).join(", ");
+
     let status: "published" | "hidden" = "published";
     let removalReason: string | undefined;
 
-    if (!filterResult.passed) {
-      if (filterResult.action === "block") {
-        throw new ForbiddenException(
-          `금지어가 포함되어 있습니다: ${filterResult.matchedWords.join(", ")}`,
-        );
-      }
-      // review: 검토 대기 상태로 생성
+    if (decision.action === "block") {
+      // 차단된 콘텐츠는 생성되지 않으므로 감사 로그만 남긴다 (target 없음).
+      await this.filterService.recordFilterDecision({
+        communityId: dto.communityId,
+        authorId: userId,
+        target: null,
+        decision,
+      });
+      throw new ForbiddenException(`정책 위반으로 게시할 수 없습니다: ${matchedSummary}`);
+    }
+    if (decision.action === "review") {
+      // 검토 대기 상태(hidden)로 생성 — 공개되지 않은 채 검토 큐로 연결된다.
       status = "hidden";
-      removalReason = `자동 필터: ${filterResult.matchedWords.join(", ")}`;
+      removalReason = `자동 필터: ${matchedSummary}`;
     }
 
     // Layer 2: OpenAI Moderation API (keyword filter 통과 후 최종 게이트키퍼)
@@ -146,6 +176,16 @@ export class CommunityPostService {
         hotScore: this.calculateHotScore(0, new Date()),
       })
       .returning();
+
+    // 자동 숨김된 후보를 감사 로그 + 검토 큐에 기록 (AC#1/AC#2).
+    if (decision.action === "review" && post) {
+      await this.filterService.recordFilterDecision({
+        communityId: dto.communityId,
+        authorId: userId,
+        target: { type: "post", id: post.id },
+        decision,
+      });
+    }
 
     await this.db
       .update(communities)
