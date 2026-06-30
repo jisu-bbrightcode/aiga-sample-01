@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -10,6 +11,7 @@ import { InjectDrizzle } from "@repo/drizzle";
 import {
   type CommunityComment,
   communityComments,
+  communityModLogs,
   communityPosts,
   user as userTable,
 } from "@repo/drizzle/schema";
@@ -19,6 +21,7 @@ import type { CreateCommentDto } from "../dto";
 import { buildCursorResult, decodeCursor } from "../helpers/pagination";
 import { assertCommunityPermission } from "../helpers/permission";
 import { assertCommentablePost } from "./comment-creation-policy";
+import { canEditComment, resolveCommentEditAccess } from "./comment-edit-policy";
 import { CommunityService } from "./community.service";
 import { CommunityContentModerationService } from "./community-content-moderation.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
@@ -240,28 +243,51 @@ export class CommunityCommentService {
     return (result as CommunityComment) ?? null;
   }
 
-  async update(id: string, content: string, userId: string): Promise<CommunityComment> {
+  async update(id: string, rawContent: string, userId: string): Promise<CommunityComment> {
+    // 본문 검증: create()와 동일하게 서비스 경계에서 빈/공백/초과 본문을 차단한다.
+    const content = rawContent?.trim() ?? "";
+    if (content.length === 0) {
+      throw new BadRequestException("댓글 내용을 입력해주세요.");
+    }
+    if (content.length > COMMENT_CONTENT_MAX_LENGTH) {
+      throw new BadRequestException("댓글 내용이 너무 깁니다.");
+    }
+
     const comment = await this.findById(id);
     if (!comment) {
       throw new NotFoundException("댓글을 찾을 수 없습니다.");
     }
 
-    if (comment.authorId !== userId) {
-      throw new ForbiddenException("작성자만 댓글을 수정할 수 있습니다.");
+    // tombstone(삭제/제거)된 댓글은 원문이 마스킹되어 있어 수정할 수 없다.
+    if (!canEditComment(comment)) {
+      throw new ConflictException("삭제되었거나 제거된 댓글은 수정할 수 없습니다.");
     }
 
-    // 키워드 필터 검사
     const [post] = await this.db
       .select({ communityId: communityPosts.communityId })
       .from(communityPosts)
       .where(eq(communityPosts.id, comment.postId))
       .limit(1);
 
+    // AC#1: 작성자 우선, 그다음 모더레이터. 둘 다 아니면 403.
+    const isModerator = post
+      ? await this.communityService.isModerator(post.communityId, userId)
+      : false;
+    const editRole = resolveCommentEditAccess({
+      authorId: comment.authorId,
+      requesterId: userId,
+      isModerator,
+    });
+    if (!editRole) {
+      throw new ForbiddenException("작성자 또는 관리자만 댓글을 수정할 수 있습니다.");
+    }
+
     const updateValues: Record<string, unknown> = {
       content,
       isEdited: true,
       editedAt: new Date(),
       updatedAt: new Date(),
+      lastEditedBy: userId,
     };
 
     if (post) {
@@ -294,7 +320,37 @@ export class CommunityCommentService {
       .where(eq(communityComments.id, id))
       .returning();
 
+    // AC#2: 모더레이터 수정만 감사 로그에 별도 기록한다(작성자 본인 수정은 is_edited 플래그로 충분).
+    if (editRole === "moderator" && post) {
+      await this.recordModeratorEditLog({
+        communityId: post.communityId,
+        moderatorId: userId,
+        commentId: id,
+        before: comment.content,
+        after: content,
+      });
+    }
+
     return updated as CommunityComment;
+  }
+
+  /** 모더레이터 댓글 수정에 대한 community_mod_logs append-only 감사 기록. (BBR-601 AC#2) */
+  private async recordModeratorEditLog(entry: {
+    communityId: string;
+    moderatorId: string;
+    commentId: string;
+    before: string;
+    after: string;
+  }): Promise<void> {
+    await this.db.insert(communityModLogs).values({
+      communityId: entry.communityId,
+      moderatorId: entry.moderatorId,
+      action: "other",
+      targetType: "comment",
+      targetId: entry.commentId,
+      reason: null,
+      details: { kind: "edit_comment", before: entry.before, after: entry.after },
+    });
   }
 
   async delete(id: string, userId: string): Promise<void> {

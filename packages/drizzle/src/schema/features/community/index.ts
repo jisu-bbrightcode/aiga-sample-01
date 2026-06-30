@@ -379,6 +379,8 @@ export const communityComments = pgTable(
     removedBy: text("removed_by").references(() => user.id),
     isEdited: boolean("is_edited").notNull().default(false),
     editedAt: timestamp("edited_at", { withTimezone: true }),
+    // 마지막 수정 주체(작성자 본인 또는 모더레이터). 수정 이력 감사용. (BBR-601)
+    lastEditedBy: text("last_edited_by").references(() => user.id),
 
     // Statistics
     upvoteCount: integer("upvote_count").notNull().default(0),
