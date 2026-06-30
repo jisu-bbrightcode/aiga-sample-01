@@ -1,11 +1,19 @@
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { DRIZZLE, type DrizzleDB } from "@repo/drizzle";
-import { FileAdminController, FileListController, FileUploadController } from "./controller";
+import { adminAuditLog, DRIZZLE, type DrizzleDB } from "@repo/drizzle";
+import {
+  FileAdminController,
+  FileDeleteAdminController,
+  FileDeleteController,
+  FileListController,
+  FileUploadController,
+} from "./controller";
 import {
   createBlobClientTokenIssuer,
   createBlobDeleter,
   createBlobHeadReader,
+  type FileAuditLogger,
+  FileDeleteService,
   FileListService,
   FileUploadService,
 } from "./service";
@@ -24,7 +32,13 @@ import {
  * endpoint (BBR-549) confirms uploads regardless.
  */
 @Module({
-  controllers: [FileUploadController, FileListController, FileAdminController],
+  controllers: [
+    FileUploadController,
+    FileListController,
+    FileAdminController,
+    FileDeleteController,
+    FileDeleteAdminController,
+  ],
   providers: [
     {
       provide: FileUploadService,
@@ -45,7 +59,31 @@ import {
       useFactory: (db: DrizzleDB) => new FileListService(db),
       inject: [DRIZZLE],
     },
+    {
+      provide: FileDeleteService,
+      useFactory: (db: DrizzleDB, configService: ConfigService) => {
+        const readWriteToken = configService.get<string>("BLOB_READ_WRITE_TOKEN");
+        // Append-only audit sink → admin_audit_log (mirrors AdminAuditService.log);
+        // injected so the service has no DI dependency on the admin module.
+        const audit: FileAuditLogger = async (entry) => {
+          await db.insert(adminAuditLog).values({
+            actorUserId: entry.actorUserId,
+            action: entry.action,
+            targetType: entry.targetType,
+            targetId: entry.targetId,
+            payloadBefore: (entry.payloadBefore ?? null) as never,
+            payloadAfter: (entry.payloadAfter ?? null) as never,
+          });
+        };
+        return new FileDeleteService({
+          db,
+          deleteBlob: createBlobDeleter(readWriteToken),
+          audit,
+        });
+      },
+      inject: [DRIZZLE, ConfigService],
+    },
   ],
-  exports: [FileUploadService, FileListService],
+  exports: [FileUploadService, FileListService, FileDeleteService],
 })
 export class FileUploadModule {}
