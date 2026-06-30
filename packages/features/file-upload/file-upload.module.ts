@@ -1,11 +1,18 @@
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DRIZZLE, type DrizzleDB } from "@repo/drizzle";
-import { FileAdminController, FileListController, FileUploadController } from "./controller";
+import {
+  FileAdminController,
+  FileAdminDetailController,
+  FileDetailController,
+  FileListController,
+  FileUploadController,
+} from "./controller";
 import {
   createBlobClientTokenIssuer,
   createBlobDeleter,
   createBlobHeadReader,
+  FileDetailService,
   FileListService,
   FileUploadService,
 } from "./service";
@@ -24,7 +31,13 @@ import {
  * endpoint (BBR-549) confirms uploads regardless.
  */
 @Module({
-  controllers: [FileUploadController, FileListController, FileAdminController],
+  controllers: [
+    FileUploadController,
+    FileListController,
+    FileAdminController,
+    FileDetailController,
+    FileAdminDetailController,
+  ],
   providers: [
     {
       provide: FileUploadService,
@@ -45,7 +58,12 @@ import {
       useFactory: (db: DrizzleDB) => new FileListService(db),
       inject: [DRIZZLE],
     },
+    {
+      provide: FileDetailService,
+      useFactory: (db: DrizzleDB) => new FileDetailService(db),
+      inject: [DRIZZLE],
+    },
   ],
-  exports: [FileUploadService, FileListService],
+  exports: [FileUploadService, FileListService, FileDetailService],
 })
 export class FileUploadModule {}
