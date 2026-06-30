@@ -12,7 +12,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { baseColumns } from "../../../utils/columns";
+import { baseColumns, softDelete } from "../../../utils/columns";
 import { serviceSearchEntityTypeEnum } from "./enums";
 
 /**
@@ -51,6 +51,15 @@ const tsvector = customType<{ data: string; driverData: string }>({
  * Public surfaces MUST filter `isPublished = true`; only published source rows
  * are ever projected here, but the column makes the guard explicit and lets a
  * source row be unpublished without deleting its document immediately.
+ *
+ * Archive (FR-003 delete/archive — BBR-535): `isDeleted`/`deletedAt` are an
+ * admin-owned soft-delete distinct from `isPublished`. A reindex repopulates
+ * the publish/display columns from the catalog but NEVER touches these two (see
+ * the reindex `set` block in src/seed/service-search.ts), so an admin archive
+ * survives reindex while `isPublished` mirrors source state. Both public AND
+ * default admin reads exclude `isDeleted = true`; the row — and every payment/
+ * history/audit record keyed off the source `entityId` — is preserved and
+ * restorable.
  */
 export const serviceSearchDocuments = pgTable(
   "service_search_documents",
@@ -89,6 +98,16 @@ export const serviceSearchDocuments = pgTable(
     /** Source row's updatedAt at projection time — drives incremental reindex. */
     sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
 
+    // -- archive (admin soft-delete, FR-003 delete/archive — BBR-535) --------
+    /**
+     * Admin-owned soft-delete, independent of `isPublished`. When true the row
+     * is excluded from every public AND default admin read (노출 차단) but kept
+     * on disk so it can be restored and so connected payment/history/audit data
+     * (keyed off the source entityId) is preserved. The reindex job never
+     * writes these columns, so an archive survives a re-projection.
+     */
+    ...softDelete(),
+
     /**
      * Weighted full-text vector, DATABASE-GENERATED from title/subtitle/
      * keywords/body. Uses the `simple` config (Korean has no bundled FTS
@@ -112,6 +131,10 @@ export const serviceSearchDocuments = pgTable(
     index("idx_service_search_documents_specialty").on(t.specialtyId),
     // featured rail / weight-ordered results within published scope
     index("idx_service_search_documents_pub_weight").on(t.isPublished, t.weight),
+    // active (non-archived) public scope — the hot path after soft-delete (BBR-535)
+    index("idx_service_search_documents_active")
+      .on(t.isPublished, t.entityType)
+      .where(sql`${t.isDeleted} = false`),
     // NOTE: GIN(search_vector) and GIN(title gin_trgm_ops) live in migration 0047.
   ],
 );

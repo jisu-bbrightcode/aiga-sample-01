@@ -78,3 +78,37 @@ describe("ServiceSearchAdminController.detail (admin)", () => {
     });
   });
 });
+
+describe("ServiceSearchAdminController archive/restore (FR-003 delete / BBR-535)", () => {
+  const ARCHIVE_RESULT = {
+    entityType: "doctor" as const,
+    entityId: ADMIN_HIT.entityId,
+    isDeleted: true,
+    deletedAt: "2026-03-01T00:00:00.000Z",
+    updatedAt: "2026-03-01T00:00:00.000Z",
+  };
+  const user = { id: "admin-1" } as User;
+
+  it("DELETE delegates to archiveDocument with the acting admin id", async () => {
+    const archiveDocument = jest.fn().mockResolvedValue(ARCHIVE_RESULT);
+    const service = { archiveDocument } as unknown as ServiceSearchService;
+    const controller = new ServiceSearchAdminController(service);
+
+    const res = await controller.archive(user, "doctor", ADMIN_HIT.entityId);
+
+    expect(archiveDocument).toHaveBeenCalledWith("admin-1", "doctor", ADMIN_HIT.entityId);
+    expect(res).toEqual(ARCHIVE_RESULT);
+  });
+
+  it("restore delegates to restoreDocument with the acting admin id", async () => {
+    const restored = { ...ARCHIVE_RESULT, isDeleted: false, deletedAt: null };
+    const restoreDocument = jest.fn().mockResolvedValue(restored);
+    const service = { restoreDocument } as unknown as ServiceSearchService;
+    const controller = new ServiceSearchAdminController(service);
+
+    const res = await controller.restore(user, "doctor", ADMIN_HIT.entityId);
+
+    expect(restoreDocument).toHaveBeenCalledWith("admin-1", "doctor", ADMIN_HIT.entityId);
+    expect(res).toEqual(restored);
+  });
+});
