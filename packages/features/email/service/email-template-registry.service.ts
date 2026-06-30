@@ -11,10 +11,13 @@ import type {
   EmailTemplate,
   EmailTemplateType,
   EmailTemplateVersion,
+  NewEmailTemplate,
+  NewEmailTemplateVersion,
 } from "@repo/drizzle/schema";
 import { emailLogs, emailTemplates, emailTemplateVersions } from "@repo/drizzle/schema";
 import { and, count, desc, eq, inArray, max } from "drizzle-orm";
 import {
+  buildSampleVariables,
   normalizeVariableSchema,
   parseVariableSchemaInput,
   renderTemplateString,
@@ -105,6 +108,106 @@ export interface CreateTemplateInput {
   changelog?: string | null;
   /** Untrusted variable schema; validated semantically (422 on malformed). */
   variableSchema?: unknown;
+}
+
+/**
+ * Admin-supplied payload for updating a template (PB-NOTI-EMAIL-API-UPDATE-001 /
+ * BBR-659). Every field is optional — only the keys present are changed. Template
+ * metadata (`name`/`description`/`category`/`isActive`) patches the template row;
+ * content fields (`subject`/`bodySource`/`variableSchema`/`changelog`) land on the
+ * working DRAFT version so a published version is never mutated (AC#1).
+ */
+export interface UpdateTemplateInput {
+  name?: string;
+  description?: string | null;
+  category?: EmailTemplate["category"];
+  isActive?: boolean;
+  subject?: string;
+  bodySource?: string | null;
+  changelog?: string | null;
+  /** Untrusted variable schema; validated semantically (422 on malformed). */
+  variableSchema?: unknown;
+}
+
+/** Admin-supplied payload for publishing a template's working draft. */
+export interface PublishTemplateInput {
+  /**
+   * Optional preview variables to validate the draft against before publish. When
+   * absent, a type-correct sample is synthesized from the draft's schema so the
+   * render is still exercised (AC#2).
+   */
+  previewVariables?: Record<string, unknown>;
+}
+
+type TemplateMetaPatch = Partial<
+  Pick<NewEmailTemplate, "name" | "description" | "category" | "isActive">
+>;
+
+type VersionContentPatch = Partial<
+  Pick<NewEmailTemplateVersion, "subject" | "bodySource" | "variableSchema" | "changelog">
+>;
+
+/** Collect the present template-row (metadata) fields from an update payload. */
+function buildTemplateMetaPatch(input: UpdateTemplateInput): TemplateMetaPatch {
+  const patch: TemplateMetaPatch = {};
+  if (input.name !== undefined) {
+    patch.name = input.name;
+  }
+  if (input.description !== undefined) {
+    patch.description = input.description;
+  }
+  if (input.category !== undefined) {
+    patch.category = input.category;
+  }
+  if (input.isActive !== undefined) {
+    patch.isActive = input.isActive;
+  }
+  return patch;
+}
+
+/** Collect the present version-content fields from an update payload. */
+function buildVersionContentPatch(
+  input: UpdateTemplateInput,
+  parsedSchema: TemplateVariableSchema | undefined,
+): VersionContentPatch {
+  const patch: VersionContentPatch = {};
+  if (input.subject !== undefined) {
+    patch.subject = input.subject;
+  }
+  if (input.bodySource !== undefined) {
+    patch.bodySource = input.bodySource;
+  }
+  if (parsedSchema !== undefined) {
+    patch.variableSchema = parsedSchema;
+  }
+  if (input.changelog !== undefined) {
+    patch.changelog = input.changelog;
+  }
+  return patch;
+}
+
+/**
+ * Build the values for a NEW draft version forked from the latest version,
+ * applying the content patch over the base. Used when the latest version is
+ * already published, so editing must not touch it (AC#1).
+ */
+function forkDraftValues(
+  templateId: string,
+  base: EmailTemplateVersion | null,
+  patch: VersionContentPatch,
+  actorUserId: string | null,
+): NewEmailTemplateVersion {
+  return {
+    templateId,
+    version: (base?.version ?? 0) + 1,
+    subject: patch.subject ?? base?.subject ?? "",
+    variableSchema: patch.variableSchema ?? base?.variableSchema ?? null,
+    bodySource: "bodySource" in patch ? (patch.bodySource ?? null) : (base?.bodySource ?? null),
+    status: "draft",
+    changelog: patch.changelog ?? null,
+    createdBy: actorUserId,
+    publishedAt: null,
+  };
 }
 
 /**
@@ -265,6 +368,193 @@ export class EmailTemplateRegistryService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Update a template (PB-NOTI-EMAIL-API-UPDATE-001 / BBR-659).
+   *
+   * Metadata changes patch the template row. Content changes
+   * (subject/body/variableSchema/changelog) land on the working DRAFT version:
+   * the latest version is edited in place when it is still a draft, otherwise a
+   * NEW draft is forked from the latest (published) version. A published version
+   * is therefore never mutated (AC: "수정은 기존 published 버전을 깨지 않고 새
+   * draft/version으로 관리된다").
+   *
+   * - 404 when the key does not exist.
+   * - 422 when `variableSchema` is malformed (same gate as create).
+   */
+  async updateTemplate(
+    key: string,
+    actorUserId: string | null,
+    input: UpdateTemplateInput,
+  ): Promise<TemplateDetailView> {
+    const template = await this.findTemplateByKey(key);
+
+    let parsedSchema: TemplateVariableSchema | undefined;
+    if (input.variableSchema !== undefined) {
+      const parsed = parseVariableSchemaInput(input.variableSchema);
+      if (!parsed.valid) {
+        throw new UnprocessableEntityException(
+          `변수 스키마가 올바르지 않습니다. ${parsed.errors.join(" ")}`,
+        );
+      }
+      parsedSchema = parsed.schema;
+    }
+
+    const metaPatch = buildTemplateMetaPatch(input);
+    const contentPatch = buildVersionContentPatch(input, parsedSchema);
+    const touchesMeta = Object.keys(metaPatch).length > 0;
+    const touchesContent = Object.keys(contentPatch).length > 0;
+
+    // The version to edit/fork is read before the write so the transaction body
+    // only performs writes (and is simpler to reason about / mock).
+    const latest = touchesContent ? await this.findLatestVersion(template.id) : null;
+
+    await this.db.transaction(async (tx) => {
+      if (touchesContent) {
+        if (latest && latest.status === "draft") {
+          await tx
+            .update(emailTemplateVersions)
+            .set(contentPatch)
+            .where(eq(emailTemplateVersions.id, latest.id));
+        } else {
+          await tx
+            .insert(emailTemplateVersions)
+            .values(forkDraftValues(template.id, latest, contentPatch, actorUserId));
+        }
+      }
+
+      // Patch (or touch) the template row so the list `updatedAt` reflects the edit.
+      if (touchesMeta) {
+        await tx.update(emailTemplates).set(metaPatch).where(eq(emailTemplates.id, template.id));
+      } else if (touchesContent) {
+        await tx
+          .update(emailTemplates)
+          .set({ updatedAt: new Date() })
+          .where(eq(emailTemplates.id, template.id));
+      }
+    });
+
+    return this.getTemplate(key);
+  }
+
+  /**
+   * Publish a template's working draft (PB-NOTI-EMAIL-API-UPDATE-001 / BBR-659).
+   *
+   * Before publishing, the draft's variable schema and a preview render must pass
+   * (AC: "발행 전 변수 스키마와 preview payload 검증이 통과해야 한다"):
+   *   1. the stored `variableSchema` must be well-formed,
+   *   2. the supplied (or synthesized) preview variables must satisfy it, and
+   *   3. the subject + body must render with no unresolved placeholders.
+   *
+   * On success the draft becomes `published` and the template's
+   * `currentVersionId` pointer moves to it. Previously-published versions stay
+   * `published` so they remain available as rollback targets.
+   *
+   * - 404 when the key does not exist.
+   * - 422 when there is no draft to publish, or any validation step fails.
+   */
+  async publishTemplate(key: string, input: PublishTemplateInput): Promise<TemplateDetailView> {
+    const template = await this.findTemplateByKey(key);
+
+    const draft = await this.findLatestDraft(template.id);
+    if (!draft) {
+      throw new UnprocessableEntityException(`발행할 draft 버전이 없습니다: ${key}`);
+    }
+
+    // AC#2 step 1 — the stored schema must be well-formed.
+    const parsed = parseVariableSchemaInput(draft.variableSchema);
+    if (!parsed.valid) {
+      throw new UnprocessableEntityException(
+        `변수 스키마가 올바르지 않습니다. ${parsed.errors.join(" ")}`,
+      );
+    }
+    const schema = parsed.schema;
+
+    // AC#2 step 2 — preview variables must satisfy the schema.
+    const variables = input.previewVariables ?? buildSampleVariables(schema);
+    const validation = validateTemplateVariables(schema, variables);
+    if (!validation.valid) {
+      throw new UnprocessableEntityException(
+        `미리보기 변수 검증에 실패했습니다. ${summarizeValidationIssues(validation.issues)}`,
+      );
+    }
+
+    // AC#2 step 3 — subject + body must render with no unresolved placeholders.
+    const subjectResult = renderTemplateString(draft.subject, variables);
+    if (subjectResult.missing.length > 0) {
+      throw new UnprocessableEntityException(
+        `제목에서 확인되지 않은 변수가 있습니다: ${subjectResult.missing.join(", ")}`,
+      );
+    }
+    await this.assertDraftBodyRenders(template, draft, variables);
+
+    const publishedAt = new Date();
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(emailTemplateVersions)
+        .set({ status: "published", publishedAt })
+        .where(eq(emailTemplateVersions.id, draft.id));
+      await tx
+        .update(emailTemplates)
+        .set({ currentVersionId: draft.id })
+        .where(eq(emailTemplates.id, template.id));
+    });
+
+    return this.getTemplate(key);
+  }
+
+  /** Ensure a draft's body renders for the preview payload, else 422. */
+  private async assertDraftBodyRenders(
+    template: EmailTemplate,
+    version: EmailTemplateVersion,
+    variables: Record<string, unknown>,
+  ): Promise<void> {
+    const renderer = resolveRenderer(template.key);
+    try {
+      if (renderer) {
+        await this.templateService.render(renderer, variables);
+        return;
+      }
+      if (version.bodySource) {
+        renderTemplateString(version.bodySource, variables);
+        return;
+      }
+    } catch {
+      throw new UnprocessableEntityException(
+        `본문 미리보기 렌더링에 실패했습니다: ${template.key}`,
+      );
+    }
+    throw new UnprocessableEntityException(
+      `템플릿 "${template.key}"에 본문 렌더러 또는 본문 소스가 없어 발행할 수 없습니다.`,
+    );
+  }
+
+  /** Latest version (any status) for a template, or null when it has none. */
+  private async findLatestVersion(templateId: string): Promise<EmailTemplateVersion | null> {
+    const [latest] = await this.db
+      .select()
+      .from(emailTemplateVersions)
+      .where(eq(emailTemplateVersions.templateId, templateId))
+      .orderBy(desc(emailTemplateVersions.version))
+      .limit(1);
+    return latest ?? null;
+  }
+
+  /** Highest-version draft for a template (the publishable working version). */
+  private async findLatestDraft(templateId: string): Promise<EmailTemplateVersion | null> {
+    const [draft] = await this.db
+      .select()
+      .from(emailTemplateVersions)
+      .where(
+        and(
+          eq(emailTemplateVersions.templateId, templateId),
+          eq(emailTemplateVersions.status, "draft"),
+        ),
+      )
+      .orderBy(desc(emailTemplateVersions.version))
+      .limit(1);
+    return draft ?? null;
   }
 
   /** Map a template row + its version rows into the admin detail view. */

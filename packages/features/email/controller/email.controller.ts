@@ -14,6 +14,7 @@ import {
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -38,8 +39,10 @@ import {
   EmailTemplateSummaryDto,
   EmailTemplateValidationDto,
   PreviewTemplateResponseDto,
+  PublishEmailTemplateDto,
   ResendEmailResponseDto,
   TemplateVariablesBodyDto,
+  UpdateEmailTemplateDto,
 } from "../dto";
 import { EmailService } from "../service/email.service";
 import { EmailTemplateService } from "../service/email-template.service";
@@ -183,6 +186,52 @@ export class EmailController {
   @ApiResponse({ status: 404, description: "템플릿을 찾을 수 없음" })
   getTemplate(@Param("key") key: string) {
     return this.templateRegistry.getTemplate(key);
+  }
+
+  @Patch("templates/:key")
+  @ApiOperation({
+    summary: "[Admin] 이메일 템플릿 수정 (working draft로 관리, published 버전 보존)",
+  })
+  @ApiParam({ name: "key", description: "템플릿 키 (예: auth.welcome)" })
+  @ApiBody({ type: UpdateEmailTemplateDto })
+  @ApiResponse({
+    status: 200,
+    description: "수정된 템플릿 + 버전 목록 반환",
+    type: EmailTemplateDetailDto,
+  })
+  @ApiResponse({ status: 400, description: "요청 본문이 올바르지 않음 (수정 필드 없음 등)" })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 필요" })
+  @ApiResponse({ status: 404, description: "템플릿을 찾을 수 없음" })
+  @ApiResponse({ status: 422, description: "잘못된 변수 스키마" })
+  updateTemplate(
+    @CurrentUser() user: User,
+    @Param("key") key: string,
+    @Body() dto: UpdateEmailTemplateDto,
+  ) {
+    return this.templateRegistry.updateTemplate(key, user.id, dto);
+  }
+
+  @Post("templates/:key/publish")
+  @ApiOperation({
+    summary: "[Admin] 이메일 템플릿 draft 발행 (변수 스키마 + preview 검증 후 published)",
+  })
+  @ApiParam({ name: "key", description: "템플릿 키 (예: auth.welcome)" })
+  @ApiBody({ type: PublishEmailTemplateDto, required: false })
+  @ApiResponse({
+    status: 200,
+    description: "발행된 템플릿 + 버전 목록 반환 (currentVersion = 발행 버전)",
+    type: EmailTemplateDetailDto,
+  })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 필요" })
+  @ApiResponse({ status: 404, description: "템플릿을 찾을 수 없음" })
+  @ApiResponse({
+    status: 422,
+    description: "발행할 draft 없음, 변수 스키마/미리보기 검증 실패",
+  })
+  publishTemplate(@Param("key") key: string, @Body() dto: PublishEmailTemplateDto) {
+    return this.templateRegistry.publishTemplate(key, dto);
   }
 
   @Post("templates/:key/validate")
