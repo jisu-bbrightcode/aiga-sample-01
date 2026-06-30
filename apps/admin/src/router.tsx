@@ -10,6 +10,7 @@ import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 // [ATLAS:IMPORTS]
 import { createSignUpRoute } from "./features/auth";
 import { createCommunityAdminRoutes, createCommunityRoutes } from "./features/community";
+import { createDomainAdminRoutes } from "./features/domain";
 import { createEmailAdminRoutes } from "./features/email";
 import { createIdentityVerificationAdminRoutes } from "./features/identity-verification";
 import { createPaymentAdminRoutes } from "./features/payment";
@@ -94,6 +95,7 @@ const routeTree = rootRoute.addChildren([
     ...createProfileAuthRoutes(adminLayoutRoute),
     // [ATLAS:ADMIN_ROUTES]
     ...createCommunityAdminRoutes(adminLayoutRoute),
+    ...createDomainAdminRoutes(adminLayoutRoute),
     ...createEmailAdminRoutes(adminLayoutRoute),
     ...createIdentityVerificationAdminRoutes(adminLayoutRoute),
     ...createPaymentAdminRoutes(adminLayoutRoute),

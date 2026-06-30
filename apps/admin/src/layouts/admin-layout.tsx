@@ -31,6 +31,7 @@ import {
   ScrollText,
   Settings,
   ShieldCheck,
+  Stethoscope,
   User,
   Users,
   Video,
@@ -126,6 +127,15 @@ function AdminSidebar() {
                 >
                   <Users />
                   <span>{labels.userManagement}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link to="/domain" />}
+                  isActive={currentPath === "/domain" || currentPath.startsWith("/domain/")}
+                >
+                  <Stethoscope />
+                  <span>도메인 리소스</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
