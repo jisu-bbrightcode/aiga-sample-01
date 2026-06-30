@@ -84,3 +84,40 @@ export interface DoctorListPage {
   page: number;
   limit: number;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Taxonomy for the 명의 찾기 검색·필터·정렬 controls (FR-004 / BBR-583)        */
+/* -------------------------------------------------------------------------- */
+
+/** 진료과 — public taxonomy from `GET /service/specialties`. */
+export interface PublicSpecialty {
+  id: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+}
+
+/** 지역 — public taxonomy from `GET /service/regions`. */
+export interface PublicRegion {
+  id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+  sortOrder: number;
+}
+
+/**
+ * Query params for `GET /service/doctors`, mirroring `ListDoctorsQueryDto`.
+ *
+ * The catalog exposes NO free-form sort param — `featured` is its only ordering
+ * lever (featured set vs ratingAvg desc). The UI sort selector maps onto it so
+ * every control corresponds to a real server query (API/UI 상태 일관성).
+ */
+export interface DoctorListParams {
+  q?: string;
+  specialtyId?: string;
+  regionId?: string;
+  featured?: boolean;
+  page?: number;
+  limit?: number;
+}

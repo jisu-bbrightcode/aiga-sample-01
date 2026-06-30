@@ -19,7 +19,10 @@ import type {
   CreateSavedItemInput,
   CursorPage,
   DoctorListPage,
+  DoctorListParams,
   Interest,
+  PublicRegion,
+  PublicSpecialty,
   SavedItem,
   SearchHistoryEntry,
 } from "./types";
@@ -162,21 +165,37 @@ export function getSearchHistory(
   });
 }
 
-export interface FeaturedDoctorsParams {
-  limit?: number;
-  /** Keyword search — when set, runs a catalog query instead of the featured set. */
-  q?: string;
+/* -------------------------------------------------------------------------- */
+/* Service catalog (public) — 명의 찾기 검색·필터·정렬 (FR-004 / BBR-583)        */
+/* -------------------------------------------------------------------------- */
+
+/** 진료과 목록 — `GET /service/specialties`. Powers the 진료과 filter. */
+export function getSpecialties(signal?: AbortSignal): Promise<PublicSpecialty[]> {
+  return fetchJson<PublicSpecialty[]>("/service/specialties", { signal });
 }
 
-export function getFeaturedDoctors(
-  params: FeaturedDoctorsParams = {},
+/** 지역 목록 — `GET /service/regions`. Powers the 지역 filter. */
+export function getRegions(signal?: AbortSignal): Promise<PublicRegion[]> {
+  return fetchJson<PublicRegion[]>("/service/regions", { signal });
+}
+
+/**
+ * 의사 목록 — `GET /service/doctors` with search (`q`), filters
+ * (`specialtyId`/`regionId`), and the `featured` ordering lever. Usable
+ * logged-out (the explore entry is public/browsable).
+ */
+export function getDoctors(
+  params: DoctorListParams = {},
   signal?: AbortSignal,
 ): Promise<DoctorListPage> {
-  const q = params.q?.trim();
-  // 검색 히스토리 재실행: a query runs a keyword search; otherwise the featured set.
-  const query = q
-    ? buildQuery({ q, limit: params.limit ?? 12 })
-    : buildQuery({ featured: true, limit: params.limit ?? 12 });
+  const query = buildQuery({
+    q: params.q,
+    specialtyId: params.specialtyId,
+    regionId: params.regionId,
+    featured: params.featured,
+    page: params.page,
+    limit: params.limit ?? 12,
+  });
   return fetchJson<DoctorListPage>(`/service/doctors${query}`, { signal });
 }
 
