@@ -31,9 +31,13 @@ import type {
   CreateRuleDto,
   InviteModeratorDto,
   ResolveReportDto,
+  RestoreContentInput,
+  RestoreContentResult,
   TransferOwnershipDto,
   UpdateModeratorPermissionsDto,
 } from "../dto";
+import { COMMENT_RESTORE_REJECTION_MESSAGE, decideCommentRestore } from "./content-restore-policy";
+import { canRestore, RESTORE_TARGET_STATUS } from "./post-deletion-policy";
 import {
   type CommunityRole,
   canManageModerators,
@@ -273,6 +277,137 @@ export class CommunityModerationService {
     });
 
     return updated as CommunityReport;
+  }
+
+  // ==========================================================================
+  // 콘텐츠 복구 (관리자)
+  // ==========================================================================
+
+  /**
+   * 게시글/댓글의 모더레이션 상태를 공개 상태로 복구한다 (server-authoritative).
+   *
+   * - 게시글: 숨김/제거 상태만 복구 가능(작성자 삭제 제외). 원문은 제거 시에도
+   *   보존되므로 항상 되살릴 수 있다.
+   * - 댓글: 원문이 파괴된 제거 댓글은 안전하게 복구할 수 없어 409로 거부한다.
+   *
+   * 모든 성공 경로는 community_mod_logs 에 감사 로그를 남긴다.
+   */
+  async restoreContent(dto: RestoreContentInput, adminId: string): Promise<RestoreContentResult> {
+    return dto.targetType === "post"
+      ? this.restorePostContent(dto.targetId, adminId, dto.reason)
+      : this.restoreCommentContent(dto.targetId, adminId, dto.reason);
+  }
+
+  private async restorePostContent(
+    postId: string,
+    adminId: string,
+    reason?: string,
+  ): Promise<RestoreContentResult> {
+    const [post] = await this.db
+      .select()
+      .from(communityPosts)
+      .where(eq(communityPosts.id, postId))
+      .limit(1);
+
+    if (!post) {
+      throw new NotFoundException("게시글을 찾을 수 없습니다.");
+    }
+
+    await assertCommunityPermission(this.communityService, adminId, post.communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+
+    if (!canRestore(post.status)) {
+      throw new ConflictException("숨김 또는 제거된 게시글만 복구할 수 있습니다.");
+    }
+
+    await this.db
+      .update(communityPosts)
+      .set({
+        status: RESTORE_TARGET_STATUS,
+        removalReason: null,
+        removedBy: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(communityPosts.id, postId));
+
+    await this.logModAction({
+      communityId: post.communityId,
+      moderatorId: adminId,
+      action: "other",
+      targetType: "post",
+      targetId: postId,
+      reason: reason ?? "admin_content_restored",
+      details: { kind: "post_restored", fromStatus: post.status },
+    });
+
+    return { targetType: "post", targetId: postId, status: RESTORE_TARGET_STATUS, restored: true };
+  }
+
+  private async restoreCommentContent(
+    commentId: string,
+    adminId: string,
+    reason?: string,
+  ): Promise<RestoreContentResult> {
+    const [comment] = await this.db
+      .select()
+      .from(communityComments)
+      .where(eq(communityComments.id, commentId))
+      .limit(1);
+
+    if (!comment) {
+      throw new NotFoundException("댓글을 찾을 수 없습니다.");
+    }
+
+    const [post] = await this.db
+      .select({ communityId: communityPosts.communityId })
+      .from(communityPosts)
+      .where(eq(communityPosts.id, comment.postId))
+      .limit(1);
+
+    if (!post) {
+      throw new NotFoundException("게시글을 찾을 수 없습니다.");
+    }
+
+    await assertCommunityPermission(this.communityService, adminId, post.communityId, [
+      "owner",
+      "admin",
+      "moderator",
+    ]);
+
+    const decision = decideCommentRestore(comment);
+    if (!decision.restorable) {
+      throw new ConflictException(COMMENT_RESTORE_REJECTION_MESSAGE[decision.reason]);
+    }
+
+    await this.db
+      .update(communityComments)
+      .set({
+        isRemoved: false,
+        isHidden: false,
+        removalReason: null,
+        removedBy: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(communityComments.id, commentId));
+
+    await this.logModAction({
+      communityId: post.communityId,
+      moderatorId: adminId,
+      action: "other",
+      targetType: "comment",
+      targetId: commentId,
+      reason: reason ?? "admin_content_restored",
+      details: {
+        kind: "comment_restored",
+        wasRemoved: comment.isRemoved,
+        wasHidden: comment.isHidden,
+      },
+    });
+
+    return { targetType: "comment", targetId: commentId, status: "visible", restored: true };
   }
 
   async getReports(communityId: string, requesterId: string, status?: string) {
