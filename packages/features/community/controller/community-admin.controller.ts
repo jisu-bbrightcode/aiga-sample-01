@@ -37,6 +37,8 @@ import {
   DeleteResponseDto,
   ReportResponseDto,
   ReportStatsResponseDto,
+  RestoreContentDto,
+  RestoreContentResponseDto,
   SystemStatsResponseDto,
 } from "../dto";
 import { ADMIN_POST_VIEWER_STATE, toAdminPostListItem } from "../mappers";
@@ -186,6 +188,27 @@ export class CommunityAdminController {
   })
   async resolveReport(@Body() dto: ResolveReportDto, @CurrentUser() user: User) {
     return this.moderationService.resolveReport(dto, user.id);
+  }
+
+  // ==========================================================================
+  // 콘텐츠 복구 관리
+  // ==========================================================================
+
+  @Post("restore")
+  @ApiOperation({
+    summary: "콘텐츠 복구 (관리자)",
+    description:
+      "숨김/제거된 게시글 또는 댓글의 모더레이션 상태를 공개 상태로 되돌린다. " +
+      "게시글은 원문이 보존되어 항상 복구 가능하지만, 원문이 파괴된 제거 댓글은 " +
+      "안전하게 복구할 수 없어 409로 거부한다. 복구 성공 시 community_mod_logs 에 " +
+      "감사 로그를 남긴다.",
+  })
+  @ApiResponse({ status: 200, description: "복구 완료", type: RestoreContentResponseDto })
+  @ApiResponse({ status: 404, description: "대상 게시글/댓글을 찾을 수 없음" })
+  @ApiResponse({ status: 409, description: "복구 불가 (원문 파괴 / 복구 대상 아님)" })
+  @ApiBody({ type: RestoreContentDto })
+  async restoreContent(@Body() dto: RestoreContentDto, @CurrentUser() user: User) {
+    return this.moderationService.restoreContent(dto, user.id);
   }
 
   // ==========================================================================

@@ -7,6 +7,7 @@ export * from "./create-post.dto";
 export * from "./create-report.dto";
 export * from "./filter.dto";
 export * from "./mod-action.dto";
+export * from "./restore-content.dto";
 export * from "./update-community.dto";
 export * from "./update-post.dto";
 export * from "./vote.dto";
