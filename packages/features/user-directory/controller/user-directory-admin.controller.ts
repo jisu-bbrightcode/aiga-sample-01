@@ -53,7 +53,14 @@ function headerValue(req: RequestLike, name: string): string | undefined {
 @ApiTags("Users (Admin)")
 @ApiBearerAuth()
 @UseGuards(BetterAuthGuard, BetterAuthAdminGuard)
-@Controller("admin/users")
+// NOTE: base path is `admin/user-directory`, not `admin/users`, because the
+// _common `AdminUsersController` already owns `admin/users` (it is the surface
+// the admin app is wired to). Both controllers declaring `@Get()` on
+// `admin/users` collides at Fastify route registration
+// (FST_ERR_DUPLICATED_ROUTE) and prevents the server from booting. This is a
+// reversible stopgap; converging the two admin-users APIs is tracked in
+// BBR-1110.
+@Controller("admin/user-directory")
 export class UserDirectoryAdminController {
   constructor(private readonly service: UserDirectoryService) {}
 
