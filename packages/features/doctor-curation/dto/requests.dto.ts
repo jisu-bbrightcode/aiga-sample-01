@@ -111,7 +111,7 @@ export const changeStatusSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
-export class ChangeStatusDto extends createZodDto(changeStatusSchema) {}
+export class CollectionChangeStatusDto extends createZodDto(changeStatusSchema) {}
 
 // ---- admin list / browse query ---------------------------------------------
 

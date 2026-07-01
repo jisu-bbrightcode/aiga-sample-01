@@ -212,6 +212,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 관리자 감사 로그 조회 (cursor 페이지네이션) */
+        get: operations["AdminAuditController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/users": {
         parameters: {
             query?: never;
@@ -219,7 +236,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 관리자 사용자 메타 목록 조회 */
+        /** 관리자 사용자 메타 목록 조회/검색/필터/정렬 */
         get: operations["AdminUsersController_list"];
         put?: never;
         post?: never;
@@ -227,6 +244,40 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 관리자 접근 역할 변경 (admin/member). 변경 내역은 감사 로그에 기록됩니다. */
+        patch: operations["AdminUsersController_changeRole"];
+        trace?: never;
+    };
+    "/api/admin/users/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 계정 상태 변경 (활성/정지). 변경 내역은 감사 로그에 기록됩니다. */
+        patch: operations["AdminUsersController_changeStatus"];
         trace?: never;
     };
     "/api/organization-settings/{organizationId}": {
@@ -632,7 +683,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 커뮤니티 멤버 목록 */
+        /**
+         * 커뮤니티 멤버 목록
+         * @description 공개 뷰는 활성 멤버의 공개 필드만 반환한다. 요청자가 해당 커뮤니티의 모더레이터/관리자/소유자면 운영 필드(ban/mute 등)와 banned/muted 멤버까지 조회할 수 있다.
+         */
         get: operations["CommunityController_members"];
         put?: never;
         post?: never;
@@ -649,7 +703,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 모더레이터 목록 */
+        /**
+         * 모더레이터 목록
+         * @description 공개 뷰는 모더레이터 식별 정보만, 운영 권한자는 세부 권한/임명자까지 반환한다.
+         */
         get: operations["CommunityController_moderators"];
         put?: never;
         post?: never;
@@ -727,6 +784,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/community/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내가 차단한 작성자 목록 */
+        get: operations["CommunityController_listBlocks"];
+        put?: never;
+        /**
+         * 작성자 차단
+         * @description 다른 사용자를 차단한다. 차단 시 해당 작성자의 게시글/댓글이 피드·목록에서 제외되고, 알림도 발송되지 않는다. 자기 자신 또는 시스템 계정은 차단할 수 없다.
+         */
+        post: operations["CommunityController_createBlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/blocks/{blockedId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** 작성자 차단 해제 */
+        delete: operations["CommunityController_deleteBlock"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/community/posts": {
         parameters: {
             query?: never;
@@ -734,7 +829,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 게시물 목록 조회 */
+        /**
+         * 게시물 목록 조회
+         * @description 공개/로그인 게시글 피드. status='published' 만 노출되고(숨김/제거/삭제 제외), 로그인 시 차단한 작성자의 글이 제외된다. 모더레이션 내부필드는 반환하지 않는다.
+         */
         get: operations["CommunityController_postList"];
         put?: never;
         /** 게시물 생성 */
@@ -774,7 +872,8 @@ export interface paths {
         /** 게시물의 댓글 조회 */
         get: operations["CommunityController_postComments"];
         put?: never;
-        post?: never;
+        /** 게시물 댓글 생성 */
+        post: operations["CommunityController_createPostComment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -826,6 +925,23 @@ export interface paths {
         put?: never;
         /** 게시물 제거 (모더레이터) */
         post: operations["CommunityController_removePost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/posts/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 게시물 복구 (모더레이터) */
+        post: operations["CommunityController_restorePost"];
         delete?: never;
         options?: never;
         head?: never;
@@ -953,6 +1069,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/community/hidden-content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 내가 숨긴 콘텐츠 목록
+         * @description 본인이 사용자별로 숨긴 게시글/댓글 목록을 반환한다.
+         */
+        get: operations["CommunityController_listHiddenContent"];
+        put?: never;
+        /**
+         * 콘텐츠 숨김
+         * @description scope='user'(기본)=사용자별 숨김(본인 시야에서만 목록/상세/댓글/리액션 제외). scope='global'=관리자/모더레이터 전역 숨김(커뮤니티 권한 필요).
+         */
+        post: operations["CommunityController_hideContent"];
+        /**
+         * 콘텐츠 숨김 해제 (사용자별)
+         * @description 본인이 숨긴 게시글/댓글의 숨김을 해제한다.
+         */
+        delete: operations["CommunityController_unhideContent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/hidden-content/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * 콘텐츠 숨김 해제 (레코드 id)
+         * @description 본인이 숨긴 게시글/댓글 숨김 레코드를 id 로 해제한다. 본인 소유 레코드만 해제할 수 있으며, 전역 숨김은 이 경로로 해제되지 않는다(AC#2).
+         */
+        delete: operations["CommunityController_unhideContentById"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/hidden-content/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 전역 숨김 복구 (관리자/모더레이터)
+         * @description 전역 숨김으로 비공개 처리된 게시글/댓글을 공개 상태로 복구한다. 커뮤니티 권한이 필요하며 일반 사용자 숨김 해제와 권한·저장소가 분리된다(AC#2).
+         */
+        post: operations["CommunityController_restoreGlobalHide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/community/feed/all": {
         parameters: {
             query?: never;
@@ -960,7 +1144,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 전체 피드 (모든 공개 커뮤니티) */
+        /**
+         * 전체 피드 (모든 공개 커뮤니티)
+         * @description 공개 피드. status='published' 만 노출되고(숨김/제거/삭제 제외), 콘텐츠 등급 필터가 적용된다. 로그인 시 차단(양방향) 작성자의 글이 모든 정렬에서 동일하게 제외된다.
+         */
         get: operations["CommunityController_feedAll"];
         put?: never;
         post?: never;
@@ -977,7 +1164,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 인기 피드 */
+        /**
+         * 인기 피드
+         * @description 공개 인기 피드(시간 창 내 voteScore 상위). 차단/숨김/등급 필터가 다른 피드 정렬과 동일하게 적용된다.
+         */
         get: operations["CommunityController_feedPopular"];
         put?: never;
         post?: never;
@@ -1225,6 +1415,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/community/moderation/moderators/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 모더레이터 초대 수락/거절 */
+        post: operations["CommunityController_respondModeratorInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/moderation/moderators/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 모더레이터 권한 변경 */
+        patch: operations["CommunityController_updateModeratorPermissions"];
+        trace?: never;
+    };
+    "/api/community/moderation/ownership/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 커뮤니티 소유권 양도 */
+        post: operations["CommunityController_transferOwnership"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/community/moderation/{communityId}/logs": {
         parameters: {
             query?: never;
@@ -1236,6 +1477,57 @@ export interface paths {
         get: operations["CommunityController_modLogs"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/moderation/{communityId}/filter-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 필터 로그 조회 (모더레이터) */
+        get: operations["CommunityController_filterLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/moderation/{communityId}/filter-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 필터 검토 큐 조회 (자동 숨김 후보, 모더레이터) */
+        get: operations["CommunityController_filterQueue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/moderation/filter-logs/{logId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 필터 자동 숨김 항목 검토 처리 (공개 승인/제거) */
+        post: operations["CommunityController_reviewFilterEntry"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1285,6 +1577,26 @@ export interface paths {
         };
         /** 전체 통계 */
         get: operations["CommunityAdminController_stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/community/posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 게시글 목록 (관리자용)
+         * @description 공개 피드와 달리 미게시/숨김/제거/삭제 게시글까지 모두 조회되고, 모더레이션 내부필드(removalReason, removedBy)를 포함한다. status 로 상태 필터 가능.
+         */
+        get: operations["CommunityAdminController_posts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1378,6 +1690,169 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/doctor-collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 명의 컬렉션 목록 (공개, published만, 검색/필터/페이지네이션) */
+        get: operations["DoctorCurationController_listCollections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/doctor-collections/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 명의 컬렉션 상세 (공개, 수록 의사 rank 순)
+         * @description 비로그인(guest)·로그인(member) 모두 조회 가능하며 응답의 viewerState로 구분된다. published 컬렉션만 노출하고, 없는 slug와 미게시(draft)·삭제된 컬렉션은 동일하게 404로 응답해 존재 여부가 새지 않게 한다(미게시 조회는 관리자 상세 라우트 사용).
+         */
+        get: operations["DoctorCurationController_getCollection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/curation/admin/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 명의 컬렉션 목록 (admin) */
+        get: operations["DoctorCurationAdminController_listCollections"];
+        put?: never;
+        /** 명의 컬렉션 생성 */
+        post: operations["DoctorCurationAdminController_createCollection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/curation/admin/collections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 명의 컬렉션 상세 (admin)
+         * @description 관리자(owner/admin)만 접근 가능하며 미게시(draft) 컬렉션도 조회된다. viewerState.role=admin, canManage=true. 비로그인은 401, 권한 없는 사용자는 403, 없는 id는 404.
+         */
+        get: operations["DoctorCurationAdminController_getCollection"];
+        put?: never;
+        post?: never;
+        /**
+         * 명의 컬렉션 삭제 (soft delete)
+         * @description 행을 물리 삭제하지 않고 isDeleted 플래그로 숨긴다. 수록 의사 등 연결 데이터는 보존되고 restore 로 복구 가능. 이미 삭제된 경우에도 멱등하게 200, 존재하지 않으면 404.
+         */
+        delete: operations["DoctorCurationAdminController_deleteCollection"];
+        options?: never;
+        head?: never;
+        /**
+         * 명의 컬렉션 수정 (부분 업데이트)
+         * @description 허용된 필드만 부분 수정한다(생략한 필드는 유지, nullable 필드는 null로 비울 수 있음). 상태(status)는 여기서 바꿀 수 없고 상태 변경 액션을 사용한다. 변경 내용은 admin_audit_log에 before/after로 기록된다.
+         */
+        patch: operations["DoctorCurationAdminController_updateCollection"];
+        trace?: never;
+    };
+    "/api/service/curation/admin/collections/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 명의 컬렉션 상태 변경 (발행/비공개/보관)
+         * @description 허용된 상태 전이만 적용된다(예: draft→published, published→archived). 허용되지 않은 전이는 422. published 진입 시 publishedAt이 기록되고, 전이 결과가 변경 이력에 남는다.
+         */
+        post: operations["DoctorCurationAdminController_changeStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/curation/admin/collections/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 명의 컬렉션 변경 이력
+         * @description 수정/상태 변경 감사 로그를 최신순(cursor pagination)으로 조회한다.
+         */
+        get: operations["DoctorCurationAdminController_getCollectionHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/curation/admin/collections/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 명의 컬렉션 archive (노출 차단)
+         * @description 게시를 내려 공개/앱 노출을 차단하고 관리자 관리 대상으로 유지한다(status=archived). 수록 의사 등 연결 데이터는 보존되며 restore 로 복구 가능. 이미 archived 면 멱등하게 200.
+         */
+        post: operations["DoctorCurationAdminController_archiveCollection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/curation/admin/collections/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 명의 컬렉션 복구
+         * @description 삭제/archive 된 컬렉션을 안전한 draft 상태로 되살린다. 자동 재게시는 하지 않으며, 이미 활성 상태면 멱등하게 현재 상태를 반환한다. 존재하지 않으면 404.
+         */
+        post: operations["DoctorCurationAdminController_restoreCollection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/email/logs": {
         parameters: {
             query?: never;
@@ -1429,6 +1904,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/email/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** [Admin] 이메일 템플릿 목록 (현재 published 상태 포함) */
+        get: operations["EmailController_listTemplates"];
+        put?: never;
+        /** [Admin] 이메일 템플릿 생성 (초기 draft 버전 포함) */
+        post: operations["EmailController_createTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/email/templates/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** [Admin] 이메일 템플릿 상세 (draft/published 버전 구분) */
+        get: operations["EmailController_getTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** [Admin] 이메일 템플릿 수정 (working draft로 관리, published 버전 보존) */
+        patch: operations["EmailController_updateTemplate"];
+        trace?: never;
+    };
+    "/api/admin/email/templates/{key}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** [Admin] 이메일 템플릿 draft 발행 (변수 스키마 + preview 검증 후 published) */
+        post: operations["EmailController_publishTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/email/templates/{key}/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** [Admin] 템플릿 변수 검증 (발송 전 누락/타입 불일치 확인) */
+        post: operations["EmailController_validateTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/email/templates/{key}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** [Admin] 템플릿 미리보기 (subject/body 렌더 + 변수 검증 리포트) */
+        post: operations["EmailController_previewByKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/email/templates/{key}/test-send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** [Admin] 템플릿 테스트 발송 (실제 provider 발송 + 발송 이력 기록) */
+        post: operations["EmailController_testSend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/email/templates/{templateType}/preview": {
         parameters: {
             query?: never;
@@ -1436,7 +2015,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** [Admin] 이메일 템플릿 미리보기 */
+        /** [Admin] React 렌더러 단위 HTML 미리보기 (쿼리 변수 사용) */
         get: operations["EmailController_previewTemplate"];
         put?: never;
         post?: never;
@@ -1461,6 +2040,108 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/files/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 파일 업로드 시작 — Vercel Blob client upload 토큰/메타 발급 (로그인 필요) */
+        post: operations["FileUploadController_createUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/uploads/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 파일 업로드 완료 확정 — 서버에서 blob 재검증 후 metadata 활성화 (로그인 필요) */
+        post: operations["FileUploadController_completeUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 파일 목록 (소유자 전용, 필터 + 페이지네이션, 로그인 필요) */
+        get: operations["FileListController_listOwnFiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 관리자 파일 목록 (owner/target/status/visibility/MIME 필터 + 페이지네이션) */
+        get: operations["FileAdminController_listAdminFiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 내 파일 metadata 수정 (표시명/alt text/대상 연결/공개여부/정렬, 로그인 필요) */
+        patch: operations["FileMetadataController_updateOwnFile"];
+        trace?: never;
+    };
+    "/api/admin/files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 관리자 파일 metadata 수정 (+ review status, 관리자 권한 필요) */
+        patch: operations["FileMetadataAdminController_updateFileAsAdmin"];
         trace?: never;
     };
     "/api/identity-verifications/kcb/sessions": {
@@ -1815,6 +2496,94 @@ export interface paths {
         put?: never;
         /** 온보딩 완료 */
         post: operations["OnboardingController_complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/saved-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 저장 목록 (최근순, cursor 페이지네이션, 로그인 필요) */
+        get: operations["PersonalizationController_listSavedItems"];
+        put?: never;
+        /** 저장 추가 — 의사/병원을 내 저장 목록에 추가 (로그인 필요) */
+        post: operations["PersonalizationController_createSavedItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/saved-items/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** 저장 해제 — 내 저장 목록에서 제거 (로그인 필요, 본인 항목만) */
+        delete: operations["PersonalizationController_removeSavedItem"];
+        options?: never;
+        head?: never;
+        /** 저장 항목 변경 — 메모/태그 수정 (로그인 필요, 본인 항목만) */
+        patch: operations["PersonalizationController_updateSavedItem"];
+        trace?: never;
+    };
+    "/api/interests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 관심 목록 (최근순, cursor 페이지네이션, 로그인 필요) */
+        get: operations["PersonalizationController_listInterests"];
+        put?: never;
+        /** 관심 추가 — 의사/병원을 내 관심 목록에 추가 (로그인 필요) */
+        post: operations["PersonalizationController_createInterest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/interests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** 관심 해제 — 내 관심 목록에서 제거 (로그인 필요, 본인 항목만) */
+        delete: operations["PersonalizationController_removeInterest"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/search-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 검색 히스토리 (최근순, cursor 페이지네이션, 로그인 필요) */
+        get: operations["PersonalizationController_listSearchHistory"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2954,6 +3723,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reaction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove (cancel) the current user's reaction — idempotent
+         * @description Deletes the authenticated user's reaction on a target. Scoped to the caller, so it can never affect another user's reaction. Safe to call repeatedly: a no-op delete returns removed=false with unchanged counts.
+         */
+        delete: operations["ReactionController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reaction/user-status": {
         parameters: {
             query?: never;
@@ -3050,6 +3839,762 @@ export interface paths {
         put?: never;
         /** 잡 즉시 실행 (관리자) */
         post: operations["ScheduledJobController_runJobNow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/specialties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 진료과 목록 (공개) */
+        get: operations["ServiceDomainController_listSpecialties"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/regions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 지역 목록 (공개, parentId로 하위지역 필터) */
+        get: operations["ServiceDomainController_listRegions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/doctors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 의사 목록 (공개, published만) */
+        get: operations["ServiceDomainController_listDoctors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/doctors/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 의사 상세 (공개, 진료과/병원/지역 포함) */
+        get: operations["ServiceDomainController_getDoctor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/hospitals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 병원 목록 (공개, published만) */
+        get: operations["ServiceDomainController_listHospitals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/hospitals/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 병원 상세 (공개, 지역/소속의사 포함) */
+        get: operations["ServiceDomainController_getHospital"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/admin/doctors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 의사 생성 */
+        post: operations["ServiceDomainAdminController_createDoctor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/admin/doctors/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 의사 수정 */
+        put: operations["ServiceDomainAdminController_updateDoctor"];
+        post?: never;
+        /** 의사 삭제 (soft delete) */
+        delete: operations["ServiceDomainAdminController_deleteDoctor"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/admin/doctors/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 의사 상태 변경 (draft/published/archived) */
+        patch: operations["ServiceDomainAdminController_changeDoctorStatus"];
+        trace?: never;
+    };
+    "/api/service/admin/doctors/{id}/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 의사 프로필 이력 생성 (학력/경력/자격/수상) */
+        post: operations["ServiceDomainAdminController_createDoctorCredential"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/admin/hospitals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 병원 생성 */
+        post: operations["ServiceDomainAdminController_createHospital"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/admin/hospitals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 병원 수정 */
+        put: operations["ServiceDomainAdminController_updateHospital"];
+        post?: never;
+        /** 병원 삭제 (soft delete) */
+        delete: operations["ServiceDomainAdminController_deleteHospital"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/admin/hospitals/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 병원 상태 변경 (draft/published/archived) */
+        patch: operations["ServiceDomainAdminController_changeHospitalStatus"];
+        trace?: never;
+    };
+    "/api/service/admin/hospitals/{id}/specialties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 병원 진료과 추가 */
+        post: operations["ServiceDomainAdminController_addHospitalSpecialty"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/admin/hospitals/{id}/hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 병원 운영시간 추가 (요일별) */
+        post: operations["ServiceDomainAdminController_addHospitalHours"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/domain/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 도메인 리소스 목록/검색 (의사·병원 통합) */
+        get: operations["ServiceDomainAdminResourcesController_listResources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/domain/resources/{type}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 도메인 리소스 상세 (운영 필드 + 관련 정보, 민감정보 마스킹) */
+        get: operations["ServiceDomainAdminResourcesController_getResourceDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/domain/resources/{type}/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 도메인 리소스 비활성/archive (공개 노출 차단, 연결 데이터 보존) */
+        post: operations["ServiceDomainAdminResourcesController_archiveResource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/domain/resources/{type}/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** archive 된 도메인 리소스 복구 (비공개 draft 로) */
+        post: operations["ServiceDomainAdminResourcesController_restoreResource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/domain/resources/doctors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 도메인 리소스 생성 — 의사 (기본 draft, 감사 로그 기록) */
+        post: operations["ServiceDomainAdminResourcesController_createDoctor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/domain/resources/hospitals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 도메인 리소스 생성 — 병원 (기본 draft, 감사 로그 기록) */
+        post: operations["ServiceDomainAdminResourcesController_createHospital"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/domain/resources/doctors/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 도메인 리소스 수정 — 의사 (감사 로그 기록) */
+        patch: operations["ServiceDomainAdminResourcesController_updateDoctor"];
+        trace?: never;
+    };
+    "/api/admin/domain/resources/hospitals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 도메인 리소스 수정 — 병원 (감사 로그 기록) */
+        patch: operations["ServiceDomainAdminResourcesController_updateHospital"];
+        trace?: never;
+    };
+    "/api/admin/domain/resources/{type}/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 도메인 리소스 상태 변경 (허용된 전이만, 감사 로그 기록) */
+        post: operations["ServiceDomainAdminResourcesController_changeStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/domain/resources/{type}/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 도메인 리소스 변경 이력 (감사 로그, 최신순) */
+        get: operations["ServiceDomainAdminResourcesController_getResourceHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 사용자 목록/검색 (공개, 핸들 보유 활성 회원만) */
+        get: operations["UserDirectoryController_listUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 정보 (본인, 등급 포함) */
+        get: operations["UserDirectoryController_getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{handle}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 사용자 상세 (공개, 핸들 기준, viewer state 포함) */
+        get: operations["UserDirectoryController_getByHandle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/user-directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 사용자 목록/검색 (관리자, 전체 필드/필터) */
+        get: operations["UserDirectoryAdminController_listUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/user-directory/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 사용자 상세 (관리자, profile id 기준) */
+        get: operations["UserDirectoryAdminController_getUser"];
+        put?: never;
+        post?: never;
+        /** 사용자 삭제/보관 (soft delete). 물리 삭제 없이 archive 처리하여 공개/앱 노출을 차단하고 연결 데이터는 보존합니다. 복구 가능. */
+        delete: operations["UserDirectoryAdminController_archiveUser"];
+        options?: never;
+        head?: never;
+        /** 사용자 부분 수정 (허용 필드: 이름/핸들/소개/아바타). 변경 내역은 감사 로그에 기록됩니다. */
+        patch: operations["UserDirectoryAdminController_updateUser"];
+        trace?: never;
+    };
+    "/api/admin/user-directory/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 사용자 변경 이력 (감사 로그). 수정/상태변경/보관/복구가 최신순으로 기록됩니다. */
+        get: operations["UserDirectoryAdminController_getUserHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/user-directory/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 보관된 사용자 복구 (deletedAt 해제 + 재활성화) */
+        post: operations["UserDirectoryAdminController_restoreUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 통합 검색 (공개) — 의사/병원/진료과/지역 통합 목록/검색
+         * @description 전문(full-text) + 트라이그램(오타/부분일치) 랭킹. type/regionId/specialtyId 필터, sort(relevance|rating|featured), page/limit 페이지네이션. published 문서만 노출.
+         */
+        get: operations["ServiceSearchController_search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/search/popular": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 인기 검색어 (공개, 집계 카운트만 — 개별 로그 비노출) */
+        get: operations["ServiceSearchController_popular"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/search/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 최근 검색어 (로그인 사용자 — 본인 검색 기록만) */
+        get: operations["ServiceSearchController_recent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/search/{entityType}/{entityId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 통합 상세 조회 (공개) — 게시된 검색 리소스 + viewer state
+         * @description 통합검색 결과 1건을 (entityType, entityId)로 조회한다. 공개 surface는 published 문서만 노출하므로 없는 리소스와 비공개(미게시) 리소스는 모두 404로 동일하게 응답한다 (존재 여부 비노출). viewer 블록은 로그인 여부 등 요청자 상태를 담는다.
+         */
+        get: operations["ServiceSearchController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/search/admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 통합 검색 (관리자) — 인덱스 내부필드 + 미게시 문서 포함
+         * @description published=true/false 로 게시상태 필터. 생략 시 게시+미게시 모두 반환.
+         */
+        get: operations["ServiceSearchAdminController_search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/search/admin/{entityType}/{entityId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 통합 상세 조회 (관리자) — 인덱스 내부필드 + 미게시 포함
+         * @description (entityType, entityId)로 검색 문서 1건을 조회한다. 공개 surface와 달리 게시상태와 무관하게 조회되고 인덱스 내부필드까지 반환한다. 미인증=401, 비관리자=403, 없는 문서=404.
+         */
+        get: operations["ServiceSearchAdminController_detail"];
+        put?: never;
+        post?: never;
+        /**
+         * 통합 검색 문서 archive (soft delete) — 노출 차단
+         * @description (entityType, entityId)로 검색 문서를 soft delete 한다. 행은 보존되어 공개/앱/관리자 검색에서만 제외되며(노출 차단), 원본 entityId에 연결된 결제/이력/감사 데이터는 보존된다. 복구는 restore 엔드포인트로 가능. 이미 archive된 문서면 멱등 성공. 미인증=401, 비관리자=403, 없는 문서=404.
+         */
+        delete: operations["ServiceSearchAdminController_archive"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/search/admin/{entityType}/{entityId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 통합 검색 문서 복구 (restore) — archive 해제
+         * @description archive된 검색 문서를 복구해 다시 노출되도록 한다. 이미 복구(미archive) 상태면 멱등 성공. 미인증=401, 비관리자=403, 없는 문서=404.
+         */
+        post: operations["ServiceSearchAdminController_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/admin/search/synonyms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 검색 동의어 목록 */
+        get: operations["ServiceSearchSynonymsAdminController_listSynonyms"];
+        put?: never;
+        /** 검색 동의어 생성 */
+        post: operations["ServiceSearchSynonymsAdminController_createSynonym"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/admin/search/synonyms/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 검색 동의어 상세 */
+        get: operations["ServiceSearchSynonymsAdminController_getSynonym"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 검색 동의어 수정 (부분 업데이트) */
+        patch: operations["ServiceSearchSynonymsAdminController_updateSynonym"];
+        trace?: never;
+    };
+    "/api/service/admin/search/synonyms/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 검색 동의어 상태 변경 (활성/비활성) */
+        patch: operations["ServiceSearchSynonymsAdminController_updateSynonymStatus"];
+        trace?: never;
+    };
+    "/api/service/admin/search/synonyms/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 검색 동의어 변경 이력 */
+        get: operations["ServiceSearchSynonymsAdminController_listSynonymHistory"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4024,6 +5569,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users/{userId}/grade": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 사용자 등급 조회 (상세) */
+        get: operations["UserGradeAdminController_get"];
+        put?: never;
+        /** 사용자 등급 부여 (생성) */
+        post: operations["UserGradeAdminController_assign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/user-grades": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 사용자 등급 목록 (페이지네이션) */
+        get: operations["UserGradeAdminController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/video-courses": {
         parameters: {
             query?: never;
@@ -4486,19 +6066,71 @@ export interface components {
         CommentDeleteResponseDto: {
             success: boolean;
         };
+        AdminAuditLogItemDto: {
+            id: string;
+            actorUserId: string;
+            action: string;
+            targetType: Record<string, never> | null;
+            targetId: Record<string, never> | null;
+            payloadBefore: Record<string, never> | null;
+            payloadAfter: Record<string, never> | null;
+            ipAddress: Record<string, never> | null;
+            userAgent: Record<string, never> | null;
+            reason: Record<string, never> | null;
+            createdAt: string;
+        };
+        AdminAuditListResponseDto: {
+            rows: components["schemas"]["AdminAuditLogItemDto"][];
+            /** @description 다음 페이지 커서 (id), 없으면 null */
+            nextCursor: Record<string, never> | null;
+        };
         AdminUserListItemDto: {
             id: string;
             name: string;
             email: string;
             image: Record<string, never> | null;
             roles: string[];
+            /**
+             * @description 관리자 접근 역할 (조직 멤버십). 멤버가 아니면 null
+             * @enum {string|null}
+             */
+            accessRole: "owner" | "admin" | "member" | null;
             createdAt: string;
+            /** @description 프로필 최근 업데이트(최근활동) 시각 */
+            lastActiveAt: Record<string, never> | null;
             emailVerified: boolean;
             isActive: boolean;
         };
         AdminUserListResponseDto: {
             users: components["schemas"]["AdminUserListItemDto"][];
             total: number;
+        };
+        ChangeUserRoleBodyDto: {
+            /**
+             * @description 부여할 접근 역할
+             * @enum {string}
+             */
+            role: "admin" | "member";
+            /** @description 변경 사유 (감사 로그에 기록) */
+            reason?: string;
+        };
+        ChangeUserRoleResponseDto: {
+            targetUserId: string;
+            organizationId: string;
+            previousRole: string;
+            /** @enum {string} */
+            role: "admin" | "member";
+        };
+        ChangeUserStatusBodyDto: {
+            /** @description 활성 여부 (false = 계정 정지) */
+            isActive: boolean;
+            /** @description 변경 사유 (감사 로그에 기록) */
+            reason?: string;
+        };
+        ChangeUserStatusResponseDto: {
+            targetUserId: string;
+            previousActive: boolean;
+            isActive: boolean;
         };
         OrganizationMembershipResponseDto: {
             role: string;
@@ -4675,7 +6307,20 @@ export interface components {
                     minKarmaToPost?: number;
                     minAccountAge?: number;
                 } | null;
-                bannedWords: string[] | null;
+                bannedWords?: string[] | null;
+                viewerState?: {
+                    authenticated: boolean;
+                    isMember: boolean;
+                    role: ("member" | "moderator" | "admin" | "owner") | null;
+                    tier: ("newcomer" | "member" | "contributor" | "trusted" | "leader") | null;
+                    isSubscribed: boolean;
+                    isBanned: boolean;
+                    banExpiresAt: string | null;
+                    isSanctioned: boolean;
+                    sanctionType: ("warning" | "official_warning" | "suspension" | "permanent_ban") | null;
+                    sanctionExpiresAt: string | null;
+                    canModerate: boolean;
+                } | null;
                 createdAt: string;
                 updatedAt: string;
             }[];
@@ -4712,7 +6357,20 @@ export interface components {
                 minKarmaToPost?: number;
                 minAccountAge?: number;
             } | null;
-            bannedWords: string[] | null;
+            bannedWords?: string[] | null;
+            viewerState?: {
+                authenticated?: boolean;
+                isMember?: boolean;
+                role?: ("member" | "moderator" | "admin" | "owner") | null;
+                tier?: ("newcomer" | "member" | "contributor" | "trusted" | "leader") | null;
+                isSubscribed?: boolean;
+                isBanned?: boolean;
+                banExpiresAt?: string | null;
+                isSanctioned?: boolean;
+                sanctionType?: ("warning" | "official_warning" | "suspension" | "permanent_ban") | null;
+                sanctionExpiresAt?: string | null;
+                canModerate?: boolean;
+            } | null;
             createdAt: string;
             updatedAt: string;
         };
@@ -4724,37 +6382,39 @@ export interface components {
         };
         MemberListResponseDto: {
             items: {
-                id: string;
-                communityId: string;
                 userId: string;
                 /** @enum {string} */
                 role: "member" | "moderator" | "admin" | "owner";
-                joinedAt: string;
-                isBanned: boolean;
-                bannedAt: string | null;
-                bannedReason: string | null;
-                bannedBy: string | null;
-                banExpiresAt: string | null;
-                isMuted: boolean;
-                mutedUntil: string | null;
-                notificationsEnabled: boolean;
-                flairText: string | null;
-                flairColor: string | null;
                 /** @enum {string} */
                 tier: "newcomer" | "member" | "contributor" | "trusted" | "leader";
-                onboardingCompletedAt: string | null;
-                rulesAcceptedAt: string | null;
+                flairText: string | null;
+                flairColor: string | null;
+                joinedAt: string | null;
+                id?: string;
+                communityId?: string;
+                isBanned?: boolean;
+                bannedAt?: string | null;
+                bannedReason?: string | null;
+                bannedBy?: string | null;
+                banExpiresAt?: string | null;
+                isMuted?: boolean;
+                mutedUntil?: string | null;
+                notificationsEnabled?: boolean;
+                onboardingCompletedAt?: string | null;
+                rulesAcceptedAt?: string | null;
             }[];
             total: number;
             page: number;
             limit: number;
             hasMore: boolean;
+            operational: boolean;
         };
         ModeratorResponseDto: {
-            id: string;
-            communityId: string;
             userId: string;
-            permissions: {
+            appointedAt: string;
+            id?: string;
+            communityId?: string;
+            permissions?: {
                 managePosts?: boolean;
                 manageComments?: boolean;
                 manageUsers?: boolean;
@@ -4765,8 +6425,7 @@ export interface components {
                 viewModLog?: boolean;
                 viewReports?: boolean;
             };
-            appointedBy: string;
-            appointedAt: string;
+            appointedBy?: string;
         };
         DeleteResponseDto: {
             success: boolean;
@@ -4793,13 +6452,29 @@ export interface components {
             onboardingCompletedAt: string | null;
             rulesAcceptedAt: string | null;
         };
-        PostListResponseDto: {
+        BlockResponseDto: {
+            id: string;
+            blockerId: string;
+            blockedId: string;
+            createdAt: string | null;
+        };
+        BlockListResponseDto: {
+            data: {
+                id: string;
+                blockerId: string;
+                blockedId: string;
+                createdAt: string | null;
+            }[];
+            total: number;
+        };
+        PublicPostListResponseDto: {
             items: {
                 id: string;
                 communityId: string;
+                communitySlug: string | null;
                 authorId: string;
-                authorName?: string | null;
-                authorAvatar?: string | null;
+                authorName: string | null;
+                authorAvatar: string | null;
                 title: string;
                 content: string | null;
                 /** @enum {string} */
@@ -4831,8 +6506,6 @@ export interface components {
                 status: "draft" | "published" | "hidden" | "removed" | "deleted";
                 isPinned: boolean;
                 isLocked: boolean;
-                removalReason: string | null;
-                removedBy: string | null;
                 viewCount: number;
                 upvoteCount: number;
                 downvoteCount: number;
@@ -4841,11 +6514,15 @@ export interface components {
                 shareCount: number;
                 crosspostParentId: string | null;
                 hotScore: number;
-                lastActivityAt: string;
-                createdAt: string;
-                updatedAt: string;
+                lastActivityAt: string | null;
+                createdAt: string | null;
+                updatedAt: string | null;
             }[];
             nextCursor: string | null;
+            viewer: {
+                authenticated?: boolean;
+                isAdmin?: boolean;
+            };
         };
         PostResponseDto: {
             id: string;
@@ -4903,15 +6580,14 @@ export interface components {
                 id: string;
                 postId: string;
                 authorId: string;
-                authorName?: string | null;
-                authorAvatar?: string | null;
+                authorName: string | null;
+                authorAvatar: string | null;
                 parentId: string | null;
                 content: string;
                 depth: number;
                 isDeleted: boolean;
                 isRemoved: boolean;
-                removalReason: string | null;
-                removedBy: string | null;
+                isHidden: boolean;
                 isEdited: boolean;
                 editedAt: string | null;
                 upvoteCount: number;
@@ -4920,11 +6596,11 @@ export interface components {
                 replyCount: number;
                 isStickied: boolean;
                 distinguished: ("moderator" | "admin") | null;
-                isHidden: boolean;
-                createdAt: string;
-                updatedAt: string;
+                createdAt: string | null;
+                updatedAt: string | null;
             }[];
             nextCursor: string | null;
+            totalCount: number;
         };
         CommunityCommentResponseDto: {
             id: string;
@@ -5016,29 +6692,18 @@ export interface components {
             limit: number;
             hasMore: boolean;
         };
-        ReportResponseDto: {
+        ReportReceiptResponseDto: {
             id: string;
-            communityId: string;
-            reporterId: string;
             /** @enum {string} */
             targetType: "post" | "comment" | "user";
             targetId: string;
             /** @enum {string} */
             reason: "spam" | "harassment" | "hate_speech" | "misinformation" | "nsfw" | "violence" | "copyright" | "other";
-            ruleViolated: number | null;
-            description: string | null;
             /** @enum {string} */
             status: "pending" | "reviewing" | "resolved" | "dismissed";
-            resolvedBy: string | null;
-            resolvedAt: string | null;
-            resolution: string | null;
-            /** @enum {string|null} */
-            actionTaken: "removed" | "banned" | "warned" | "dismissed" | null;
             /** @enum {string} */
             severity: "low" | "medium" | "high" | "critical";
-            firstResponseAt: string | null;
             createdAt: string;
-            updatedAt: string;
         };
         ModQueueResponseDto: {
             reports: {
@@ -5066,6 +6731,30 @@ export interface components {
             }[];
             spam: unknown[];
             removed: unknown[];
+        };
+        ReportResponseDto: {
+            id: string;
+            communityId: string;
+            reporterId: string;
+            /** @enum {string} */
+            targetType: "post" | "comment" | "user";
+            targetId: string;
+            /** @enum {string} */
+            reason: "spam" | "harassment" | "hate_speech" | "misinformation" | "nsfw" | "violence" | "copyright" | "other";
+            ruleViolated: number | null;
+            description: string | null;
+            /** @enum {string} */
+            status: "pending" | "reviewing" | "resolved" | "dismissed";
+            resolvedBy: string | null;
+            resolvedAt: string | null;
+            resolution: string | null;
+            /** @enum {string|null} */
+            actionTaken: "removed" | "banned" | "warned" | "dismissed" | null;
+            /** @enum {string} */
+            severity: "low" | "medium" | "high" | "critical";
+            firstResponseAt: string | null;
+            createdAt: string;
+            updatedAt: string;
         };
         BanResponseDto: {
             id: string;
@@ -5122,6 +6811,76 @@ export interface components {
             limit: number;
             hasMore: boolean;
         };
+        FilterLogListResponseDto: {
+            items: {
+                id: string;
+                communityId: string;
+                authorId: string;
+                targetType: ("post" | "comment") | null;
+                targetId: string | null;
+                /** @enum {string} */
+                ruleType: "keyword" | "link" | "attachment" | "moderation";
+                /** @enum {string} */
+                action: "blocked" | "hidden_for_review";
+                matchedTerms: string[];
+                reason: string | null;
+                /** @enum {string} */
+                reviewStatus: "pending" | "approved" | "rejected";
+                reviewedBy: string | null;
+                reviewedAt: string | null;
+                reviewNote: string | null;
+                createdAt: string;
+                updatedAt: string;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+            hasMore: boolean;
+        };
+        FilterReviewQueueResponseDto: {
+            items: {
+                id: string;
+                communityId: string;
+                authorId: string;
+                targetType: ("post" | "comment") | null;
+                targetId: string | null;
+                /** @enum {string} */
+                ruleType: "keyword" | "link" | "attachment" | "moderation";
+                /** @enum {string} */
+                action: "blocked" | "hidden_for_review";
+                matchedTerms: string[];
+                reason: string | null;
+                /** @enum {string} */
+                reviewStatus: "pending" | "approved" | "rejected";
+                reviewedBy: string | null;
+                reviewedAt: string | null;
+                reviewNote: string | null;
+                createdAt: string;
+                updatedAt: string;
+            }[];
+            total: number;
+        };
+        FilterLogResponseDto: {
+            id: string;
+            communityId: string;
+            authorId: string;
+            /** @enum {string|null} */
+            targetType: "post" | "comment" | null;
+            targetId: string | null;
+            /** @enum {string} */
+            ruleType: "keyword" | "link" | "attachment" | "moderation";
+            /** @enum {string} */
+            action: "blocked" | "hidden_for_review";
+            matchedTerms: string[];
+            reason: string | null;
+            /** @enum {string} */
+            reviewStatus: "pending" | "approved" | "rejected";
+            reviewedBy: string | null;
+            reviewedAt: string | null;
+            reviewNote: string | null;
+            createdAt: string;
+            updatedAt: string;
+        };
         AdminCommunityListResponseDto: {
             data: {
                 id: string;
@@ -5154,7 +6913,20 @@ export interface components {
                     minKarmaToPost?: number;
                     minAccountAge?: number;
                 } | null;
-                bannedWords: string[] | null;
+                bannedWords?: string[] | null;
+                viewerState?: {
+                    authenticated: boolean;
+                    isMember: boolean;
+                    role: ("member" | "moderator" | "admin" | "owner") | null;
+                    tier: ("newcomer" | "member" | "contributor" | "trusted" | "leader") | null;
+                    isSubscribed: boolean;
+                    isBanned: boolean;
+                    banExpiresAt: string | null;
+                    isSanctioned: boolean;
+                    sanctionType: ("warning" | "official_warning" | "suspension" | "permanent_ban") | null;
+                    sanctionExpiresAt: string | null;
+                    canModerate: boolean;
+                } | null;
                 createdAt: string;
                 updatedAt: string;
             }[];
@@ -5168,6 +6940,67 @@ export interface components {
             totalMembers: number;
             totalPosts: number;
             totalComments: number;
+        };
+        AdminPostListResponseDto: {
+            items: {
+                id: string;
+                communityId: string;
+                communitySlug: string | null;
+                authorId: string;
+                authorName: string | null;
+                authorAvatar: string | null;
+                title: string;
+                content: string | null;
+                /** @enum {string} */
+                type: "text" | "link" | "image" | "video" | "poll";
+                linkUrl: string | null;
+                linkPreview?: {
+                    title?: string;
+                    description?: string;
+                    image?: string;
+                    siteName?: string;
+                } | null;
+                mediaUrls: string[] | null;
+                pollData?: {
+                    options: {
+                        id: string;
+                        text: string;
+                        voteCount: number;
+                    }[];
+                    multipleChoice: boolean;
+                    expiresAt?: string;
+                } | null;
+                flairId: string | null;
+                isNsfw: boolean;
+                isSpoiler: boolean;
+                isOc: boolean;
+                /** @enum {string} */
+                contentRating: "general" | "sensitive" | "nsfw" | "violence";
+                /** @enum {string} */
+                status: "draft" | "published" | "hidden" | "removed" | "deleted";
+                isPinned: boolean;
+                isLocked: boolean;
+                viewCount: number;
+                upvoteCount: number;
+                downvoteCount: number;
+                voteScore: number;
+                commentCount: number;
+                shareCount: number;
+                crosspostParentId: string | null;
+                hotScore: number;
+                lastActivityAt: string | null;
+                createdAt: string | null;
+                updatedAt: string | null;
+                removalReason: string | null;
+                removedBy: string | null;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+            viewer: {
+                authenticated?: boolean;
+                isAdmin?: boolean;
+            };
         };
         AdminReportListResponseDto: {
             data: {
@@ -5203,6 +7036,218 @@ export interface components {
             reviewing: number;
             resolved: number;
             dismissed: number;
+        };
+        CollectionListDto: {
+            items: {
+                id: string;
+                name: string;
+                slug: string;
+                subtitle: string | null;
+                description: string | null;
+                heroImageUrl: string | null;
+                /** @enum {string} */
+                kind: "editorial" | "specialty" | "region";
+                specialtyId: string | null;
+                regionId: string | null;
+                isFeatured: boolean;
+                sortOrder: number;
+                createdAt: string | null;
+                updatedAt: string | null;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+        };
+        PublicCollectionDetailDto: {
+            id: string;
+            name: string;
+            slug: string;
+            subtitle: string | null;
+            description: string | null;
+            heroImageUrl: string | null;
+            /** @enum {string} */
+            kind: "editorial" | "specialty" | "region";
+            specialtyId: string | null;
+            regionId: string | null;
+            isFeatured: boolean;
+            sortOrder: number;
+            createdAt: string | null;
+            updatedAt: string | null;
+            items: {
+                rank: number;
+                note: string | null;
+                doctor: {
+                    id: string;
+                    name: string;
+                    slug: string;
+                    title: string | null;
+                    primarySpecialtyId: string | null;
+                    primaryHospitalId: string | null;
+                    regionId: string | null;
+                    shortBio: string | null;
+                    biography: string | null;
+                    photoUrl: string | null;
+                    yearsExperience: number | null;
+                    ratingAvg: number;
+                    reviewCount: number;
+                    isFeatured: boolean;
+                    featuredRank: number | null;
+                    createdAt: string | null;
+                    updatedAt: string | null;
+                };
+            }[];
+            viewerState: {
+                authenticated?: boolean;
+                /** @enum {string} */
+                role?: "guest" | "member" | "admin";
+                canManage?: boolean;
+            };
+        };
+        CreateCollectionDto: {
+            name: string;
+            slug: string;
+            subtitle?: string;
+            description?: string;
+            /** Format: uri */
+            heroImageUrl?: string;
+            /**
+             * @default editorial
+             * @enum {string}
+             */
+            kind: "editorial" | "specialty" | "region";
+            /** Format: uuid */
+            specialtyId?: string;
+            /** Format: uuid */
+            regionId?: string;
+            isFeatured?: boolean;
+            sortOrder?: number;
+            /**
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "published" | "archived";
+            internalNotes?: string;
+            /** Format: uri */
+            sourceUrl?: string;
+            items?: {
+                /** Format: uuid */
+                doctorId: string;
+                /** @default 0 */
+                rank: number;
+                note?: string;
+            }[];
+        };
+        AdminCollectionDetailDto: {
+            id: string;
+            name: string;
+            slug: string;
+            subtitle: string | null;
+            description: string | null;
+            heroImageUrl: string | null;
+            /** @enum {string} */
+            kind: "editorial" | "specialty" | "region";
+            specialtyId: string | null;
+            regionId: string | null;
+            isFeatured: boolean;
+            sortOrder: number;
+            createdAt: string | null;
+            updatedAt: string | null;
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+            internalNotes: string | null;
+            sourceUrl: string | null;
+            publishedAt: string | null;
+            createdBy: string | null;
+            updatedBy: string | null;
+            isDeleted: boolean;
+            deletedAt: string | null;
+            items: {
+                doctorId: string;
+                rank: number;
+                note: string | null;
+                createdAt: string | null;
+            }[];
+            viewerState: {
+                authenticated?: boolean;
+                /** @enum {string} */
+                role?: "guest" | "member" | "admin";
+                canManage?: boolean;
+            };
+        };
+        AdminCollectionListDto: {
+            items: {
+                id: string;
+                name: string;
+                slug: string;
+                subtitle: string | null;
+                description: string | null;
+                heroImageUrl: string | null;
+                /** @enum {string} */
+                kind: "editorial" | "specialty" | "region";
+                specialtyId: string | null;
+                regionId: string | null;
+                isFeatured: boolean;
+                sortOrder: number;
+                createdAt: string | null;
+                updatedAt: string | null;
+                /** @enum {string} */
+                status: "draft" | "published" | "archived";
+                internalNotes: string | null;
+                sourceUrl: string | null;
+                publishedAt: string | null;
+                createdBy: string | null;
+                updatedBy: string | null;
+                isDeleted: boolean;
+                deletedAt: string | null;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+        };
+        UpdateCollectionDto: {
+            name?: string;
+            slug?: string;
+            subtitle?: string | null;
+            description?: string | null;
+            /** Format: uri */
+            heroImageUrl?: string | null;
+            /** @enum {string} */
+            kind?: "editorial" | "specialty" | "region";
+            /** Format: uuid */
+            specialtyId?: string | null;
+            /** Format: uuid */
+            regionId?: string | null;
+            isFeatured?: boolean;
+            sortOrder?: number;
+            internalNotes?: string | null;
+            /** Format: uri */
+            sourceUrl?: string | null;
+            items?: {
+                /** Format: uuid */
+                doctorId: string;
+                /** @default 0 */
+                rank: number;
+                note?: string;
+            }[];
+        };
+        CollectionChangeStatusDto: {
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+            reason?: string;
+        };
+        CollectionHistoryDto: {
+            rows: {
+                id: string;
+                actorUserId: string;
+                action: string;
+                targetType: string | null;
+                targetId: string | null;
+                payloadBefore?: unknown;
+                payloadAfter?: unknown;
+                reason: string | null;
+                createdAt: string;
+            }[];
+            nextCursor: string | null;
         };
         EmailLogResponseDto: {
             id: string;
@@ -5251,6 +7296,176 @@ export interface components {
                 } | null;
             };
         };
+        EmailTemplateSummaryDto: {
+            key: string;
+            name: string;
+            description: string | null;
+            /** @enum {string} */
+            category: "auth" | "password" | "transactional" | "marketing";
+            isActive: boolean;
+            /** @enum {string|null} */
+            renderer: "welcome" | "email-verification" | "password-reset" | "password-changed" | "notification" | null;
+            currentVersion: number | null;
+            /** @enum {string|null} */
+            currentStatus: "draft" | "published" | "archived" | null;
+            updatedAt: string;
+            lastSend: {
+                totalCount?: number;
+                statusCounts?: {
+                    [key: string]: number;
+                };
+                lastStatus?: ("pending" | "sending" | "sent" | "delivered" | "failed" | "bounced" | "opened") | null;
+                lastSentAt?: string | null;
+            };
+        };
+        CreateEmailTemplateDto: {
+            /** @description 안정적인 템플릿 식별자 (예: transactional.order-confirmed) */
+            key: string;
+            /** @description 템플릿 이름 */
+            name: string;
+            /** @description 템플릿 설명 */
+            description?: string;
+            /**
+             * @description 카테고리 (기본값: transactional)
+             * @enum {string}
+             */
+            category?: "auth" | "password" | "transactional" | "marketing";
+            /** @description 이메일 제목 (변수 보간 지원) */
+            subject: string;
+            /** @description DB 저장형 본문 소스 (React 렌더러가 없을 때) */
+            bodySource?: string;
+            /** @description 초기 버전 변경 이력 */
+            changelog?: string;
+            /** @description 템플릿이 기대하는 변수 스키마 { name: { type, required, description } } */
+            variableSchema?: {
+                [key: string]: unknown;
+            };
+        };
+        EmailTemplateDetailDto: {
+            key: string;
+            name: string;
+            description: string | null;
+            /** @enum {string} */
+            category: "auth" | "password" | "transactional" | "marketing";
+            isActive: boolean;
+            /** @enum {string|null} */
+            renderer: "welcome" | "email-verification" | "password-reset" | "password-changed" | "notification" | null;
+            currentVersion: number | null;
+            /** @enum {string|null} */
+            currentStatus: "draft" | "published" | "archived" | null;
+            updatedAt: string;
+            lastSend: {
+                totalCount?: number;
+                statusCounts?: {
+                    [key: string]: number;
+                };
+                lastStatus?: ("pending" | "sending" | "sent" | "delivered" | "failed" | "bounced" | "opened") | null;
+                lastSentAt?: string | null;
+            };
+            versions: {
+                id: string;
+                version: number;
+                /** @enum {string} */
+                status: "draft" | "published" | "archived";
+                subject: string;
+                variableSchema: {
+                    [key: string]: {
+                        /** @enum {string} */
+                        type: "string" | "number" | "boolean" | "url";
+                        required: boolean;
+                        description?: string;
+                    };
+                };
+                changelog: string | null;
+                publishedAt: string | null;
+                isCurrent: boolean;
+            }[];
+        };
+        UpdateEmailTemplateDto: {
+            /** @description 템플릿 이름 */
+            name?: string;
+            /** @description 템플릿 설명 (null로 비움) */
+            description?: string | null;
+            /**
+             * @description 카테고리
+             * @enum {string}
+             */
+            category?: "auth" | "password" | "transactional" | "marketing";
+            /** @description 활성 여부 */
+            isActive?: boolean;
+            /** @description 이메일 제목 (변수 보간 지원) */
+            subject?: string;
+            /** @description DB 저장형 본문 소스 (null로 비움) */
+            bodySource?: string | null;
+            /** @description 버전 변경 이력 */
+            changelog?: string | null;
+            /** @description 템플릿이 기대하는 변수 스키마 { name: { type, required, description } } */
+            variableSchema?: {
+                [key: string]: unknown;
+            };
+        };
+        PublishEmailTemplateDto: {
+            /** @description 발행 전 검증에 사용할 미리보기 변수 (생략 시 스키마에서 샘플 자동 생성) */
+            previewVariables?: {
+                [key: string]: unknown;
+            };
+        };
+        TemplateVariablesBodyDto: Record<string, never>;
+        EmailTemplateValidationDto: {
+            key: string;
+            version: number;
+            validation: {
+                valid?: boolean;
+                issues?: {
+                    variable: string;
+                    /** @enum {string} */
+                    code: "missing_required" | "type_mismatch";
+                    message: string;
+                    /** @enum {string} */
+                    expectedType: "string" | "number" | "boolean" | "url";
+                }[];
+                unknownVariables?: string[];
+            };
+        };
+        EmailTemplatePreviewDto: {
+            key: string;
+            templateVersionId: string;
+            version: number;
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+            /** @enum {string|null} */
+            renderer: "welcome" | "email-verification" | "password-reset" | "password-changed" | "notification" | null;
+            subject: string;
+            html: string;
+            validation: {
+                valid?: boolean;
+                issues?: {
+                    variable: string;
+                    /** @enum {string} */
+                    code: "missing_required" | "type_mismatch";
+                    message: string;
+                    /** @enum {string} */
+                    expectedType: "string" | "number" | "boolean" | "url";
+                }[];
+                unknownVariables?: string[];
+            };
+            subjectMissing: string[];
+        };
+        TestSendEmailDto: {
+            /**
+             * Format: email
+             * @description 테스트 수신자 이메일 주소
+             */
+            recipientEmail: string;
+            /** @description 테스트 수신자 이름 */
+            recipientName?: string;
+            /** @description 렌더링에 사용할 변수 (생략 시 스키마에서 샘플 자동 생성) */
+            variables?: {
+                [key: string]: unknown;
+            };
+            /** @description 중복 발송 방지 키 */
+            idempotencyKey?: string;
+        };
         PreviewTemplateResponseDto: {
             html: string;
         };
@@ -5272,6 +7487,43 @@ export interface components {
             postUrl?: string | null;
             /** @constant */
             reason?: "not_configured";
+        };
+        CreateUploadDto: {
+            filename: string;
+            contentType: string;
+            size: number;
+            /**
+             * @default private
+             * @enum {string}
+             */
+            visibility: "public" | "private";
+            targetType?: string;
+            targetId?: string;
+        };
+        CompleteUploadDto: {
+            fileAssetId: string;
+        };
+        UpdateOwnFileMetadataDto: {
+            displayName?: string;
+            altText?: string | null;
+            targetType?: string | null;
+            targetId?: string | null;
+            /** @enum {string} */
+            visibility?: "public" | "private";
+            sortOrder?: number;
+            reason?: string;
+        };
+        UpdateAdminFileMetadataDto: {
+            displayName?: string;
+            altText?: string | null;
+            targetType?: string | null;
+            targetId?: string | null;
+            /** @enum {string} */
+            visibility?: "public" | "private";
+            sortOrder?: number;
+            reason?: string;
+            /** @enum {string} */
+            reviewStatus?: "not_required" | "pending" | "approved" | "rejected";
         };
         CreateKcbIdentitySessionDto: {
             /**
@@ -5349,6 +7601,77 @@ export interface components {
             completedAt: string | null;
             createdAt: string;
             updatedAt: string;
+        };
+        CreateSavedItemDto: {
+            /** @enum {string} */
+            targetType: "doctor" | "hospital";
+            /** Format: uuid */
+            targetId: string;
+            memo?: string;
+            tags?: string[];
+        };
+        SavedItemDto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            targetType: "doctor" | "hospital";
+            /** Format: uuid */
+            targetId: string;
+            /** @description 사용자가 저장에 남긴 비공개 메모 */
+            memo?: Record<string, never> | null;
+            /** @description 사용자 지정 태그 */
+            tags?: string[] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        UpdateSavedItemDto: {
+            memo?: string | null;
+            tags?: string[] | null;
+        };
+        CreateInterestDto: {
+            /** @enum {string} */
+            targetType: "doctor" | "hospital";
+            /** Format: uuid */
+            targetId: string;
+        };
+        InterestDto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            targetType: "doctor" | "hospital";
+            /** Format: uuid */
+            targetId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SavedItemListDto: {
+            items: components["schemas"]["SavedItemDto"][];
+            /** @description 다음 페이지 커서. null이면 마지막 페이지. */
+            nextCursor: Record<string, never> | null;
+        };
+        InterestListDto: {
+            items: components["schemas"]["InterestDto"][];
+            /** @description 다음 페이지 커서. null이면 마지막 페이지. */
+            nextCursor: Record<string, never> | null;
+        };
+        SearchHistoryDto: {
+            /** Format: uuid */
+            id: string;
+            /** @description 검색어 (필터 전용 검색은 빈 문자열 허용) */
+            query: string;
+            /** @description 적용된 필터 스냅샷 (지역/진료과/정렬 등) */
+            filters?: {
+                [key: string]: unknown;
+            } | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SearchHistoryListDto: {
+            items: components["schemas"]["SearchHistoryDto"][];
+            /** @description 다음 페이지 커서. null이면 마지막 페이지. */
+            nextCursor: Record<string, never> | null;
         };
         CreateSubscriptionCheckoutDto: {
             couponCode?: string;
@@ -5476,6 +7799,17 @@ export interface components {
                 count: number;
             }[];
         };
+        RemoveReactionResponseDto: {
+            removed: boolean;
+            counts: {
+                total?: number;
+                byType?: {
+                    /** @enum {string} */
+                    type: "like" | "love" | "haha" | "wow" | "sad" | "angry";
+                    count: number;
+                }[];
+            };
+        };
         ToggleReactionResponseDto: {
             added: boolean;
             /** @enum {string} */
@@ -5523,6 +7857,842 @@ export interface components {
         };
         RunJobNowResponseDto: {
             success: boolean;
+        };
+        PublicSpecialtyDto: {
+            id: string;
+            name: string;
+            slug: string;
+            description: string | null;
+            sortOrder: number;
+        };
+        PublicRegionDto: {
+            id: string;
+            name: string;
+            slug: string;
+            parentId: string | null;
+            sortOrder: number;
+        };
+        DoctorListDto: {
+            items: {
+                id: string;
+                name: string;
+                slug: string;
+                title: string | null;
+                primarySpecialtyId: string | null;
+                primaryHospitalId: string | null;
+                regionId: string | null;
+                shortBio: string | null;
+                biography: string | null;
+                photoUrl: string | null;
+                yearsExperience: number | null;
+                ratingAvg: number;
+                reviewCount: number;
+                isFeatured: boolean;
+                featuredRank: number | null;
+                createdAt: string | null;
+                updatedAt: string | null;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+        };
+        PublicDoctorDetailDto: {
+            id: string;
+            name: string;
+            slug: string;
+            title: string | null;
+            primarySpecialtyId: string | null;
+            primaryHospitalId: string | null;
+            regionId: string | null;
+            shortBio: string | null;
+            biography: string | null;
+            photoUrl: string | null;
+            yearsExperience: number | null;
+            ratingAvg: number;
+            reviewCount: number;
+            isFeatured: boolean;
+            featuredRank: number | null;
+            createdAt: string | null;
+            updatedAt: string | null;
+            region: {
+                id?: string;
+                name?: string;
+                slug?: string;
+                parentId?: string | null;
+                sortOrder?: number;
+            } | null;
+            specialties: {
+                id: string;
+                name: string;
+                slug: string;
+                description: string | null;
+                sortOrder: number;
+            }[];
+            hospitals: {
+                hospital: {
+                    id: string;
+                    name: string;
+                    slug: string;
+                    summary: string | null;
+                    description: string | null;
+                    regionId: string | null;
+                    addressLine: string | null;
+                    phone: string | null;
+                    websiteUrl: string | null;
+                    photoUrl: string | null;
+                    ratingAvg: number;
+                    reviewCount: number;
+                    isFeatured: boolean;
+                    createdAt: string | null;
+                    updatedAt: string | null;
+                };
+                role: string | null;
+                isPrimary: boolean;
+            }[];
+            credentials: {
+                id: string;
+                /** @enum {string} */
+                kind: "education" | "career" | "certification" | "award";
+                title: string;
+                organization: string | null;
+                startYear: number | null;
+                endYear: number | null;
+                displayPeriod: string | null;
+                description: string | null;
+                sortOrder: number;
+            }[];
+        };
+        HospitalListDto: {
+            items: {
+                id: string;
+                name: string;
+                slug: string;
+                summary: string | null;
+                description: string | null;
+                regionId: string | null;
+                addressLine: string | null;
+                phone: string | null;
+                websiteUrl: string | null;
+                photoUrl: string | null;
+                ratingAvg: number;
+                reviewCount: number;
+                isFeatured: boolean;
+                createdAt: string | null;
+                updatedAt: string | null;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+        };
+        PublicHospitalDetailDto: {
+            id: string;
+            name: string;
+            slug: string;
+            summary: string | null;
+            description: string | null;
+            regionId: string | null;
+            addressLine: string | null;
+            phone: string | null;
+            websiteUrl: string | null;
+            photoUrl: string | null;
+            ratingAvg: number;
+            reviewCount: number;
+            isFeatured: boolean;
+            createdAt: string | null;
+            updatedAt: string | null;
+            region: {
+                id?: string;
+                name?: string;
+                slug?: string;
+                parentId?: string | null;
+                sortOrder?: number;
+            } | null;
+            doctors: {
+                id: string;
+                name: string;
+                slug: string;
+                title: string | null;
+                primarySpecialtyId: string | null;
+                primaryHospitalId: string | null;
+                regionId: string | null;
+                shortBio: string | null;
+                biography: string | null;
+                photoUrl: string | null;
+                yearsExperience: number | null;
+                ratingAvg: number;
+                reviewCount: number;
+                isFeatured: boolean;
+                featuredRank: number | null;
+                createdAt: string | null;
+                updatedAt: string | null;
+            }[];
+            specialties: {
+                id: string;
+                name: string;
+                slug: string;
+                description: string | null;
+                sortOrder: number;
+            }[];
+            hours: {
+                id: string;
+                dayOfWeek: number;
+                opensAt: string | null;
+                closesAt: string | null;
+                isClosed: boolean;
+                note: string | null;
+            }[];
+        };
+        CreateDoctorDto: {
+            name: string;
+            slug: string;
+            title?: string;
+            /** Format: uuid */
+            primarySpecialtyId?: string;
+            /** Format: uuid */
+            primaryHospitalId?: string;
+            /** Format: uuid */
+            regionId?: string;
+            shortBio?: string;
+            biography?: string;
+            /** Format: uri */
+            photoUrl?: string;
+            yearsExperience?: number;
+            isFeatured?: boolean;
+            featuredRank?: number;
+            /**
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "published" | "archived";
+            licenseNumber?: string;
+            internalNotes?: string;
+            /** Format: uri */
+            sourceUrl?: string;
+            specialtyIds?: string[];
+            hospitals?: {
+                /** Format: uuid */
+                hospitalId: string;
+                role?: string;
+                /** @default false */
+                isPrimary: boolean;
+            }[];
+        };
+        AdminDoctorDto: {
+            id: string;
+            name: string;
+            slug: string;
+            title: string | null;
+            primarySpecialtyId: string | null;
+            primaryHospitalId: string | null;
+            regionId: string | null;
+            shortBio: string | null;
+            biography: string | null;
+            photoUrl: string | null;
+            yearsExperience: number | null;
+            ratingAvg: number;
+            reviewCount: number;
+            isFeatured: boolean;
+            featuredRank: number | null;
+            createdAt: string | null;
+            updatedAt: string | null;
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+            licenseNumber: string | null;
+            licenseVerifiedAt: string | null;
+            internalNotes: string | null;
+            sourceUrl: string | null;
+            publishedAt: string | null;
+            createdBy: string | null;
+            updatedBy: string | null;
+            deletedAt: string | null;
+            isDeleted: boolean;
+        };
+        UpdateDoctorDto: {
+            name?: string;
+            slug?: string;
+            title?: string;
+            /** Format: uuid */
+            primarySpecialtyId?: string;
+            /** Format: uuid */
+            primaryHospitalId?: string;
+            /** Format: uuid */
+            regionId?: string;
+            shortBio?: string;
+            biography?: string;
+            /** Format: uri */
+            photoUrl?: string;
+            yearsExperience?: number;
+            isFeatured?: boolean;
+            featuredRank?: number;
+            /**
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "published" | "archived";
+            licenseNumber?: string;
+            internalNotes?: string;
+            /** Format: uri */
+            sourceUrl?: string;
+            specialtyIds?: string[];
+            hospitals?: {
+                /** Format: uuid */
+                hospitalId: string;
+                role?: string;
+                /** @default false */
+                isPrimary: boolean;
+            }[];
+        };
+        ResourceChangeStatusDto: {
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+        };
+        DeleteResultDto: {
+            success: boolean;
+            id: string;
+        };
+        CreateDoctorCredentialDto: {
+            /** @enum {string} */
+            kind: "education" | "career" | "certification" | "award";
+            title: string;
+            organization?: string;
+            startYear?: number;
+            endYear?: number;
+            displayPeriod?: string;
+            description?: string;
+            /** @default 0 */
+            sortOrder: number;
+            /** @default true */
+            isVisible: boolean;
+        };
+        AdminDoctorCredentialDto: {
+            id: string;
+            /** @enum {string} */
+            kind: "education" | "career" | "certification" | "award";
+            title: string;
+            organization: string | null;
+            startYear: number | null;
+            endYear: number | null;
+            displayPeriod: string | null;
+            description: string | null;
+            sortOrder: number;
+            doctorId: string;
+            isVisible: boolean;
+            createdAt: string | null;
+            updatedAt: string | null;
+        };
+        CreateHospitalDto: {
+            name: string;
+            slug: string;
+            summary?: string;
+            description?: string;
+            /** Format: uuid */
+            regionId?: string;
+            addressLine?: string;
+            phone?: string;
+            /** Format: uri */
+            websiteUrl?: string;
+            /** Format: uri */
+            photoUrl?: string;
+            isFeatured?: boolean;
+            /**
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "published" | "archived";
+            businessRegistrationNo?: string;
+            internalNotes?: string;
+            /** Format: uri */
+            sourceUrl?: string;
+        };
+        AdminHospitalDto: {
+            id: string;
+            name: string;
+            slug: string;
+            summary: string | null;
+            description: string | null;
+            regionId: string | null;
+            addressLine: string | null;
+            phone: string | null;
+            websiteUrl: string | null;
+            photoUrl: string | null;
+            ratingAvg: number;
+            reviewCount: number;
+            isFeatured: boolean;
+            createdAt: string | null;
+            updatedAt: string | null;
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+            businessRegistrationNo: string | null;
+            internalNotes: string | null;
+            sourceUrl: string | null;
+            publishedAt: string | null;
+            createdBy: string | null;
+            updatedBy: string | null;
+            deletedAt: string | null;
+            isDeleted: boolean;
+        };
+        UpdateHospitalDto: {
+            name?: string;
+            slug?: string;
+            summary?: string;
+            description?: string;
+            /** Format: uuid */
+            regionId?: string;
+            addressLine?: string;
+            phone?: string;
+            /** Format: uri */
+            websiteUrl?: string;
+            /** Format: uri */
+            photoUrl?: string;
+            isFeatured?: boolean;
+            /**
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "published" | "archived";
+            businessRegistrationNo?: string;
+            internalNotes?: string;
+            /** Format: uri */
+            sourceUrl?: string;
+        };
+        CreateHospitalSpecialtyDto: {
+            /** Format: uuid */
+            specialtyId: string;
+            /** @default 0 */
+            sortOrder: number;
+        };
+        HospitalSpecialtyLinkDto: {
+            hospitalId: string;
+            specialtyId: string;
+            sortOrder: number;
+        };
+        CreateHospitalHoursDto: {
+            dayOfWeek: number;
+            opensAt?: string;
+            closesAt?: string;
+            /** @default false */
+            isClosed: boolean;
+            note?: string;
+        };
+        AdminHospitalHoursDto: {
+            id: string;
+            dayOfWeek: number;
+            opensAt: string | null;
+            closesAt: string | null;
+            isClosed: boolean;
+            note: string | null;
+            hospitalId: string;
+            createdAt: string | null;
+            updatedAt: string | null;
+        };
+        AdminDomainResourceListDto: {
+            items: {
+                id: string;
+                /** @enum {string} */
+                type: "doctor" | "hospital";
+                name: string;
+                slug: string;
+                /** @enum {string} */
+                status: "draft" | "published" | "archived";
+                regionName: string | null;
+                specialtyName: string | null;
+                isFeatured: boolean;
+                updatedAt: string | null;
+                createdAt: string | null;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+        };
+        AdminDomainResourceDetailDto: {
+            id: string;
+            name: string;
+            slug: string;
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+            isFeatured: boolean;
+            photoUrl: string | null;
+            ratingAvg: number;
+            reviewCount: number;
+            region: {
+                id?: string;
+                name?: string;
+                slug?: string;
+            } | null;
+            ops: {
+                createdAt?: string | null;
+                updatedAt?: string | null;
+                publishedAt?: string | null;
+                isDeleted?: boolean;
+                deletedAt?: string | null;
+                createdBy?: string | null;
+                updatedBy?: string | null;
+                sourceUrl?: string | null;
+                internalNotes?: string | null;
+            };
+            /** @enum {string} */
+            type: "doctor" | "hospital";
+            title?: string | null;
+            yearsExperience?: number | null;
+            featuredRank?: number | null;
+            shortBio?: string | null;
+            biography?: string | null;
+            primarySpecialty?: {
+                id?: string;
+                name?: string;
+                slug?: string;
+            } | null;
+            hospitals?: {
+                id: string;
+                name: string;
+                slug: string;
+                /** @enum {string} */
+                status: "draft" | "published" | "archived";
+                role: string | null;
+                isPrimary: boolean;
+            }[];
+            credentials?: {
+                id: string;
+                kind: string;
+                title: string;
+                organization: string | null;
+                displayPeriod: string | null;
+                startYear: number | null;
+                endYear: number | null;
+                isVisible: boolean;
+                sortOrder: number;
+            }[];
+            licenseVerifiedAt?: string | null;
+            summary?: string | null;
+            description?: string | null;
+            addressLine?: string | null;
+            phone?: string | null;
+            websiteUrl?: string | null;
+            doctors?: {
+                id: string;
+                name: string;
+                slug: string;
+                /** @enum {string} */
+                status: "draft" | "published" | "archived";
+            }[];
+            hours?: {
+                id: string;
+                dayOfWeek: number;
+                opensAt: string | null;
+                closesAt: string | null;
+                isClosed: boolean;
+                note: string | null;
+            }[];
+            specialties?: {
+                id: string;
+                name: string;
+                slug: string;
+            }[];
+            sensitive: {
+                licenseNumber?: string | null;
+                businessRegistrationNo?: string | null;
+            };
+        };
+        AdminDomainResourceLifecycleDto: {
+            /** @enum {string} */
+            type: "doctor" | "hospital";
+            id: string;
+            name: string;
+            slug: string;
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+            isDeleted: boolean;
+        };
+        AdminDomainResourceHistoryDto: {
+            rows: {
+                id: string;
+                actorUserId: string;
+                action: string;
+                targetType: string | null;
+                targetId: string | null;
+                payloadBefore?: unknown;
+                payloadAfter?: unknown;
+                reason: string | null;
+                createdAt: string;
+            }[];
+            nextCursor: string | null;
+        };
+        UserListDto: {
+            items: {
+                id: string;
+                handle: string | null;
+                name: string;
+                bio: string | null;
+                avatar: string | null;
+                grade: {
+                    id: string;
+                    slug: string;
+                    name: string;
+                } | null;
+                joinedAt: string | null;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+        };
+        SelfUserDto: {
+            id: string;
+            handle: string | null;
+            name: string;
+            bio: string | null;
+            avatar: string | null;
+            grade: {
+                id?: string;
+                slug?: string;
+                name?: string;
+            } | null;
+            joinedAt: string | null;
+            email: string;
+            authProvider: string | null;
+            isActive: boolean;
+            marketingConsentAt: string | null;
+            updatedAt: string | null;
+        };
+        PublicUserDetailDto: {
+            id: string;
+            handle: string | null;
+            name: string;
+            bio: string | null;
+            avatar: string | null;
+            grade: {
+                id?: string;
+                slug?: string;
+                name?: string;
+            } | null;
+            joinedAt: string | null;
+            viewer: {
+                authenticated?: boolean;
+                isSelf?: boolean;
+            };
+        };
+        AdminUserListDto: {
+            items: {
+                id: string;
+                handle: string | null;
+                name: string;
+                email: string;
+                bio: string | null;
+                avatar: string | null;
+                authProvider: string | null;
+                isActive: boolean;
+                grade: {
+                    id: string;
+                    slug: string;
+                    name: string;
+                    dailyUsageLimit: number | null;
+                    source: string | null;
+                    determinedAt: string | null;
+                    expiresAt: string | null;
+                } | null;
+                marketingConsentAt: string | null;
+                createdAt: string | null;
+                updatedAt: string | null;
+                deletedAt: string | null;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+        };
+        AdminUserDto: {
+            id: string;
+            handle: string | null;
+            name: string;
+            email: string;
+            bio: string | null;
+            avatar: string | null;
+            authProvider: string | null;
+            isActive: boolean;
+            grade: {
+                id?: string;
+                slug?: string;
+                name?: string;
+                dailyUsageLimit?: number | null;
+                source?: string | null;
+                determinedAt?: string | null;
+                expiresAt?: string | null;
+            } | null;
+            marketingConsentAt: string | null;
+            createdAt: string | null;
+            updatedAt: string | null;
+            deletedAt: string | null;
+        };
+        UpdateAdminUserDto: {
+            name?: string;
+            handle?: string | null;
+            bio?: string | null;
+            /** Format: uri */
+            avatar?: string | null;
+            reason?: string;
+        };
+        ArchiveUserBodyDto: {
+            reason?: string;
+        };
+        SearchResultDto: {
+            items: {
+                /** @enum {string} */
+                entityType: "doctor" | "hospital" | "specialty" | "region";
+                entityId: string;
+                title: string;
+                subtitle: string | null;
+                slug: string;
+                photoUrl: string | null;
+                regionId: string | null;
+                specialtyId: string | null;
+                ratingAvg: number;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+        };
+        PopularTermDto: {
+            term: string;
+            count: number;
+        };
+        RecentSearchDto: {
+            term: string;
+            lastSearchedAt: string;
+        };
+        PublicSearchDetailDto: {
+            /** @enum {string} */
+            entityType: "doctor" | "hospital" | "specialty" | "region";
+            entityId: string;
+            title: string;
+            subtitle: string | null;
+            slug: string;
+            photoUrl: string | null;
+            regionId: string | null;
+            specialtyId: string | null;
+            ratingAvg: number;
+            viewer: {
+                authenticated?: boolean;
+                isAdmin?: boolean;
+                canViewUnpublished?: boolean;
+            };
+        };
+        AdminSearchResultDto: {
+            items: {
+                /** @enum {string} */
+                entityType: "doctor" | "hospital" | "specialty" | "region";
+                entityId: string;
+                title: string;
+                subtitle: string | null;
+                slug: string;
+                photoUrl: string | null;
+                regionId: string | null;
+                specialtyId: string | null;
+                ratingAvg: number;
+                id: string;
+                body: string | null;
+                keywords: string | null;
+                weight: number;
+                isPublished: boolean;
+                sourceUpdatedAt: string | null;
+                isDeleted: boolean;
+                deletedAt: string | null;
+                createdAt: string | null;
+                updatedAt: string | null;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+        };
+        AdminSearchDetailDto: {
+            /** @enum {string} */
+            entityType: "doctor" | "hospital" | "specialty" | "region";
+            entityId: string;
+            title: string;
+            subtitle: string | null;
+            slug: string;
+            photoUrl: string | null;
+            regionId: string | null;
+            specialtyId: string | null;
+            ratingAvg: number;
+            id: string;
+            body: string | null;
+            keywords: string | null;
+            weight: number;
+            isPublished: boolean;
+            sourceUpdatedAt: string | null;
+            isDeleted: boolean;
+            deletedAt: string | null;
+            createdAt: string | null;
+            updatedAt: string | null;
+            viewer: {
+                authenticated?: boolean;
+                isAdmin?: boolean;
+                canViewUnpublished?: boolean;
+            };
+        };
+        ArchiveResultDto: {
+            /** @enum {string} */
+            entityType: "doctor" | "hospital" | "specialty" | "region";
+            entityId: string;
+            isDeleted: boolean;
+            deletedAt: string | null;
+            updatedAt: string | null;
+        };
+        CreateSynonymDto: {
+            term: string;
+            expansions: string[];
+            /** Format: uuid */
+            specialtyId?: string;
+            isActive?: boolean;
+            notes?: string;
+        };
+        SynonymDto: {
+            id: string;
+            term: string;
+            expansions: string[];
+            specialtyId: string | null;
+            isActive: boolean;
+            notes: string | null;
+            createdAt: string | null;
+            updatedAt: string | null;
+        };
+        SynonymListDto: {
+            items: {
+                id: string;
+                term: string;
+                expansions: string[];
+                specialtyId: string | null;
+                isActive: boolean;
+                notes: string | null;
+                createdAt: string | null;
+                updatedAt: string | null;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+        };
+        UpdateSynonymDto: {
+            term?: string;
+            expansions?: string[];
+            /** Format: uuid */
+            specialtyId?: string | null;
+            notes?: string | null;
+        };
+        UpdateSynonymStatusDto: {
+            /** @enum {string} */
+            status: "active" | "inactive";
+            reason?: string;
+        };
+        SynonymHistoryListDto: {
+            items: {
+                id: string;
+                action: string;
+                actorUserId: string;
+                payloadBefore?: unknown;
+                payloadAfter?: unknown;
+                reason: string | null;
+                createdAt: string;
+            }[];
+            nextCursor: string | null;
         };
         PrepareCharacterActorDto: {
             /** Format: uuid */
@@ -6024,6 +9194,51 @@ export interface components {
             updatedAt: string;
             deletedAt: string | null;
             isDeleted: boolean;
+        };
+        AssignUserGradeDto: {
+            gradeSlug?: string;
+            /** Format: uuid */
+            gradeId?: string;
+            /** @enum {string} */
+            source?: "signup" | "identity_verified" | "manual" | "system";
+            note?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        AdminUserGradeDto: {
+            userId: string;
+            gradeId: string;
+            gradeSlug: string;
+            gradeName: string;
+            dailyUsageLimit: number | null;
+            /** @enum {string} */
+            source: "signup" | "identity_verified" | "manual" | "system";
+            determinedBy: string | null;
+            note: string | null;
+            determinedAt: string | null;
+            expiresAt: string | null;
+            createdAt: string | null;
+            updatedAt: string | null;
+        };
+        AdminUserGradeListDto: {
+            items: {
+                userId: string;
+                gradeId: string;
+                gradeSlug: string;
+                gradeName: string;
+                dailyUsageLimit: number | null;
+                /** @enum {string} */
+                source: "signup" | "identity_verified" | "manual" | "system";
+                determinedBy: string | null;
+                note: string | null;
+                determinedAt: string | null;
+                expiresAt: string | null;
+                createdAt: string | null;
+                updatedAt: string | null;
+            }[];
+            total: number;
+            page: number;
+            limit: number;
         };
         PublicCourseResponseDto: {
             id: string;
@@ -6690,11 +9905,47 @@ export interface operations {
             };
         };
     };
+    AdminAuditController_list: {
+        parameters: {
+            query?: {
+                action?: string;
+                actorUserId?: string;
+                targetType?: string;
+                targetId?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAuditListResponseDto"];
+                };
+            };
+        };
+    };
     AdminUsersController_list: {
         parameters: {
             query?: {
                 limit?: number;
                 offset?: number;
+                /** @description 이름/이메일 검색어 */
+                q?: string;
+                /** @description 계정 상태 필터 (활성/정지) */
+                status?: "active" | "inactive";
+                /** @description 접근 역할 필터 (none = 조직 멤버 아님) */
+                accessRole?: "owner" | "admin" | "member" | "none";
+                /** @description 정렬 기준 (가입일/이름/상태/최근활동, 기본 createdAt) */
+                sort?: "createdAt" | "name" | "status" | "lastActiveAt";
+                /** @description 정렬 방향 (기본 desc) */
+                order?: "asc" | "desc";
             };
             header?: never;
             path?: never;
@@ -6709,6 +9960,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminUserListResponseDto"];
+                };
+            };
+        };
+    };
+    AdminUsersController_changeRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeUserRoleBodyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeUserRoleResponseDto"];
+                };
+            };
+        };
+    };
+    AdminUsersController_changeStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeUserStatusBodyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeUserStatusResponseDto"];
                 };
             };
         };
@@ -7463,6 +10764,10 @@ export interface operations {
             query?: {
                 page?: number;
                 limit?: number;
+                /** @description 역할 필터 (member/moderator/admin/owner) */
+                role?: "member" | "moderator" | "admin" | "owner";
+                /** @description 상태 필터 (active/banned/muted). banned/muted 는 운영 권한자만 적용된다. */
+                status?: "active" | "banned" | "muted";
             };
             header?: never;
             path: {
@@ -7596,12 +10901,105 @@ export interface operations {
             };
         };
     };
+    CommunityController_listBlocks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 차단 목록 반환 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockListResponseDto"];
+                };
+            };
+        };
+    };
+    CommunityController_createBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description 차단할 사용자 ID */
+                    blockedId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 차단 생성 성공 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockResponseDto"];
+                };
+            };
+            /** @description 자기 자신/시스템 계정 차단 불가 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 이미 차단된 사용자 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CommunityController_deleteBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 차단 해제할 사용자 ID */
+                blockedId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 차단 해제 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteResponseDto"];
+                };
+            };
+            /** @description 차단 기록 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     CommunityController_postList: {
         parameters: {
             query?: {
                 communitySlug?: string;
                 communityId?: string;
                 sort?: "hot" | "new" | "top" | "rising" | "controversial";
+                /** @description 제목/본문 부분일치 검색 */
+                search?: string;
                 cursor?: string;
                 limit?: number;
             };
@@ -7617,7 +11015,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PostListResponseDto"];
+                    "application/json": components["schemas"]["PublicPostListResponseDto"];
                 };
             };
         };
@@ -7682,6 +11080,27 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PostResponseDto"];
                 };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 커뮤니티 미가입 또는 금지어 차단 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 작성 레이트 리밋 초과 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -7801,6 +11220,41 @@ export interface operations {
             };
         };
     };
+    CommunityController_createPostComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 게시물 ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description 댓글 내용 */
+                    content: string;
+                    /**
+                     * Format: uuid
+                     * @description 부모 댓글 ID (답글)
+                     */
+                    parentId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 댓글 생성 성공 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommunityCommentResponseDto"];
+                };
+            };
+        };
+    };
     CommunityController_pinPost: {
         parameters: {
             query?: never;
@@ -7867,6 +11321,29 @@ export interface operations {
         };
         responses: {
             /** @description 게시물 제거 완료 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostResponseDto"];
+                };
+            };
+        };
+    };
+    CommunityController_restorePost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 게시물 ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 게시물 복구 완료 */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8151,6 +11628,237 @@ export interface operations {
             };
         };
     };
+    CommunityController_listHiddenContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 숨김 목록 반환 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CommunityController_hideContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description 숨김 대상 유형
+                     * @enum {string}
+                     */
+                    targetType: "post" | "comment";
+                    /**
+                     * Format: uuid
+                     * @description 숨김 대상 ID
+                     */
+                    targetId: string;
+                    /**
+                     * @description user=사용자별 숨김(기본), global=관리자 전역 숨김
+                     * @enum {string}
+                     */
+                    scope?: "user" | "global";
+                    /** @description 숨김 사유 (선택) */
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 숨김 처리 성공 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 전역 숨김 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 대상 콘텐츠를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CommunityController_unhideContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description 대상 유형
+                     * @enum {string}
+                     */
+                    targetType: "post" | "comment";
+                    /**
+                     * Format: uuid
+                     * @description 대상 ID
+                     */
+                    targetId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 숨김 해제 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 숨김 기록을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CommunityController_unhideContentById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 숨김 레코드 ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 숨김 해제 성공 — 노출 복구 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 숨김 기록을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CommunityController_restoreGlobalHide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description 복구 대상 유형
+                     * @enum {string}
+                     */
+                    targetType: "post" | "comment";
+                    /**
+                     * Format: uuid
+                     * @description 복구 대상 ID
+                     */
+                    targetId: string;
+                    /** @description 복구 사유 (선택) */
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 전역 숨김 복구 성공 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 전역 숨김 복구 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 대상 콘텐츠를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 전역 숨김 상태가 아님 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     CommunityController_feedAll: {
         parameters: {
             query?: {
@@ -8268,7 +11976,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReportResponseDto"];
+                    "application/json": components["schemas"]["ReportReceiptResponseDto"];
                 };
             };
         };
@@ -8698,6 +12406,118 @@ export interface operations {
             };
         };
     };
+    CommunityController_respondModeratorInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description 커뮤니티 ID
+                     */
+                    communityId: string;
+                    /** @description 초대 수락 여부 (true=수락, false=거절) */
+                    accept: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description 초대 응답 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModeratorResponseDto"];
+                };
+            };
+        };
+    };
+    CommunityController_updateModeratorPermissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description 커뮤니티 ID
+                     */
+                    communityId: string;
+                    /**
+                     * Format: uuid
+                     * @description 대상 모더레이터 사용자 ID
+                     */
+                    userId: string;
+                    /** @description 변경할 권한 (부분 지정 가능) */
+                    permissions: {
+                        managePosts?: boolean;
+                        manageComments?: boolean;
+                        manageUsers?: boolean;
+                        manageFlairs?: boolean;
+                        manageRules?: boolean;
+                        manageSettings?: boolean;
+                        manageModerators?: boolean;
+                        viewModLog?: boolean;
+                        viewReports?: boolean;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description 권한 변경 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModeratorResponseDto"];
+                };
+            };
+        };
+    };
+    CommunityController_transferOwnership: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description 커뮤니티 ID
+                     */
+                    communityId: string;
+                    /**
+                     * Format: uuid
+                     * @description 새 소유자 사용자 ID
+                     */
+                    newOwnerId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 소유권 양도 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     CommunityController_modLogs: {
         parameters: {
             query?: {
@@ -8720,6 +12540,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModLogListResponseDto"];
+                };
+            };
+        };
+    };
+    CommunityController_filterLogs: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                reviewStatus?: "pending" | "approved" | "rejected";
+                action?: "blocked" | "hidden_for_review";
+            };
+            header?: never;
+            path: {
+                /** @description 커뮤니티 ID */
+                communityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 필터 로그 목록 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterLogListResponseDto"];
+                };
+            };
+        };
+    };
+    CommunityController_filterQueue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 커뮤니티 ID */
+                communityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 검토 대기 항목 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterReviewQueueResponseDto"];
+                };
+            };
+        };
+    };
+    CommunityController_reviewFilterEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 필터 로그 ID */
+                logId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description 검토 결정 (approve=공개, reject=제거)
+                     * @enum {string}
+                     */
+                    decision: "approve" | "reject";
+                    /** @description 검토 메모 */
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 검토 처리 완료 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterLogResponseDto"];
                 };
             };
         };
@@ -8788,6 +12694,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SystemStatsResponseDto"];
+                };
+            };
+        };
+    };
+    CommunityAdminController_posts: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                /** @description 제목/본문 부분일치 검색 */
+                search?: string;
+                communityId?: string;
+                status?: "draft" | "published" | "hidden" | "removed" | "deleted";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 게시글 목록 반환 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPostListResponseDto"];
                 };
             };
         };
@@ -8954,6 +12887,448 @@ export interface operations {
             };
         };
     };
+    DoctorCurationController_listCollections: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                kind?: "editorial" | "specialty" | "region";
+                specialtyId?: string;
+                regionId?: string;
+                featured?: boolean;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionListDto"];
+                };
+            };
+        };
+    };
+    DoctorCurationController_getCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicCollectionDetailDto"];
+                };
+            };
+            /** @description 컬렉션을 찾을 수 없음(없거나 미게시/삭제됨) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DoctorCurationAdminController_listCollections: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                kind?: "editorial" | "specialty" | "region";
+                status?: "draft" | "published" | "archived";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollectionListDto"];
+                };
+            };
+        };
+    };
+    DoctorCurationAdminController_createCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCollectionDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollectionDetailDto"];
+                };
+            };
+            /** @description 필수 필드 누락 또는 유효성 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description slug 중복 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DoctorCurationAdminController_getCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollectionDetailDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 컬렉션을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DoctorCurationAdminController_deleteCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollectionDetailDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 컬렉션을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DoctorCurationAdminController_updateCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCollectionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollectionDetailDto"];
+                };
+            };
+            /** @description 유효성 오류 또는 kind↔scope 불일치 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 컬렉션을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description slug 중복 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DoctorCurationAdminController_changeStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionChangeStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollectionDetailDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 컬렉션을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 허용되지 않은 상태 전이 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DoctorCurationAdminController_getCollectionHistory: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionHistoryDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 컬렉션을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DoctorCurationAdminController_archiveCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollectionDetailDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 컬렉션을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DoctorCurationAdminController_restoreCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollectionDetailDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 컬렉션을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     EmailController_getLogs: {
         parameters: {
             query?: {
@@ -9087,6 +13462,413 @@ export interface operations {
             };
         };
     };
+    EmailController_listTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 템플릿 목록 반환 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailTemplateSummaryDto"][];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EmailController_createTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEmailTemplateDto"];
+            };
+        };
+        responses: {
+            /** @description 생성된 템플릿 + 초기 draft 버전 반환 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailTemplateDetailDto"];
+                };
+            };
+            /** @description 요청 본문이 올바르지 않음 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 중복 템플릿 키 또는 잘못된 변수 스키마 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EmailController_getTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 템플릿 키 (예: auth.welcome) */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 템플릿 + 버전 목록 반환 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailTemplateDetailDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 템플릿을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EmailController_updateTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 템플릿 키 (예: auth.welcome) */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEmailTemplateDto"];
+            };
+        };
+        responses: {
+            /** @description 수정된 템플릿 + 버전 목록 반환 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailTemplateDetailDto"];
+                };
+            };
+            /** @description 요청 본문이 올바르지 않음 (수정 필드 없음 등) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 템플릿을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 잘못된 변수 스키마 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EmailController_publishTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 템플릿 키 (예: auth.welcome) */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PublishEmailTemplateDto"];
+            };
+        };
+        responses: {
+            /** @description 발행된 템플릿 + 버전 목록 반환 (currentVersion = 발행 버전) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailTemplateDetailDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 템플릿을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 발행할 draft 없음, 변수 스키마/미리보기 검증 실패 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EmailController_validateTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 템플릿 키 (예: password.password-reset) */
+                key: string;
+            };
+            cookie?: never;
+        };
+        /** @description 검증할 템플릿 변수 맵 */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateVariablesBodyDto"];
+            };
+        };
+        responses: {
+            /** @description 검증 결과 반환 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailTemplateValidationDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 게시된 버전을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EmailController_previewByKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 템플릿 키 (예: auth.welcome) */
+                key: string;
+            };
+            cookie?: never;
+        };
+        /** @description 미리보기에 사용할 템플릿 변수 맵 */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateVariablesBodyDto"];
+            };
+        };
+        responses: {
+            /** @description 렌더링된 미리보기 payload 반환 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailTemplatePreviewDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 게시된 버전을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EmailController_testSend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 템플릿 키 (예: auth.welcome) */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestSendEmailDto"];
+            };
+        };
+        responses: {
+            /** @description 테스트 발송 결과 로그 반환 (성공/실패 + provider message id/실패 사유) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailLogResponseDto"];
+                };
+            };
+            /** @description 요청 본문이 올바르지 않거나 변수 검증 실패 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 게시된 버전을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 테스트 발송 rate limit 초과 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     EmailController_previewTemplate: {
         parameters: {
             query?: never;
@@ -9122,6 +13904,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description 템플릿 타입을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     FeedbackController_submit: {
@@ -9145,6 +13934,423 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SubmitFeedbackResponseDto"];
                 };
+            };
+        };
+    };
+    FileUploadController_createUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUploadDto"];
+            };
+        };
+        responses: {
+            /** @description 업로드 draft (서버 생성 pathname + 단기 client token + pending metadata) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        fileAssetId: string;
+                        /** @description Server-generated, collision-resistant Blob key */
+                        pathname: string;
+                        /** @description Short-lived Vercel Blob client upload token bound to the pathname */
+                        clientToken: string;
+                        contentType: string;
+                        maximumSizeInBytes: number;
+                        /** @enum {string} */
+                        visibility: "public" | "private";
+                        /**
+                         * Format: date-time
+                         * @description Pending row orphan TTL
+                         */
+                        expiresAt: string;
+                    };
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 허용되지 않은 MIME type / 확장자 / 크기 (정책 거부) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FileUploadController_completeUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteUploadDto"];
+            };
+        };
+        responses: {
+            /** @description 활성화된 file asset (서버 검증 metadata). 중복 요청은 같은 asset으로 수렴. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        fileAssetId: string;
+                        /** @enum {string} */
+                        status: "ready";
+                        pathname: string;
+                        /** @description Canonical, server-verified Blob URL */
+                        url: string;
+                        downloadUrl?: string | null;
+                        /** @description Server-verified MIME type */
+                        contentType: string;
+                        /** @description Server-verified byte size */
+                        size: number;
+                        /** @enum {string} */
+                        visibility: "public" | "private";
+                        targetType?: string | null;
+                        targetId?: string | null;
+                        /** Format: date-time */
+                        completedAt: string;
+                    };
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description pending metadata를 찾을 수 없음 (소유자 불일치 포함) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 업로드 미완료(orphan) 또는 서버 검증 정책 위반 — 롤백됨 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FileListController_listOwnFiles: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                status?: "pending" | "ready" | "failed";
+                visibility?: "public" | "private";
+                targetType?: string;
+                targetId?: string;
+                contentType?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            fileAssetId: string;
+                            originalName: string;
+                            /** @description Server-verified MIME type */
+                            contentType?: string | null;
+                            size?: number | null;
+                            /** @enum {string} */
+                            visibility: "public" | "private";
+                            /** @enum {string} */
+                            status: "pending" | "ready" | "failed";
+                            targetType?: string | null;
+                            targetId?: string | null;
+                            /** @description Only present once ready */
+                            url?: string | null;
+                            downloadUrl?: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            completedAt?: string | null;
+                        }[];
+                        /** @description Total rows matching the filter */
+                        total: number;
+                        page: number;
+                        limit: number;
+                    };
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FileAdminController_listAdminFiles: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                ownerUserId?: string;
+                source?: "user" | "admin" | "system";
+                status?: "pending" | "ready" | "failed" | "deleted";
+                visibility?: "public" | "private";
+                targetType?: string;
+                targetId?: string;
+                contentType?: string;
+                includeDeleted?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            fileAssetId: string;
+                            ownerUserId?: string | null;
+                            /** @enum {string} */
+                            source: "user" | "admin" | "system";
+                            originalName: string;
+                            pathname?: string;
+                            url?: string;
+                            downloadUrl?: string | null;
+                            contentType?: string | null;
+                            size?: number | null;
+                            declaredContentType?: string | null;
+                            declaredSize?: number | null;
+                            /** @enum {string} */
+                            visibility: "public" | "private";
+                            /** @enum {string} */
+                            status: "pending" | "ready" | "failed" | "deleted";
+                            scanStatus?: string;
+                            reviewStatus?: string;
+                            targetType?: string | null;
+                            targetId?: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            completedAt?: string | null;
+                            /** Format: date-time */
+                            deletedAt?: string | null;
+                            deletedBy?: string | null;
+                        }[];
+                        /** @description Total rows matching the filter */
+                        total: number;
+                        page: number;
+                        limit: number;
+                    };
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FileMetadataController_updateOwnFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOwnFileMetadataDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        fileAssetId: string;
+                        /** @description stored as original_name */
+                        displayName: string;
+                        altText?: string | null;
+                        targetType?: string | null;
+                        targetId?: string | null;
+                        /** @enum {string} */
+                        visibility: "public" | "private";
+                        /**
+                         * @description Binary lifecycle — never changed by this endpoint (AC §1)
+                         * @enum {string}
+                         */
+                        status: "pending" | "ready" | "failed" | "deleted";
+                        /** @enum {string} */
+                        reviewStatus: "not_required" | "pending" | "approved" | "rejected";
+                        sortOrder: number;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description 잘못된 요청 (빈 patch / 대상 연결 불완전) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 파일 없음 (소유자 불일치/삭제 포함) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 공개 전환 정책 위반 (미확정/검수 미통과) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FileMetadataAdminController_updateFileAsAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAdminFileMetadataDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        fileAssetId: string;
+                        /** @description stored as original_name */
+                        displayName: string;
+                        altText?: string | null;
+                        targetType?: string | null;
+                        targetId?: string | null;
+                        /** @enum {string} */
+                        visibility: "public" | "private";
+                        /**
+                         * @description Binary lifecycle — never changed by this endpoint (AC §1)
+                         * @enum {string}
+                         */
+                        status: "pending" | "ready" | "failed" | "deleted";
+                        /** @enum {string} */
+                        reviewStatus: "not_required" | "pending" | "approved" | "rejected";
+                        sortOrder: number;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description 잘못된 요청 (빈 patch / 대상 연결 불완전) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 파일 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 삭제된 파일은 수정 불가 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 공개 전환 정책 위반 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -9859,6 +15065,298 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OnboardingResponseDto"];
                 };
+            };
+        };
+    };
+    PersonalizationController_listSavedItems: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedItemListDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PersonalizationController_createSavedItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSavedItemDto"];
+            };
+        };
+        responses: {
+            /** @description 저장된 항목 (이미 저장돼 있으면 기존 항목을 멱등 반환) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedItemDto"];
+                };
+            };
+            /** @description 잘못된 targetType / targetId */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PersonalizationController_removeSavedItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 해제 완료 (응답 본문 없음) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 잘못된 id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 저장 항목 없음 (미존재 또는 타인 소유) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PersonalizationController_updateSavedItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSavedItemDto"];
+            };
+        };
+        responses: {
+            /** @description 변경된 저장 항목 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedItemDto"];
+                };
+            };
+            /** @description 잘못된 id 또는 빈 변경 요청 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 저장 항목 없음 (미존재 또는 타인 소유) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PersonalizationController_listInterests: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterestListDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PersonalizationController_createInterest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInterestDto"];
+            };
+        };
+        responses: {
+            /** @description 관심 항목 (이미 등록돼 있으면 기존 항목을 멱등 반환) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterestDto"];
+                };
+            };
+            /** @description 잘못된 targetType / targetId */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PersonalizationController_removeInterest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 해제 완료 (응답 본문 없음) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 잘못된 id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관심 항목 없음 (미존재 또는 타인 소유) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PersonalizationController_listSearchHistory: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchHistoryListDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -11713,6 +17211,40 @@ export interface operations {
             };
         };
     };
+    ReactionController_remove: {
+        parameters: {
+            query: {
+                /** @description Target entity type */
+                targetType: string;
+                /** @description Target entity ID (UUID) */
+                targetId: string;
+                /** @description Reaction type to remove. Omit to remove all of the user's reactions on the target. */
+                type?: "like" | "love" | "haha" | "wow" | "sad" | "angry";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Idempotent removal result with fresh derived counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemoveReactionResponseDto"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     ReactionController_getUserStatus: {
         parameters: {
             query: {
@@ -11947,6 +17479,1642 @@ export interface operations {
             };
             /** @description 관리자 권한 필요 */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainController_listSpecialties: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicSpecialtyDto"][];
+                };
+            };
+        };
+    };
+    ServiceDomainController_listRegions: {
+        parameters: {
+            query?: {
+                parentId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicRegionDto"][];
+                };
+            };
+        };
+    };
+    ServiceDomainController_listDoctors: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                specialtyId?: string;
+                regionId?: string;
+                featured?: boolean;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DoctorListDto"];
+                };
+            };
+        };
+    };
+    ServiceDomainController_getDoctor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicDoctorDetailDto"];
+                };
+            };
+            /** @description 의사를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainController_listHospitals: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                regionId?: string;
+                featured?: boolean;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HospitalListDto"];
+                };
+            };
+        };
+    };
+    ServiceDomainController_getHospital: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicHospitalDetailDto"];
+                };
+            };
+            /** @description 병원을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminController_createDoctor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDoctorDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDoctorDto"];
+                };
+            };
+            /** @description slug 중복 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminController_updateDoctor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDoctorDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDoctorDto"];
+                };
+            };
+            /** @description 의사를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminController_deleteDoctor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteResultDto"];
+                };
+            };
+            /** @description 의사를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminController_changeDoctorStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceChangeStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDoctorDto"];
+                };
+            };
+            /** @description 의사를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminController_createDoctorCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDoctorCredentialDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDoctorCredentialDto"];
+                };
+            };
+            /** @description 의사를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminController_createHospital: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateHospitalDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminHospitalDto"];
+                };
+            };
+            /** @description slug 중복 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminController_updateHospital: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateHospitalDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminHospitalDto"];
+                };
+            };
+            /** @description 병원을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminController_deleteHospital: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteResultDto"];
+                };
+            };
+            /** @description 병원을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminController_changeHospitalStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceChangeStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminHospitalDto"];
+                };
+            };
+            /** @description 병원을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminController_addHospitalSpecialty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateHospitalSpecialtyDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HospitalSpecialtyLinkDto"];
+                };
+            };
+            /** @description 병원 또는 진료과를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 이미 등록된 진료과 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminController_addHospitalHours: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateHospitalHoursDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminHospitalHoursDto"];
+                };
+            };
+            /** @description 병원을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 해당 요일 운영시간 중복 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminResourcesController_listResources: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                type?: "doctor" | "hospital";
+                status?: "draft" | "published" | "archived";
+                search?: string;
+                sort?: "name" | "status" | "updatedAt";
+                order?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDomainResourceListDto"];
+                };
+            };
+        };
+    };
+    ServiceDomainAdminResourcesController_getResourceDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type: "doctor" | "hospital";
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDomainResourceDetailDto"];
+                };
+            };
+        };
+    };
+    ServiceDomainAdminResourcesController_archiveResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type: "doctor" | "hospital";
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDomainResourceLifecycleDto"];
+                };
+            };
+            /** @description 리소스를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminResourcesController_restoreResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type: "doctor" | "hospital";
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDomainResourceLifecycleDto"];
+                };
+            };
+            /** @description 리소스를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminResourcesController_createDoctor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDoctorDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDoctorDto"];
+                };
+            };
+            /** @description slug 중복 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminResourcesController_createHospital: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateHospitalDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminHospitalDto"];
+                };
+            };
+            /** @description slug 중복 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminResourcesController_updateDoctor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDoctorDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDoctorDto"];
+                };
+            };
+            /** @description 의사를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description slug 중복 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminResourcesController_updateHospital: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateHospitalDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminHospitalDto"];
+                };
+            };
+            /** @description 병원을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description slug 중복 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminResourcesController_changeStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type: "doctor" | "hospital";
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceChangeStatusDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDomainResourceLifecycleDto"];
+                };
+            };
+            /** @description 리소스를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 허용되지 않은 상태 전이 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceDomainAdminResourcesController_getResourceHistory: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                type: "doctor" | "hospital";
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDomainResourceHistoryDto"];
+                };
+            };
+        };
+    };
+    UserDirectoryController_listUsers: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                q?: string;
+                grade?: string;
+                sort?: "recent" | "name";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserListDto"];
+                };
+            };
+        };
+    };
+    UserDirectoryController_getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfUserDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserDirectoryController_getByHandle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicUserDetailDto"];
+                };
+            };
+            /** @description 비공개(비활성) 사용자 — 인증된 타인 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 사용자를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserDirectoryAdminController_listUsers: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                q?: string;
+                grade?: string;
+                authProvider?: "email" | "google" | "naver" | "kakao" | "linkedin";
+                isActive?: boolean;
+                includeDeleted?: boolean;
+                sort?: "recent" | "name" | "email";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserListDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserDirectoryAdminController_getUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 사용자를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserDirectoryAdminController_archiveUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArchiveUserBodyDto"];
+            };
+        };
+        responses: {
+            /** @description 보관된 사용자(관리자 뷰) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 사용자를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserDirectoryAdminController_updateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAdminUserDto"];
+            };
+        };
+        responses: {
+            /** @description 수정된 사용자(관리자 뷰) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDto"];
+                };
+            };
+            /** @description 변경할 내용이 없음 / 잘못된 값 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 사용자를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 이미 사용 중인 핸들 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserDirectoryAdminController_getUserHistory: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAuditListResponseDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserDirectoryAdminController_restoreUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArchiveUserBodyDto"];
+            };
+        };
+        responses: {
+            /** @description 복구된 사용자(관리자 뷰) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 사용자를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceSearchController_search: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                q?: string;
+                type?: "doctor" | "hospital" | "specialty" | "region";
+                regionId?: string;
+                specialtyId?: string;
+                sort?: "relevance" | "rating" | "featured";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResultDto"];
+                };
+            };
+        };
+    };
+    ServiceSearchController_popular: {
+        parameters: {
+            query?: {
+                limit?: number;
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PopularTermDto"][];
+                };
+            };
+        };
+    };
+    ServiceSearchController_recent: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecentSearchDto"][];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceSearchController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entityType: "doctor" | "hospital" | "specialty" | "region";
+                entityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicSearchDetailDto"];
+                };
+            };
+            /** @description 없는 리소스 또는 비공개 리소스 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceSearchAdminController_search: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                q?: string;
+                type?: "doctor" | "hospital" | "specialty" | "region";
+                regionId?: string;
+                specialtyId?: string;
+                sort?: "relevance" | "rating" | "featured";
+                published?: boolean;
+                includeDeleted?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSearchResultDto"];
+                };
+            };
+        };
+    };
+    ServiceSearchAdminController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entityType: "doctor" | "hospital" | "specialty" | "region";
+                entityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSearchDetailDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 없는 검색 문서 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceSearchAdminController_archive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entityType: "doctor" | "hospital" | "specialty" | "region";
+                entityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveResultDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 없는 검색 문서 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceSearchAdminController_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entityType: "doctor" | "hospital" | "specialty" | "region";
+                entityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveResultDto"];
+                };
+            };
+            /** @description 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 없는 검색 문서 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceSearchSynonymsAdminController_listSynonyms: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                active?: boolean;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SynonymListDto"];
+                };
+            };
+        };
+    };
+    ServiceSearchSynonymsAdminController_createSynonym: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSynonymDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SynonymDto"];
+                };
+            };
+            /** @description 이미 등록된 검색어 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceSearchSynonymsAdminController_getSynonym: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SynonymDto"];
+                };
+            };
+            /** @description 검색 동의어를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceSearchSynonymsAdminController_updateSynonym: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSynonymDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SynonymDto"];
+                };
+            };
+            /** @description 수정할 항목이 없거나 유효하지 않음 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 검색 동의어를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 이미 등록된 검색어 / 유효한 확장어 없음 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceSearchSynonymsAdminController_updateSynonymStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSynonymStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SynonymDto"];
+                };
+            };
+            /** @description 허용되지 않은 상태값 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 검색 동의어를 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ServiceSearchSynonymsAdminController_listSynonymHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SynonymHistoryListDto"];
+                };
+            };
+            /** @description 검색 동의어를 찾을 수 없음 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14185,6 +21353,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeleteResponseDto"];
+                };
+            };
+        };
+    };
+    UserGradeAdminController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserGradeDto"];
+                };
+            };
+            /** @description 등급 정보 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserGradeAdminController_assign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignUserGradeDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserGradeDto"];
+                };
+            };
+            /** @description 필수 필드 누락 / 비활성 등급 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 대상 사용자 또는 등급을 찾을 수 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 이미 등급이 부여된 사용자 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserGradeAdminController_list: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                gradeSlug?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserGradeListDto"];
                 };
             };
         };

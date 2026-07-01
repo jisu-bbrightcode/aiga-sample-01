@@ -17,7 +17,7 @@ import {
   AdminDoctorDto,
   AdminHospitalDto,
   AdminHospitalHoursDto,
-  ChangeStatusDto,
+  ResourceChangeStatusDto,
   CreateDoctorCredentialDto,
   CreateDoctorDto,
   CreateHospitalDto,
@@ -73,7 +73,7 @@ export class ServiceDomainAdminController {
   changeDoctorStatus(
     @CurrentUser() user: User,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: ChangeStatusDto,
+    @Body() dto: ResourceChangeStatusDto,
   ) {
     return this.service.changeDoctorStatus(user.id, id, dto.status);
   }
@@ -127,7 +127,7 @@ export class ServiceDomainAdminController {
   changeHospitalStatus(
     @CurrentUser() user: User,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: ChangeStatusDto,
+    @Body() dto: ResourceChangeStatusDto,
   ) {
     return this.service.changeHospitalStatus(user.id, id, dto.status);
   }

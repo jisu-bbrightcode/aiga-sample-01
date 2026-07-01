@@ -152,4 +152,6 @@ export class CreateHospitalHoursDto extends createZodDto(createHospitalHoursSche
 // ---- status change ----------------------------------------------------------
 
 export const changeStatusSchema = z.object({ status: statusEnum });
-export class ChangeStatusDto extends createZodDto(changeStatusSchema) {}
+// Uniquely named so it does not collide with doctor-curation's ChangeStatusDto
+// in the shared OpenAPI schema registry (schemas are keyed by class name).
+export class ResourceChangeStatusDto extends createZodDto(changeStatusSchema) {}
