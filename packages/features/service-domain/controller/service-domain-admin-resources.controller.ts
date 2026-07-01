@@ -22,7 +22,7 @@ import {
   AdminDomainResourceListDto,
   AdminDomainResourceQueryDto,
   AdminHospitalDto,
-  ChangeStatusDto,
+  ResourceChangeStatusDto,
   CreateDoctorDto,
   CreateHospitalDto,
   UpdateDoctorDto,
@@ -147,7 +147,7 @@ export class ServiceDomainAdminResourcesController {
   changeStatus(
     @CurrentUser() user: User,
     @Param() params: AdminDomainResourceDetailParamDto,
-    @Body() dto: ChangeStatusDto,
+    @Body() dto: ResourceChangeStatusDto,
   ) {
     return this.service.changeDomainResourceStatus(user.id, params.type, params.id, dto.status);
   }

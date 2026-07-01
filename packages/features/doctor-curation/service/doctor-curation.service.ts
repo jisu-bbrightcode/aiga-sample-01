@@ -17,7 +17,7 @@ import {
 import { AdminAuditService } from "@repo/features/_common";
 import { and, asc, desc, eq, ilike, sql } from "drizzle-orm";
 import type {
-  ChangeStatusDto,
+  CollectionChangeStatusDto,
   CollectionHistoryQueryDto,
   CreateCollectionDto,
   ListCollectionsQueryDto,
@@ -218,7 +218,7 @@ export class DoctorCurationService {
    * `published` stamps `publishedAt`. The before/after status is appended to
    * the change history with the optional operator reason.
    */
-  async changeStatus(actorId: string, id: string, dto: ChangeStatusDto) {
+  async changeStatus(actorId: string, id: string, dto: CollectionChangeStatusDto) {
     const existing = await this.requireCollection(id);
     this.assertTransition(existing.status, dto.status);
 

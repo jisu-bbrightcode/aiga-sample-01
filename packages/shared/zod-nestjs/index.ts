@@ -31,8 +31,18 @@ function toJsonSchema(schema: AnyZodSchema): JsonSchemaObject {
         "Ensure zod >=3.25 is installed in packages/shared.",
     );
   }
-  // zod v3: use zod-to-json-schema
-  return zodToJsonSchema(schema as never) as JsonSchemaObject;
+  // zod v3: use zod-to-json-schema.
+  //
+  // `$refStrategy: "none"` forces every sub-schema to be inlined. Without it,
+  // a schema *instance* reused across two properties (e.g. one `credentialYear`
+  // const bound to both `startYear` and `endYear`) is deduplicated into an
+  // internal JSON-pointer `$ref` (`#/properties/startYear`) on the second use.
+  // `_OPENAPI_METADATA_FACTORY` only surfaces the top-level `properties`, so
+  // @nestjs/swagger sees that dangling `$ref` and aborts the OpenAPI dump with
+  // "A circular dependency has been detected". Inlining keeps each property's
+  // metadata self-contained, which is exactly what the per-property factory
+  // requires. (Truly recursive DTOs are not used in this codebase.)
+  return zodToJsonSchema(schema as never, { $refStrategy: "none" }) as JsonSchemaObject;
 }
 
 /**

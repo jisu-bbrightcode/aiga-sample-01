@@ -17,7 +17,7 @@ import { BetterAuthAdminGuard, BetterAuthGuard, CurrentUser } from "@repo/core/n
 import {
   AdminCollectionDetailDto,
   AdminCollectionListDto,
-  ChangeStatusDto,
+  CollectionChangeStatusDto,
   CollectionHistoryDto,
   CollectionHistoryQueryDto,
   CreateCollectionDto,
@@ -110,7 +110,7 @@ export class DoctorCurationAdminController {
   changeStatus(
     @CurrentUser() user: User,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: ChangeStatusDto,
+    @Body() dto: CollectionChangeStatusDto,
   ) {
     return this.service.changeStatus(user.id, id, dto);
   }
