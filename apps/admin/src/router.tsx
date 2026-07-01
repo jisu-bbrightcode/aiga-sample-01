@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 // [ATLAS:IMPORTS]
-import { createSignUpRoute } from "./features/auth";
+import { createAdminLoginRoute, createSignUpRoute } from "./features/auth";
 import { createCommunityAdminRoutes, createCommunityRoutes } from "./features/community";
 import { createDomainAdminRoutes } from "./features/domain";
 import { createEmailAdminRoutes } from "./features/email";
@@ -84,6 +84,8 @@ const signInRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   // Sign In (AdminGuard 밖)
   signInRoute,
+  // SCR-013 Admin Login — /admin/login (AdminGuard 밖, public)
+  createAdminLoginRoute(rootRoute),
   createSignUpRoute(rootRoute),
   ...createCommunityRoutes(rootRoute),
 

@@ -43,5 +43,14 @@
   "adminSignInButton": "Sign in as Admin",
   "adminSignInSuccess": "Admin login successful!",
   "adminSignInError": "Admin login failed. Please check your email and password.",
-  "adminSignInBackToSite": "Back to site"
+  "adminSignInBackToSite": "Back to site",
+  "adminSignInInvalidCredentials": "Incorrect email or password. Please try again.",
+  "adminSignInPermissionDenied": "This account does not have administrator access.",
+  "adminSignInShowPassword": "Show password",
+  "adminSignInHidePassword": "Hide password",
+  "adminSignInBrandHeadline": "Welcome to the operator admin area",
+  "adminSignInBrandSubhead": "Sign in with an administrator account to start operating the service.",
+  "adminSignInBrandPoint1": "Secure administrator authentication",
+  "adminSignInBrandPoint2": "Role-based access control",
+  "adminSignInBrandPoint3": "Operations dashboard integration"
 }

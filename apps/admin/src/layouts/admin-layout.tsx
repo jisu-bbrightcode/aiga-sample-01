@@ -49,7 +49,8 @@ export function AdminLayout() {
   };
 
   const handleUnauthorized = () => {
-    navigate({ to: "/sign-in", replace: true });
+    // 인증됐지만 관리자 권한이 없는 계정 → SCR-013 permission 상태로 안내
+    navigate({ to: "/admin/login", search: { denied: 1 }, replace: true });
   };
 
   return (
