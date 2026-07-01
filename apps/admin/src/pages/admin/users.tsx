@@ -6,7 +6,10 @@
  * two audited management actions (접근 역할 변경 / 계정 상태 변경).
  *
  * - BBR-684 / PB-ADMIN-USERS-001: list + search + detail/management.
- * - BBR-685 / PB-ADMIN-USERS-LIST-001: filter + sort + masked PII (this work).
+ * - BBR-685 / PB-ADMIN-USERS-LIST-001: filter + sort + masked PII.
+ * - BBR-714 / SCR-019: 신고 누적(reportCount) · 병원 방문 인증(visitProofCount)
+ *   columns, 의사 관리로 이동(ACT-03 → /admin/doctors), error-state retry, and
+ *   scr-019-* test ids. Permission state is enforced by the AdminGuard layout.
  *
  * Sensitive info (email) is masked in the list; the full address stays in the
  * detail dialog. User sanctions are domain-specific — community bans stay in
@@ -31,8 +34,10 @@ import {
   ChevronsUpDown,
   ChevronUp,
   RefreshCw,
+  RotateCcw,
   Search,
   ShieldCheck,
+  Stethoscope,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -80,7 +85,7 @@ const USER_ROW_SKELETON_KEYS = [
   "user-skeleton-5",
 ];
 
-const TABLE_COLUMN_COUNT = 5;
+const TABLE_COLUMN_COUNT = 7;
 
 export function AdminUsersPage() {
   const {
@@ -116,13 +121,14 @@ export function AdminUsersPage() {
       <AdminUsersHeader total={total} loading={loading} onRefresh={refetch} />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="relative max-w-sm flex-1 min-w-[200px]">
+        <div className="relative max-w-sm flex-1 min-w-[200px]" data-testid="scr-019-act-01">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="이름 또는 이메일로 검색"
             className="pl-8"
+            data-testid="scr-019-fld-01"
           />
         </div>
 
@@ -153,11 +159,7 @@ export function AdminUsersPage() {
         </Select>
       </div>
 
-      {error ? (
-        <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-[13px] text-destructive">
-          {error}
-        </div>
-      ) : null}
+      {error ? <AdminUsersError message={error} onRetry={refetch} /> : null}
 
       <UsersTable
         users={users}
@@ -205,15 +207,49 @@ function AdminUsersHeader({
           <p className="text-[13px] text-muted-foreground">전체 {total}명의 사용자</p>
         </div>
       </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            // ACT-03: SCR-017 의사 관리 (separate screen; absolute path avoids the
+            // typed-route constraint since /doctors is not in this SPA's tree yet).
+            window.location.href = "/admin/doctors";
+          }}
+          data-testid="scr-019-act-03"
+          className="gap-1.5"
+        >
+          <Stethoscope className="size-3.5" />
+          의사 관리로 이동
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          disabled={loading}
+          className="gap-1.5"
+        >
+          <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
+          새로고침
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// AC-03: on load failure, show a recoverable message with an explicit retry.
+function AdminUsersError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-[13px] text-destructive">
+      <span>{message}</span>
       <Button
         variant="outline"
         size="sm"
-        onClick={onRefresh}
-        disabled={loading}
-        className="gap-1.5"
+        onClick={onRetry}
+        className="shrink-0 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10"
       >
-        <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-        새로고침
+        <RotateCcw className="size-3.5" />
+        다시 시도
       </Button>
     </div>
   );
@@ -315,12 +351,14 @@ function UsersTable({
 }) {
   return (
     <div className="overflow-hidden rounded-lg border">
-      <table className="w-full text-[13px]">
+      <table className="w-full text-[13px]" data-testid="scr-019-fld-02">
         <thead>
           <tr className="border-b bg-muted/40">
             <SortableHeader label="사용자" field="name" sort={sort} order={order} onSort={onSort} />
             <th className="px-4 py-2.5 text-left font-medium">접근 역할</th>
             <SortableHeader label="상태" field="status" sort={sort} order={order} onSort={onSort} />
+            <th className="px-4 py-2.5 text-center font-medium">신고 누적</th>
+            <th className="px-4 py-2.5 text-center font-medium">방문 인증</th>
             <SortableHeader
               label="최근활동"
               field="lastActiveAt"
@@ -369,6 +407,48 @@ function UserTableEmpty() {
   );
 }
 
+const METRIC_BADGE_BASE =
+  "inline-flex min-w-6 justify-center rounded-full px-2 py-0.5 text-[11px] font-medium";
+
+// 신고 누적 (scr-019-fld-03): neutral at 0, amber for a few, red once it accumulates.
+function reportTone(count: number): string {
+  if (count === 0) return "bg-gray-100 text-gray-600";
+  if (count < 3) return "bg-amber-100 text-amber-700";
+  return "bg-red-100 text-red-700";
+}
+
+function ReportCountCell({ count }: { count?: number }) {
+  if (count == null) {
+    return (
+      <span data-testid="scr-019-fld-03" className="text-muted-foreground">
+        —
+      </span>
+    );
+  }
+  return (
+    <span data-testid="scr-019-fld-03" className={cn(METRIC_BADGE_BASE, reportTone(count))}>
+      {count}
+    </span>
+  );
+}
+
+// 병원 방문 인증 (scr-019-fld-04): green once the member has any verified visit.
+function VisitProofCell({ count }: { count?: number }) {
+  if (count == null) {
+    return (
+      <span data-testid="scr-019-fld-04" className="text-muted-foreground">
+        —
+      </span>
+    );
+  }
+  const tone = count > 0 ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600";
+  return (
+    <span data-testid="scr-019-fld-04" className={cn(METRIC_BADGE_BASE, tone)}>
+      {count}
+    </span>
+  );
+}
+
 function UserRow({
   user,
   onSelect,
@@ -384,6 +464,7 @@ function UserRow({
     <tr
       className="border-b last:border-0 cursor-pointer transition-colors hover:bg-muted/30"
       onClick={() => onSelect(user)}
+      data-testid="scr-019-act-02"
     >
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
@@ -421,6 +502,14 @@ function UserRow({
         >
           {user.isActive ? "활성" : "정지"}
         </span>
+      </td>
+
+      <td className="px-4 py-3 text-center">
+        <ReportCountCell count={user.reportCount} />
+      </td>
+
+      <td className="px-4 py-3 text-center">
+        <VisitProofCell count={user.visitProofCount} />
       </td>
 
       <td className="px-4 py-3 text-muted-foreground">

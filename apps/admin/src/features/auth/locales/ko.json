@@ -43,5 +43,14 @@
   "adminSignInButton": "관리자 로그인",
   "adminSignInSuccess": "관리자 로그인 성공!",
   "adminSignInError": "관리자 로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.",
-  "adminSignInBackToSite": "사이트로 돌아가기"
+  "adminSignInBackToSite": "사이트로 돌아가기",
+  "adminSignInInvalidCredentials": "이메일 또는 비밀번호가 올바르지 않습니다. 다시 시도해 주세요.",
+  "adminSignInPermissionDenied": "관리자 권한이 없는 계정입니다.",
+  "adminSignInShowPassword": "비밀번호 표시",
+  "adminSignInHidePassword": "비밀번호 숨기기",
+  "adminSignInBrandHeadline": "운영자 관리자 영역에 오신 것을 환영합니다",
+  "adminSignInBrandSubhead": "관리자 계정으로 로그인하여 서비스 운영을 시작하세요.",
+  "adminSignInBrandPoint1": "안전한 관리자 인증",
+  "adminSignInBrandPoint2": "권한 기반 접근 제어",
+  "adminSignInBrandPoint3": "운영 대시보드 연동"
 }

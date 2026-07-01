@@ -31,6 +31,12 @@ export interface AdminUserItem {
   lastActiveAt: string | null;
   emailVerified: boolean;
   isActive: boolean;
+  // SCR-019 domain metrics. Optional: the current admin/users endpoint does not
+  // emit these yet (신고 누적 / 병원 방문 인증 are domain data, not core user meta),
+  // so the UI renders "—" until the server projection adds them.
+  // ponytail: optional now, columns light up automatically when backend sends them.
+  reportCount?: number;
+  visitProofCount?: number;
 }
 
 export interface AdminUserListResponse {
