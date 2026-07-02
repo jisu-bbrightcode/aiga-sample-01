@@ -3,6 +3,7 @@ export { BetterAuthGuard } from "./better-auth.guard";
 export { CurrentUser } from "./current-user.decorator";
 export { JwtAuthGuard } from "./jwt-auth.guard";
 export { parseJwtFromHeader } from "./jwt-parser";
+export { OptionalBetterAuthGuard } from "./optional-better-auth.guard";
 // PB-ADMIN-001: admin REST gate switched to org-membership (+ legacy RBAC
 // fallback). The base aliased NestAdminGuard, which gates on the never-seeded
 // user_roles tables and rejected every operator on a fresh deploy.

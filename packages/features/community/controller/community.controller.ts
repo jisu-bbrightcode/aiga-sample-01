@@ -4,8 +4,6 @@
  * 커뮤니티, 게시글, 댓글, 투표, 피드, 모더레이션 공개/인증 엔드포인트
  */
 
-import type { User } from "@repo/core/nestjs/auth";
-import { BetterAuthGuard, CurrentUser } from "@repo/core/nestjs/auth";
 import {
   BadRequestException,
   Body,
@@ -20,6 +18,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -33,6 +32,8 @@ import {
   ApiTags,
   getSchemaPath,
 } from "@nestjs/swagger";
+import type { User } from "@repo/core/nestjs/auth";
+import { BetterAuthGuard, CurrentUser, OptionalBetterAuthGuard } from "@repo/core/nestjs/auth";
 import type {
   BanUserDto,
   CreateCommentDto,
@@ -76,6 +77,7 @@ import {
   CommunityKarmaService,
   CommunityModerationService,
   CommunityPostService,
+  CommunityPostViewLimitService,
   CommunityService,
   CommunityVoteService,
 } from "../service";
@@ -85,6 +87,27 @@ import {
   POST_SORTS,
   parsePostSort,
 } from "../service/post-list-options";
+
+/** `@Req()` 로 주입되는 HTTP 요청의 최소 형태 (IP 추출용). */
+interface RequestWithClientMeta {
+  headers?: Record<string, string | string[] | undefined>;
+  ip?: string;
+  socket?: { remoteAddress?: string };
+}
+
+/**
+ * 클라이언트 IP 를 추출한다. 프록시 뒤 배포를 위해 `x-forwarded-for` 의 첫 홉을
+ * 우선 사용하고, 없으면 `req.ip` → 소켓 주소 순으로 폴백한다.
+ */
+function resolveClientIp(req: RequestWithClientMeta | undefined): string | undefined {
+  const forwarded = req?.headers?.["x-forwarded-for"];
+  const forwardedValue = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  if (forwardedValue) {
+    const first = forwardedValue.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return req?.ip ?? req?.socket?.remoteAddress ?? undefined;
+}
 
 @ApiTags("Community")
 @Controller("community")
@@ -98,6 +121,7 @@ export class CommunityController {
     private readonly moderationService: CommunityModerationService,
     private readonly feedService: CommunityFeedService,
     private readonly blockService: CommunityBlockService,
+    private readonly postViewLimitService: CommunityPostViewLimitService,
   ) {}
 
   // ==========================================================================
@@ -409,11 +433,23 @@ export class CommunityController {
   }
 
   @Get("posts/:id")
-  @ApiOperation({ summary: "게시물 상세 조회" })
+  @UseGuards(OptionalBetterAuthGuard)
+  @ApiOperation({
+    summary: "게시물 상세 조회",
+    description:
+      "등급별 일일 열람 제한이 적용됩니다. 비회원/일반 회원은 하루 N회로 제한되고, 인증회원은 무제한입니다. 한도 초과 시 429를 반환합니다.",
+  })
   @ApiParam({ name: "id", description: "게시물 ID" })
   @ApiResponse({ status: 200, description: "게시물 상세 정보", type: PostResponseDto })
   @ApiResponse({ status: 404, description: "게시물을 찾을 수 없음" })
-  async postById(@Param("id", ParseUUIDPipe) id: string) {
+  @ApiResponse({ status: 429, description: "일일 게시글 열람 한도 초과" })
+  async postById(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() user: User | undefined,
+    @Req() req: RequestWithClientMeta,
+  ) {
+    await this.postViewLimitService.assertCanView({ user, clientIp: resolveClientIp(req) });
+
     const post = await this.postService.findById(id);
     if (!post) throw new NotFoundException("게시물을 찾을 수 없음");
     return post;

@@ -1,4 +1,5 @@
 import { Module, type OnModuleInit } from "@nestjs/common";
+import { RateLimitService } from "@repo/core/rate-limit";
 import { CommunityAdminController, CommunityController } from "./controller";
 import {
   CommunityBlockService,
@@ -9,6 +10,7 @@ import {
   CommunityKeywordFilterService,
   CommunityModerationService,
   CommunityPostService,
+  CommunityPostViewLimitService,
   CommunitySanctionService,
   CommunityService,
   CommunityTierService,
@@ -37,6 +39,8 @@ import { injectCommunityServices } from "./service-registry";
     CommunitySanctionService,
     CommunityTierService,
     CommunityContentModerationService,
+    RateLimitService,
+    CommunityPostViewLimitService,
   ],
   exports: [
     CommunityService,
@@ -51,6 +55,7 @@ import { injectCommunityServices } from "./service-registry";
     CommunitySanctionService,
     CommunityTierService,
     CommunityContentModerationService,
+    CommunityPostViewLimitService,
   ],
 })
 export class CommunityModule implements OnModuleInit {
