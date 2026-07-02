@@ -75,6 +75,19 @@ describeIfDb("CommunityBlockService", () => {
     await expect(svc.getBlockedUserIds(b)).resolves.toEqual([a]);
   });
 
+  it("unblock() restores exposure — the unblocked author leaves the blocked set (BBR-616 AC#1)", async () => {
+    // After a block, the read-path exposure-filter source excludes the author...
+    await svc.block(a, b);
+    await expect(svc.getBlockedUserIds(a)).resolves.toEqual([b]);
+    await expect(svc.getBlockedUserIds(b)).resolves.toEqual([a]);
+
+    // ...and unblock removes the row, so the next recompute restores exposure in
+    // both directions (feed/detail/comment read paths share getBlockedUserIds).
+    await svc.unblock(a, b);
+    await expect(svc.getBlockedUserIds(a)).resolves.toEqual([]);
+    await expect(svc.getBlockedUserIds(b)).resolves.toEqual([]);
+  });
+
   it("getBlockList() returns full block rows", async () => {
     await svc.block(a, b);
     const list = await svc.getBlockList(a);
