@@ -27,6 +27,7 @@ import {
   CreditCard,
   LayoutDashboard,
   LogOut,
+  Mail,
   MessageSquare,
   ScrollText,
   Settings,
@@ -241,6 +242,44 @@ function AdminSidebar() {
                   <Video />
                   <span>영상 강의</span>
                 </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link to="/email-templates" />}
+                  isActive={
+                    currentPath === "/email-templates" ||
+                    currentPath.startsWith("/email-templates/") ||
+                    currentPath === "/email-logs"
+                  }
+                >
+                  <Mail />
+                  <span>이메일</span>
+                </SidebarMenuButton>
+                {currentPath === "/email-templates" ||
+                currentPath.startsWith("/email-templates/") ||
+                currentPath === "/email-logs" ? (
+                  <SidebarMenuSub>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        render={<Link to="/email-templates" />}
+                        isActive={
+                          currentPath === "/email-templates" ||
+                          currentPath.startsWith("/email-templates/")
+                        }
+                      >
+                        템플릿
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        render={<Link to="/email-logs" />}
+                        isActive={currentPath === "/email-logs"}
+                      >
+                        발송 이력
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  </SidebarMenuSub>
+                ) : null}
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
