@@ -23,6 +23,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { AdminAuditAction, AdminAuditService } from "./admin-audit.service";
+import { SessionRevocationService } from "./session-revocation.service";
 import type {
   SortOrder,
   UserAccessRoleFilter,
@@ -61,6 +62,12 @@ export interface AdminUserListItem {
   lastActiveAt: string | null;
   emailVerified: boolean;
   isActive: boolean;
+  /**
+   * Soft-delete (archive) timestamp, or null when the account is not archived.
+   * Lets the admin UI distinguish a 정지(deactivated, isActive=false) account
+   * from a 보관(archived/soft-deleted) one — both reversible.
+   */
+  deletedAt: string | null;
 }
 
 export interface AdminUsersListResponse {
@@ -81,6 +88,8 @@ export interface ChangeUserStatusResult {
   targetUserId: string;
   previousActive: boolean;
   isActive: boolean;
+  /** Sessions revoked as part of this change (0 on reactivation). */
+  revokedSessions: number;
 }
 
 /** Highest-privilege first — used to collapse multi-org memberships. */
@@ -91,6 +100,7 @@ export class AdminUsersService {
   constructor(
     @InjectDrizzle() private readonly db: DrizzleDB,
     private readonly audit: AdminAuditService,
+    private readonly sessionRevocation: SessionRevocationService,
   ) {}
 
   async list(options: AdminUsersListOptions): Promise<AdminUsersListResponse> {
@@ -118,6 +128,7 @@ export class AdminUsersService {
         profileAvatar: profiles.avatar,
         profileUpdatedAt: profiles.updatedAt,
         isActive: profiles.isActive,
+        deletedAt: profiles.deletedAt,
       })
       .from(user)
       .leftJoin(profiles, eq(profiles.id, user.id))
@@ -141,6 +152,7 @@ export class AdminUsersService {
       lastActiveAt: row.profileUpdatedAt ? row.profileUpdatedAt.toISOString() : null,
       emailVerified: row.emailVerified,
       isActive: row.isActive ?? true,
+      deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
     }));
 
     return { users, total: totalRow?.count ?? 0 };
@@ -230,13 +242,20 @@ export class AdminUsersService {
         .where(eq(profiles.id, command.targetUserId));
     }
 
+    // Deactivating an account revokes its live sessions so a still-open
+    // session cannot keep acting on a now-disabled account. Reactivation does
+    // not recreate sessions — the user signs in again (AC: 세션·권한 상태 일관 정리).
+    const revokedSessions = command.isActive
+      ? 0
+      : await this.sessionRevocation.revokeAllForUser(command.targetUserId);
+
     await this.audit.log({
       actorUserId: command.actorUserId,
       action: AdminAuditAction.user_status_changed,
       targetType: "user",
       targetId: command.targetUserId,
       payloadBefore: { isActive: previousActive },
-      payloadAfter: { isActive: command.isActive },
+      payloadAfter: { isActive: command.isActive, revokedSessions },
       ipAddress: command.ipAddress,
       userAgent: command.userAgent,
       reason: command.reason,
@@ -246,6 +265,7 @@ export class AdminUsersService {
       targetUserId: command.targetUserId,
       previousActive,
       isActive: command.isActive,
+      revokedSessions,
     };
   }
 

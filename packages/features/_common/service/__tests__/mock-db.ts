@@ -7,6 +7,8 @@
  *   and resolves to undefined.
  * - `update(table).set(v).where(c)` records `{ table, set: v }` into `updates`
  *   and resolves to undefined.
+ * - `delete(table).where(c).returning(...)` records `{ table }` into `deletes`
+ *   and resolves to the next queued `deleteResults` set (default `[]`).
  */
 export interface MockDb {
   // biome-ignore lint/suspicious/noExplicitAny: test double mirrors drizzle's loose chain types.
@@ -15,15 +17,20 @@ export interface MockDb {
   insert: (...args: any[]) => any;
   // biome-ignore lint/suspicious/noExplicitAny: test double.
   update: (...args: any[]) => any;
+  // biome-ignore lint/suspicious/noExplicitAny: test double.
+  delete: (...args: any[]) => any;
   inserts: Array<{ table: unknown; values: unknown }>;
   updates: Array<{ table: unknown; set: unknown }>;
+  deletes: Array<{ table: unknown }>;
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: test double.
-export function makeMockDb(selectResults: any[][] = []): MockDb {
+export function makeMockDb(selectResults: any[][] = [], deleteResults: any[][] = []): MockDb {
   const queue = [...selectResults];
+  const deleteQueue = [...deleteResults];
   const inserts: Array<{ table: unknown; values: unknown }> = [];
   const updates: Array<{ table: unknown; set: unknown }> = [];
+  const deletes: Array<{ table: unknown }> = [];
 
   function selectChain() {
     const chain = {
@@ -42,9 +49,27 @@ export function makeMockDb(selectResults: any[][] = []): MockDb {
     return chain;
   }
 
+  function deleteChain(table: unknown) {
+    const chain = {
+      where: () => chain,
+      returning: () => {
+        deletes.push({ table });
+        return Promise.resolve(deleteQueue.shift() ?? []);
+      },
+      // biome-ignore lint/suspicious/noThenProperty: intentional thenable mock for `.delete().where()` with no returning.
+      // biome-ignore lint/suspicious/noExplicitAny: thenable.
+      then: (resolve: (v: any) => any, reject?: (e: unknown) => any) => {
+        deletes.push({ table });
+        return Promise.resolve(deleteQueue.shift() ?? []).then(resolve, reject);
+      },
+    };
+    return chain;
+  }
+
   return {
     inserts,
     updates,
+    deletes,
     select: () => selectChain(),
     insert: (table: unknown) => ({
       values: (values: unknown) => {
@@ -60,5 +85,6 @@ export function makeMockDb(selectResults: any[][] = []): MockDb {
         },
       }),
     }),
+    delete: (table: unknown) => deleteChain(table),
   };
 }
