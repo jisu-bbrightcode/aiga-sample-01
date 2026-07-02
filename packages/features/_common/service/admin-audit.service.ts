@@ -20,6 +20,8 @@ import { and, desc, eq, lt, type SQL } from "drizzle-orm";
 export const AdminAuditAction = {
   user_role_changed: "user.role_changed",
   user_status_changed: "user.status_changed",
+  user_invited: "user.invited",
+  user_invitation_resent: "user.invitation_resent",
 } as const;
 export type AdminAuditAction = (typeof AdminAuditAction)[keyof typeof AdminAuditAction];
 
