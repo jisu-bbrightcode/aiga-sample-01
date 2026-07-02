@@ -18,6 +18,7 @@ import {
 } from "@repo/core/nestjs/auth";
 import { z } from "zod";
 import {
+  AdminUserDetailDto,
   AdminUserListResponseDto,
   ChangeUserRoleBodyDto,
   ChangeUserRoleResponseDto,
@@ -103,6 +104,19 @@ export class AdminUsersController {
     return this.adminUsersService.list(
       normalizeUserListQuery({ limit, offset, q, status, accessRole, sort, order }),
     );
+  }
+
+  @Get(":id/detail")
+  @ApiOperation({
+    summary:
+      "관리자 사용자 상세 (인증 수단/세션·활동 요약/결제·권한 요약/감사 이력). 세션 token·provider secret 등 민감 정보는 노출하지 않습니다.",
+  })
+  @ApiResponse({ status: 200, type: AdminUserDetailDto })
+  @ApiResponse({ status: 401, description: "인증 필요" })
+  @ApiResponse({ status: 403, description: "관리자 권한 없음" })
+  @ApiResponse({ status: 404, description: "사용자를 찾을 수 없음" })
+  getDetail(@Param("id") id: string) {
+    return this.adminUsersService.getDetail(id);
   }
 
   @Patch(":id/role")

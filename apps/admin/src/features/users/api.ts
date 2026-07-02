@@ -85,6 +85,60 @@ export function fetchAdminUsers(params: ListAdminUsersParams): Promise<AdminUser
 }
 
 /**
+ * Full operational detail for one user (BBR-686 / PB-ADMIN-USERS-READ-001).
+ *
+ * The server only returns non-sensitive fields — account/session tokens,
+ * password hashes and provider secrets are never included — so the UI can
+ * render everything it receives.
+ */
+export interface AdminUserAuthProvider {
+  providerId: string;
+  linkedAt: string;
+}
+
+export interface AdminUserSessionSummary {
+  activeCount: number;
+  lastActiveAt: string | null;
+  lastIpAddress: string | null;
+  lastUserAgent: string | null;
+}
+
+export interface AdminUserSubscriptionSummary {
+  status: string;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+export interface AdminUserAuditEntry {
+  id: string;
+  action: string;
+  actorUserId: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface AdminUserDetail {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+  emailVerified: boolean;
+  isActive: boolean;
+  createdAt: string;
+  lastActiveAt: string | null;
+  accessRole: AdminAccessRole | null;
+  roles: string[];
+  authProviders: AdminUserAuthProvider[];
+  sessions: AdminUserSessionSummary;
+  subscription: AdminUserSubscriptionSummary | null;
+  recentAudit: AdminUserAuditEntry[];
+}
+
+export function fetchAdminUserDetail(userId: string): Promise<AdminUserDetail> {
+  return send<AdminUserDetail>(`/api/admin/users/${encodeURIComponent(userId)}/detail`);
+}
+
+/**
  * Mask an email for the list view so bulk PII is not exposed at a glance
  * (AC: 민감 정보는 목록에서 마스킹). Keeps the first character of the local part
  * and the domain so an admin can still recognize the account; full email

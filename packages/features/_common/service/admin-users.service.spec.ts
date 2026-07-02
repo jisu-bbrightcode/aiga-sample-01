@@ -218,3 +218,165 @@ describe("AdminUsersService.setActive", () => {
     expect(db.inserts).toHaveLength(0);
   });
 });
+
+const FUTURE = new Date(Date.now() + 86_400_000);
+const PAST = new Date(Date.now() - 86_400_000);
+
+/** Queue for a getDetail() call: core, rbac, access, providers, sessions, sub, audit. */
+// biome-ignore lint/suspicious/noExplicitAny: test fixture.
+function detailQueue(over: Partial<Record<string, any[]>> = {}): any[][] {
+  return [
+    over.core ?? [
+      {
+        id: "u1",
+        userName: "User One",
+        userEmail: "u1@a.com",
+        userImage: null,
+        emailVerified: true,
+        createdAt: CREATED,
+        profileName: "프로필1",
+        profileEmail: "p1@a.com",
+        profileAvatar: "https://img/1",
+        profileUpdatedAt: CREATED,
+        isActive: true,
+      },
+    ],
+    over.rbac ?? [{ userId: "u1", roleSlug: "admin" }],
+    over.access ?? [{ userId: "u1", role: "admin" }],
+    over.providers ?? [
+      { providerId: "google", createdAt: CREATED },
+      { providerId: "credential", createdAt: CREATED },
+    ],
+    over.sessions ?? [
+      {
+        expiresAt: FUTURE,
+        updatedAt: CREATED,
+        createdAt: CREATED,
+        ipAddress: "1.2.3.4",
+        userAgent: "ua",
+      },
+    ],
+    over.subscription ?? [],
+    over.audit ?? [],
+  ];
+}
+
+describe("AdminUsersService.getDetail", () => {
+  it("aggregates providers/sessions/subscription/history without exposing secrets", async () => {
+    const { svc } = build(
+      detailQueue({
+        subscription: [{ status: "active", currentPeriodEnd: CREATED, cancelAtPeriodEnd: false }],
+        audit: [
+          {
+            id: 7n,
+            actorUserId: "admin1",
+            action: "user.status_changed",
+            targetType: "user",
+            targetId: "u1",
+            payloadBefore: { isActive: true },
+            payloadAfter: { isActive: false },
+            ipAddress: "9.9.9.9",
+            userAgent: "ua",
+            reason: "abuse",
+            createdAt: CREATED,
+          },
+        ],
+      }),
+    );
+
+    const detail = await svc.getDetail("u1");
+
+    expect(detail).toMatchObject({
+      id: "u1",
+      name: "프로필1",
+      email: "p1@a.com",
+      accessRole: "admin",
+      roles: ["admin"],
+      emailVerified: true,
+      isActive: true,
+    });
+    expect(detail.authProviders).toEqual([
+      { providerId: "google", linkedAt: CREATED.toISOString() },
+      { providerId: "credential", linkedAt: CREATED.toISOString() },
+    ]);
+    expect(detail.subscription).toEqual({
+      status: "active",
+      currentPeriodEnd: CREATED.toISOString(),
+      cancelAtPeriodEnd: false,
+    });
+    expect(detail.recentAudit).toEqual([
+      {
+        id: "7",
+        action: "user.status_changed",
+        actorUserId: "admin1",
+        reason: "abuse",
+        createdAt: CREATED.toISOString(),
+      },
+    ]);
+
+    // No credential ever leaks through the serialized payload.
+    const serialized = JSON.stringify(detail);
+    for (const secret of ["accessToken", "refreshToken", "idToken", "password", "token"]) {
+      expect(serialized).not.toContain(secret);
+    }
+    // The history rows are slimmed — payload/ip/user-agent are dropped.
+    expect(detail.recentAudit[0]).not.toHaveProperty("payloadBefore");
+    expect(detail.recentAudit[0]).not.toHaveProperty("ipAddress");
+  });
+
+  it("dedups providers and counts only unexpired sessions for the activity rollup", async () => {
+    const lastSeen = new Date(Date.now() - 1000);
+    const { svc } = build(
+      detailQueue({
+        providers: [
+          { providerId: "google", createdAt: PAST },
+          { providerId: "google", createdAt: CREATED },
+        ],
+        sessions: [
+          {
+            expiresAt: PAST,
+            updatedAt: PAST,
+            createdAt: PAST,
+            ipAddress: "1.1.1.1",
+            userAgent: "old",
+          },
+          {
+            expiresAt: FUTURE,
+            updatedAt: lastSeen,
+            createdAt: lastSeen,
+            ipAddress: "2.2.2.2",
+            userAgent: "new",
+          },
+        ],
+      }),
+    );
+
+    const detail = await svc.getDetail("u1");
+
+    expect(detail.authProviders).toEqual([{ providerId: "google", linkedAt: PAST.toISOString() }]);
+    expect(detail.sessions.activeCount).toBe(1);
+    expect(detail.sessions.lastActiveAt).toBe(lastSeen.toISOString());
+    expect(detail.sessions.lastIpAddress).toBe("2.2.2.2");
+    expect(detail.sessions.lastUserAgent).toBe("new");
+  });
+
+  it("returns a null subscription and empty rollups when nothing is linked", async () => {
+    const { svc } = build(detailQueue({ rbac: [], access: [], providers: [], sessions: [] }));
+    const detail = await svc.getDetail("u1");
+    expect(detail.subscription).toBeNull();
+    expect(detail.authProviders).toEqual([]);
+    expect(detail.roles).toEqual(["user"]);
+    expect(detail.accessRole).toBeNull();
+    expect(detail.sessions).toEqual({
+      activeCount: 0,
+      lastActiveAt: null,
+      lastIpAddress: null,
+      lastUserAgent: null,
+    });
+  });
+
+  it("404s when the user does not exist", async () => {
+    const { svc } = build([[]]);
+    await expect(svc.getDetail("ghost")).rejects.toThrow();
+  });
+});
