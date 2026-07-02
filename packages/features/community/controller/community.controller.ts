@@ -280,6 +280,7 @@ export class CommunityController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "커뮤니티 생성" })
   @ApiResponse({ status: 201, description: "커뮤니티 생성 성공", type: CommunityResponseDto })
+  @ApiResponse({ status: 403, description: "커뮤니티 생성 한도 초과" })
   @ApiResponse({ status: 409, description: "슬러그 중복" })
   @ApiBody({
     schema: {

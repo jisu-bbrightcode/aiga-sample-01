@@ -19,6 +19,11 @@ import {
 } from "@repo/drizzle/schema";
 import { and, asc, count, desc, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import type { CreateCommunityDto, UpdateCommunityDto } from "../dto";
+import {
+  OWNER_MODERATOR_PERMISSIONS,
+  assertWithinCreationLimit,
+  resolveInitialRules,
+} from "../helpers/bootstrap";
 import { buildCursorResult, decodeCursor } from "../helpers/pagination";
 import {
   type OperationalMemberItem,
@@ -130,18 +135,29 @@ export class CommunityService {
   /**
    * Create community
    */
+  /**
+   * Create community.
+   *
+   * 생성 정책 (BBR-588):
+   *   - slug 중복 금지 (409)
+   *   - 사용자당 소유 커뮤니티 개수 제한 (403)
+   *   - 규칙 미입력 시 기본 규칙 시드
+   *   - 생성자에게 owner 멤버십 + 전체 권한 모더레이터 부트스트랩
+   */
   async create(dto: CreateCommunityDto, userId: string): Promise<Community> {
     const existing = await this.findBySlug(dto.slug);
     if (existing) {
       throw new ConflictException(`이미 사용 중인 슬러그입니다: ${dto.slug}`);
     }
 
+    await this.assertCreationAllowed(userId);
+
     const [community] = await this.db
       .insert(communities)
       .values({
         ...dto,
         ownerId: userId,
-        rules: dto.rules ?? [],
+        rules: resolveInitialRules(dto.rules),
       })
       .returning();
 
@@ -155,6 +171,13 @@ export class CommunityService {
       role: "owner",
     });
 
+    await this.db.insert(communityModerators).values({
+      communityId: community.id,
+      userId,
+      permissions: OWNER_MODERATOR_PERMISSIONS,
+      appointedBy: userId,
+    });
+
     await this.db
       .update(communities)
       .set({
@@ -163,6 +186,18 @@ export class CommunityService {
       .where(eq(communities.id, community.id));
 
     return { ...community, memberCount: 1 } as Community;
+  }
+
+  /**
+   * 커뮤니티 생성 한도 검증 — 사용자가 이미 소유한 커뮤니티 수가 한도 이상이면 거부.
+   */
+  private async assertCreationAllowed(userId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ count: count() })
+      .from(communities)
+      .where(eq(communities.ownerId, userId));
+
+    assertWithinCreationLimit(row?.count ?? 0);
   }
 
   /**
