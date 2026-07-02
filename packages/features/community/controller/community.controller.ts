@@ -696,21 +696,49 @@ export class CommunityController {
   @Post("posts/:id/pin")
   @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "게시물 고정 (모더레이터)" })
+  @ApiOperation({ summary: "게시물 고정 토글 (모더레이터)" })
   @ApiParam({ name: "id", description: "게시물 ID" })
+  @ApiBody({
+    required: false,
+    schema: {
+      type: "object",
+      properties: {
+        pinned: { type: "boolean", description: "고정 상태 (생략 시 현재 상태 토글)" },
+        reason: { type: "string", description: "조치 사유 (감사 로그에 기록)" },
+      },
+    },
+  })
   @ApiResponse({ status: 200, description: "게시물 고정 토글 완료", type: PostResponseDto })
-  async pinPost(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: User) {
-    return this.postService.pin(id, user.id);
+  async pinPost(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+    @Body() dto: { pinned?: boolean; reason?: string } = {},
+  ) {
+    return this.postService.pin(id, user.id, dto);
   }
 
   @Post("posts/:id/lock")
   @UseGuards(BetterAuthGuard, SuspendedUserGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "게시물 잠금 (모더레이터)" })
+  @ApiOperation({ summary: "게시물 잠금 토글 (모더레이터)" })
   @ApiParam({ name: "id", description: "게시물 ID" })
+  @ApiBody({
+    required: false,
+    schema: {
+      type: "object",
+      properties: {
+        locked: { type: "boolean", description: "잠금 상태 (생략 시 현재 상태 토글)" },
+        reason: { type: "string", description: "조치 사유 (감사 로그에 기록)" },
+      },
+    },
+  })
   @ApiResponse({ status: 200, description: "게시물 잠금 토글 완료", type: PostResponseDto })
-  async lockPost(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: User) {
-    return this.postService.lock(id, user.id);
+  async lockPost(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+    @Body() dto: { locked?: boolean; reason?: string } = {},
+  ) {
+    return this.postService.lock(id, user.id, dto);
   }
 
   @Post("posts/:id/remove")
@@ -756,15 +784,16 @@ export class CommunityController {
       required: ["targetCommunityId"],
       properties: {
         targetCommunityId: { type: "string", format: "uuid", description: "대상 커뮤니티 ID" },
+        reason: { type: "string", description: "교차 게시 사유 (감사 로그에 기록)" },
       },
     },
   })
   async crosspost(
     @Param("id", ParseUUIDPipe) postId: string,
-    @Body() dto: { targetCommunityId: string },
+    @Body() dto: { targetCommunityId: string; reason?: string },
     @CurrentUser() user: User,
   ) {
-    return this.postService.crosspost(postId, dto.targetCommunityId, user.id);
+    return this.postService.crosspost(postId, dto.targetCommunityId, user.id, dto.reason);
   }
 
   // ==========================================================================

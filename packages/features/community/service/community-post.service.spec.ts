@@ -401,4 +401,112 @@ describeIfDb("CommunityPostService", () => {
       NotFoundException,
     );
   });
+
+  // -- BBR-603: pin/lock toggle + crosspost ops audit (reason + before/after) --
+
+  it("pin() toggles isPinned and writes a pin_post audit log with before/after + reason", async () => {
+    const db = getDrizzleDb();
+    const p = await svc.create({ communityId: ctx.communityId, title: "pin me" } as never, author);
+    createdPostIds.push(p.id);
+    expect(p.isPinned).toBe(false);
+
+    const pinned = await svc.pin(p.id, ctx.ownerId, { reason: "공지 고정" });
+    expect(pinned.isPinned).toBe(true);
+
+    const logs = await db
+      .select()
+      .from(communityModLogs)
+      .where(eq(communityModLogs.targetId, p.id));
+    const pinLog = logs.find((l) => l.action === "pin_post");
+    expect(pinLog).toBeDefined();
+    expect(pinLog?.targetType).toBe("post");
+    expect(pinLog?.moderatorId).toBe(ctx.ownerId);
+    expect(pinLog?.reason).toBe("공지 고정");
+    expect(pinLog?.details).toMatchObject({
+      kind: "pin",
+      before: { isPinned: false },
+      after: { isPinned: true },
+    });
+
+    // No explicit value → toggles back off.
+    const unpinned = await svc.pin(p.id, ctx.ownerId);
+    expect(unpinned.isPinned).toBe(false);
+  });
+
+  it("pin() honors an explicit pinned=false idempotently", async () => {
+    const p = await svc.create(
+      { communityId: ctx.communityId, title: "explicit unpin" } as never,
+      author,
+    );
+    createdPostIds.push(p.id);
+
+    const stillUnpinned = await svc.pin(p.id, ctx.ownerId, { pinned: false });
+    expect(stillUnpinned.isPinned).toBe(false);
+  });
+
+  it("pin() rejects a non-moderator member", async () => {
+    const p = await svc.create(
+      { communityId: ctx.communityId, title: "members cannot pin" } as never,
+      author,
+    );
+    createdPostIds.push(p.id);
+
+    await expect(svc.pin(p.id, author)).rejects.toThrow(ForbiddenException);
+  });
+
+  it("lock() toggles isLocked and writes a lock_post audit log capturing the new state", async () => {
+    const db = getDrizzleDb();
+    const p = await svc.create({ communityId: ctx.communityId, title: "lock me" } as never, author);
+    createdPostIds.push(p.id);
+    expect(p.isLocked).toBe(false);
+
+    const locked = await svc.lock(p.id, ctx.ownerId, { reason: "과열 토론" });
+    expect(locked.isLocked).toBe(true);
+
+    const logs = await db
+      .select()
+      .from(communityModLogs)
+      .where(eq(communityModLogs.targetId, p.id));
+    const lockLog = logs.find((l) => l.action === "lock_post");
+    expect(lockLog).toBeDefined();
+    expect(lockLog?.reason).toBe("과열 토론");
+    expect(lockLog?.details).toMatchObject({
+      kind: "lock",
+      before: { isLocked: false },
+      after: { isLocked: true },
+    });
+
+    const unlocked = await svc.lock(p.id, ctx.ownerId);
+    expect(unlocked.isLocked).toBe(false);
+  });
+
+  it("crosspost() creates a crosspost and records a crosspost audit log in the target community", async () => {
+    const db = getDrizzleDb();
+    const original = await svc.create(
+      { communityId: ctx.communityId, title: "original" } as never,
+      author,
+    );
+    createdPostIds.push(original.id);
+
+    const cross = await svc.crosspost(original.id, ctx.communityId, author, "참고용 공유");
+    createdPostIds.push(cross.id);
+    expect(cross.crosspostParentId).toBe(original.id);
+    expect(cross.title).toContain("[Crosspost]");
+
+    const logs = await db
+      .select()
+      .from(communityModLogs)
+      .where(eq(communityModLogs.targetId, cross.id));
+    const crossLog = logs.find(
+      (l) => l.action === "other" && (l.details as { kind?: string })?.kind === "crosspost",
+    );
+    expect(crossLog).toBeDefined();
+    expect(crossLog?.reason).toBe("참고용 공유");
+    expect(crossLog?.details).toMatchObject({
+      kind: "crosspost",
+      sourcePostId: original.id,
+      sourceCommunityId: ctx.communityId,
+      crosspostId: cross.id,
+    });
+  });
 });
