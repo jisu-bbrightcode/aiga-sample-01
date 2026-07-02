@@ -10,6 +10,7 @@ import {
   Controller,
   DefaultValuePipe,
   Delete,
+  ForbiddenException,
   Get,
   NotFoundException,
   Param,
@@ -51,10 +52,13 @@ import type {
   RespondModeratorInviteDto,
   RestoreHiddenContentDto,
   ReviewFilterDto,
+  SetBannedWordsDto,
   TransferOwnershipDto,
   UpdateCommunityDto,
+  UpdateFlairDto,
   UpdateModeratorPermissionsDto,
   UpdatePostDto,
+  UpdateRuleDto,
   VoteDto,
 } from "../dto";
 import {
@@ -97,6 +101,7 @@ import {
   CommunityModerationService,
   CommunityPostService,
   CommunityService,
+  CommunityTierService,
   CommunityVoteService,
 } from "../service";
 import {
@@ -126,6 +131,7 @@ export class CommunityController {
     private readonly blockService: CommunityBlockService,
     private readonly hiddenContentService: CommunityHiddenContentService,
     private readonly filterService: CommunityFilterService,
+    private readonly tierService: CommunityTierService,
   ) {}
 
   // ==========================================================================
@@ -1424,6 +1430,108 @@ export class CommunityController {
     @Query("type") type?: "post" | "user",
   ) {
     return this.moderationService.getFlairs(communityId, type);
+  }
+
+  @Patch("moderation/rules/:id")
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "규칙 수정" })
+  @ApiParam({ name: "id", description: "규칙 ID" })
+  @ApiResponse({ status: 200, description: "규칙 수정 성공", type: RuleResponseDto })
+  async updateRule(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateRuleDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.moderationService.updateRule(id, dto, user.id);
+  }
+
+  @Delete("moderation/rules/:id")
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "규칙 삭제" })
+  @ApiParam({ name: "id", description: "규칙 ID" })
+  @ApiResponse({ status: 200, description: "규칙 삭제 성공" })
+  async deleteRule(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.moderationService.deleteRule(id, user.id);
+  }
+
+  @Patch("moderation/flairs/:id")
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "플레어 수정" })
+  @ApiParam({ name: "id", description: "플레어 ID" })
+  @ApiResponse({ status: 200, description: "플레어 수정 성공", type: FlairResponseDto })
+  async updateFlair(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateFlairDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.moderationService.updateFlair(id, dto, user.id);
+  }
+
+  @Delete("moderation/flairs/:id")
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "플레어 삭제" })
+  @ApiParam({ name: "id", description: "플레어 ID" })
+  @ApiResponse({ status: 200, description: "플레어 삭제 성공" })
+  async deleteFlair(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.moderationService.deleteFlair(id, user.id);
+  }
+
+  @Get("moderation/:communityId/banned-words")
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "금칙어 목록" })
+  @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
+  @ApiResponse({ status: 200, description: "금칙어 목록 반환" })
+  async bannedWords(
+    @Param("communityId", ParseUUIDPipe) communityId: string,
+    @CurrentUser() user: User,
+  ) {
+    return { words: await this.moderationService.getBannedWords(communityId, user.id) };
+  }
+
+  @Put("moderation/:communityId/banned-words")
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "금칙어 목록 설정" })
+  @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["words"],
+      properties: {
+        words: { type: "array", items: { type: "string" }, description: "금칙어 목록" },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: "금칙어 설정 성공" })
+  async setBannedWords(
+    @Param("communityId", ParseUUIDPipe) communityId: string,
+    @Body() dto: SetBannedWordsDto,
+    @CurrentUser() user: User,
+  ) {
+    return { words: await this.moderationService.setBannedWords(communityId, dto.words, user.id) };
+  }
+
+  @Post("moderation/:communityId/rules/accept")
+  @UseGuards(BetterAuthGuard, SuspendedUserGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "커뮤니티 규칙 동의" })
+  @ApiParam({ name: "communityId", description: "커뮤니티 ID" })
+  @ApiResponse({ status: 200, description: "규칙 동의 성공" })
+  async acceptRules(
+    @Param("communityId", ParseUUIDPipe) communityId: string,
+    @CurrentUser() user: User,
+  ) {
+    const isMember = await this.communityService.isMember(communityId, user.id);
+    if (!isMember) {
+      throw new ForbiddenException("커뮤니티에 가입해야 규칙에 동의할 수 있습니다.");
+    }
+    await this.tierService.acceptRules(communityId, user.id);
+    return { accepted: true };
   }
 
   @Post("moderation/moderators/invite")

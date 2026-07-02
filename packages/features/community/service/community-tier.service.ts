@@ -151,6 +151,25 @@ export class CommunityTierService {
   }
 
   /**
+   * 멤버가 커뮤니티 규칙에 동의했는지 여부를 반환한다.
+   * 멤버십이 없으면 false (작성 게이트는 별도 멤버십 검사로 차단).
+   */
+  async hasAcceptedRules(communityId: string, userId: string): Promise<boolean> {
+    const [membership] = await this.db
+      .select({ rulesAcceptedAt: communityMemberships.rulesAcceptedAt })
+      .from(communityMemberships)
+      .where(
+        and(
+          eq(communityMemberships.communityId, communityId),
+          eq(communityMemberships.userId, userId),
+        ),
+      )
+      .limit(1);
+
+    return !!membership?.rulesAcceptedAt;
+  }
+
+  /**
    * 온보딩 상태를 조회한다.
    */
   async getOnboardingStatus(communityId: string, userId: string) {

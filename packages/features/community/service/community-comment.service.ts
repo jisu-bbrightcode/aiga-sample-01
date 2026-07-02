@@ -25,6 +25,7 @@ import { CommunityFilterService } from "./community-filter.service";
 import { CommunityKeywordFilterService } from "./community-keyword-filter.service";
 import { CommunityTierService, TIER_PRIVILEGES } from "./community-tier.service";
 import { combineDecision, type FilterViolation } from "./content-filter-policy";
+import { evaluateRulesGate, requiresRulesAcceptance } from "./rules-acceptance-policy";
 
 /** 댓글 본문 최대 길이(create-comment.dto.ts의 zod 스키마와 일치). */
 const COMMENT_CONTENT_MAX_LENGTH = 10000;
@@ -86,6 +87,19 @@ export class CommunityCommentService {
 
     // 정책 게이트: 숨김/잠김/삭제/미공개 게시글에는 댓글을 작성할 수 없다.
     assertCommentablePost(post);
+
+    // 규칙 동의 게이트(AC#1): 커뮤니티가 규칙 동의를 요구하면, 동의 전에는
+    // 댓글을 작성할 수 없다. 게시글 작성 경로와 동일한 정책을 공유한다.
+    const community = await this.communityService.findById(post.communityId);
+    if (requiresRulesAcceptance(community?.automodConfig)) {
+      const rulesGate = evaluateRulesGate(
+        community?.automodConfig,
+        await this.tierService.hasAcceptedRules(post.communityId, userId),
+      );
+      if (!rulesGate.allowed) {
+        throw new ForbiddenException(rulesGate.reason);
+      }
+    }
 
     // anti-spam: 작성자(userId) 단위 레이트 리밋. 초과 시 HTTP 429.
     // 정책 필터/Moderation API 호출 전에 검사해 남용을 조기 차단한다.

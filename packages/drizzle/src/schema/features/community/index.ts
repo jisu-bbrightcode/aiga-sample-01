@@ -223,6 +223,11 @@ export interface AutomodConfig {
   attachmentFilterAction?: "block" | "review";
   maxAttachments?: number;
   allowedAttachmentExtensions?: string[];
+
+  // Rules acceptance gate (PB-COMM-RULES-FLAIR-API-001): true 이면 멤버가
+  // 커뮤니티 규칙에 동의(communityMemberships.rulesAcceptedAt)하기 전에는
+  // 게시글/댓글을 작성할 수 없다.
+  requireRulesAcceptance?: boolean;
 }
 
 export interface LinkPreview {

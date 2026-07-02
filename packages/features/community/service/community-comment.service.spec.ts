@@ -10,8 +10,13 @@
 
 import { NotFoundException } from "@nestjs/common";
 import { RateLimitService } from "@repo/core/rate-limit";
-import { communityComments, communityMemberships, communityPosts } from "@repo/drizzle";
-import { eq, inArray } from "drizzle-orm";
+import {
+  communities,
+  communityComments,
+  communityMemberships,
+  communityPosts,
+} from "@repo/drizzle";
+import { and, eq, inArray } from "drizzle-orm";
 import { endTestDb, getDrizzleDb, hasDb } from "../../payment/__tests__/test-db";
 import { addExtraMember, cleanupExtraMember, setupCommunityCtx } from "./__tests__/test-helpers";
 import { CommunityService } from "./community.service";
@@ -85,6 +90,32 @@ describeIfDb("CommunityCommentService", () => {
     expect(c.depth).toBe(0);
     expect(c.parentId).toBeNull();
     expect(c.authorId).toBe(author);
+  });
+
+  it("create() enforces the rules-acceptance gate (PB-COMM-RULES-FLAIR-API-001 / AC#1)", async () => {
+    const db = getDrizzleDb();
+    await db
+      .update(communities)
+      .set({ automodConfig: { requireRulesAcceptance: true } })
+      .where(eq(communities.id, ctx.communityId));
+
+    await expect(
+      svc.create({ postId, content: "before accept" } as never, author),
+    ).rejects.toMatchObject({ status: 403 });
+
+    await db
+      .update(communityMemberships)
+      .set({ rulesAcceptedAt: new Date() })
+      .where(
+        and(
+          eq(communityMemberships.communityId, ctx.communityId),
+          eq(communityMemberships.userId, author),
+        ),
+      );
+
+    const c = await svc.create({ postId, content: "after accept" } as never, author);
+    createdCommentIds.push(c.id);
+    expect(c.content).toBe("after accept");
   });
 
   it("create() persists a reply with depth=parent.depth+1", async () => {

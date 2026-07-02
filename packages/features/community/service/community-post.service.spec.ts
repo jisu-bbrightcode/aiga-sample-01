@@ -14,8 +14,14 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { RateLimitService } from "@repo/core/rate-limit";
-import { communityMemberships, communityModLogs, communityPosts, rateLimits } from "@repo/drizzle";
-import { eq, inArray } from "drizzle-orm";
+import {
+  communities,
+  communityMemberships,
+  communityModLogs,
+  communityPosts,
+  rateLimits,
+} from "@repo/drizzle";
+import { and, eq, inArray } from "drizzle-orm";
 import { endTestDb, getDrizzleDb, hasDb } from "../../payment/__tests__/test-db";
 import { addExtraMember, cleanupExtraMember, setupCommunityCtx } from "./__tests__/test-helpers";
 import { CommunityService } from "./community.service";
@@ -88,6 +94,41 @@ describeIfDb("CommunityPostService", () => {
     createdPostIds.push(p.id);
     expect(p.authorId).toBe(author);
     expect(p.title).toBe("Hello");
+  });
+
+  it("create() enforces the rules-acceptance gate (PB-COMM-RULES-FLAIR-API-001 / AC#1)", async () => {
+    const db = getDrizzleDb();
+    // 커뮤니티가 작성 전 규칙 동의를 요구하도록 설정.
+    await db
+      .update(communities)
+      .set({ automodConfig: { requireRulesAcceptance: true } })
+      .where(eq(communities.id, ctx.communityId));
+
+    // 동의 전에는 게시글 작성이 403으로 차단된다.
+    await expect(
+      svc.create(
+        { communityId: ctx.communityId, title: "Before accept", type: "text" } as never,
+        author,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+
+    // 규칙에 동의하면 작성이 허용된다.
+    await db
+      .update(communityMemberships)
+      .set({ rulesAcceptedAt: new Date() })
+      .where(
+        and(
+          eq(communityMemberships.communityId, ctx.communityId),
+          eq(communityMemberships.userId, author),
+        ),
+      );
+
+    const p = await svc.create(
+      { communityId: ctx.communityId, title: "After accept", type: "text" } as never,
+      author,
+    );
+    createdPostIds.push(p.id);
+    expect(p.title).toBe("After accept");
   });
 
   it("create() rejects with HTTP 429 once the per-user rate limit is exceeded", async () => {
