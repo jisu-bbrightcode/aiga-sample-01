@@ -7,6 +7,27 @@ KCB integrations can require official JAR, license, `.dat`, and native library
 artifacts. Those files must be injected by deployment secrets/artifacts and must
 not be committed.
 
+The AIGA delivery runs this service on **Railway** (Vercel/Node cannot execute the
+JAR). The JVM execution-boundary decision, network boundary, timeout/retry, and
+secret/artifact policy are recorded in
+`docs/features/identity-verification/kcb-jar-adapter.md`; the deploy descriptor is
+`railway.json` and the internal Node↔JAR contract is `openapi.internal.yaml`.
+
+## Railway deployment
+
+- Build: `railway.json` uses the existing `Dockerfile` (Temurin 17).
+- Health check: Railway probes `GET /health` (`healthcheckPath`); HTTP 200 = up.
+- Artifacts: mount a Railway **Volume** at `/artifacts` with the official JAR +
+  license (gitignored, never baked into the image) and point
+  `KCB_MODULE_JAR_PATH` / `KCB_LICENSE_PATH` at the mounted paths.
+- Variables: set the `KCB_*` service variables (see "Required Environment"); the
+  Vercel/Node API reaches this service at its public HTTPS URL via
+  `KCB_ADAPTER_BASE_URL` with the shared `KCB_INTERNAL_AUTH_TOKEN` bearer.
+- Reference: Java deploy https://docs.railway.com/guides/spring-boot · variables
+  https://docs.railway.com/variables · private networking
+  https://docs.railway.com/networking/private-networking (Railway↔Railway only;
+  Vercel calls over public TLS).
+
 ## Endpoints
 
 - `GET /health`
